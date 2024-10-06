@@ -1,3 +1,22 @@
+commit cbfd81c853ce92f79068f721b4fa9a9f8f84227c
+Merge: 62a657e d4e7b4c
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sun Oct 6 09:58:07 2024 -0400
+
+    Merge remote-tracking branch 'ArrayBolt3/master'
+
+commit d4e7b4c0428527ea002e1ea61839effc0cb5e88e
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Sun Oct 6 01:23:57 2024 -0500
+
+    Change emulated device names to keep GTK from treating a cloaked VirtualBox tablet like a touchscreen
+
+commit 62a657ea69d07eb1164b1c5634f9f4035ce013a9
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri Sep 27 00:48:20 2024 +0000
+
+    bumped changelog version
+
 commit 222994ec63c36898b8a89fca2f0210384da2a0c3
 Merge: f5ee77e 29477f9
 Author: Patrick Schleizer <adrelanos@whonix.org>
