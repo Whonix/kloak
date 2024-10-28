@@ -19,7 +19,7 @@ Install dependencies:
 
 Fedora:
 
-    $ sudo dnf install make pkgconf-pkg-config libsodium libsodium-devel libevdev libevdev-devel
+    $ sudo dnf install gcc libevdev-devel libsodium-devel libubsan make pkgconf-pkg-config
 
 Debian:
 
