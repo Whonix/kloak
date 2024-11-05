@@ -124,7 +124,7 @@ The full usage and options are:
     Options:
       -r filename: device file to read events from. Can specify multiple -r options.
       -d delay: maximum delay (milliseconds) of released events. Default 100.
-      -s startup_timeout: time to wait (milliseconds) before startup. Default 100.
+      -s startup_timeout: time to wait (milliseconds) before startup. Default 500.
       -k csv_string: csv list of rescue key names to exit kloak in case the
          keyboard becomes unresponsive. Default is 'KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC'.
       -p: persistent mode (disable rescue key sequence)

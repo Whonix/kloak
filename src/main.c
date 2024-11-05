@@ -21,7 +21,7 @@
 #define MAX_RESCUE_KEYS 10           // max number of rescue keys to exit in case of emergency
 #define MIN_KEYBOARD_KEYS 20         // need at least this many keys to be a keyboard
 #define POLL_TIMEOUT_MS 1            // timeout to check for new events
-#define DEFAULT_MAX_DELAY_MS 20      // upper bound on event delay
+#define DEFAULT_MAX_DELAY_MS 100      // upper bound on event delay
 #define DEFAULT_STARTUP_DELAY_MS 500 // wait before grabbing the input device
 
 #define panic(format, ...) do { fprintf(stderr, format "\n", ## __VA_ARGS__); fflush(stderr); cleanup(); exit(EXIT_FAILURE); } while (0)
@@ -414,7 +414,7 @@ void usage() {
     fprintf(stderr, "Options:\n");
     fprintf(stderr, "  -r filename: device file to read events from. Can specify multiple -r options.\n");
     fprintf(stderr, "  -d delay: maximum delay (milliseconds) of released events. Default 100.\n");
-    fprintf(stderr, "  -s startup_timeout: time to wait (milliseconds) before startup. Default 100.\n");
+    fprintf(stderr, "  -s startup_timeout: time to wait (milliseconds) before startup. Default 500.\n");
     fprintf(stderr, "  -k csv_string: csv list of rescue key names to exit kloak in case the\n"
             "     keyboard becomes unresponsive. Default is 'KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC'.\n");
     fprintf(stderr, "  -p: persistent mode (disable rescue key sequence)\n");
