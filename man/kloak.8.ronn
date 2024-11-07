@@ -35,7 +35,7 @@ kloak(8) -- anti keystroke deanonymization tool
 
   * -s
 
-    startup_timeout: time to wait (milliseconds) before startup. Default 100.
+    startup_timeout: time to wait (milliseconds) before startup. Default 500.
 
   * -k
 
