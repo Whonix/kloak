@@ -1,3 +1,56 @@
+commit 3302108e60a944226cd6103f748a69e84a0d55c3
+Merge: 55879cf 9c57eba
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Thu Nov 7 11:03:45 2024 -0500
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3'
+
+commit 9c57eba2e77082f1967ec54a0a42226843df7f17
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Tue Nov 5 16:07:14 2024 -0600
+
+    Fix default values in code and docs
+
+commit b8e8fd579ae26b8fe3592e7af16b1319abe5ba14
+Merge: da41997 c0884aa
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Mon Oct 28 01:03:40 2024 -0400
+
+    Merge pull request #2 from siliconwaffle/patch-1
+    
+    Create kloak.spec
+
+commit da419970f57770fe247c470a2bfadfb2279c06ee
+Merge: 55879cf afca687
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Mon Oct 28 01:00:15 2024 -0400
+
+    Merge pull request #3 from siliconwaffle/patch-2
+    
+    Update README.md
+
+commit afca687e715cab3e5f651fbc02b61dc6bdd3d4b8
+Author: siliconwaffle <157927978+siliconwaffle@users.noreply.github.com>
+Date:   Sun Oct 27 17:45:45 2024 +0000
+
+    Update README.md
+    
+    Update dependencies information for Fedora, specifically adding gcc and libubsan(required for newer versions, there is no devel package available for it). And removing libevdev and libsodium(both are required by their respective devel packages, so their explicit listing here is unnecessary).
+
+commit c0884aa16b2a5c0588677a3ba5a9087eafc3e2b3
+Author: siliconwaffle <157927978+siliconwaffle@users.noreply.github.com>
+Date:   Sun Oct 27 17:40:03 2024 +0000
+
+    Create kloak.spec
+    
+    Spec file for rpm, specifically for Fedora.
+
+commit 55879cf0d80f11e9601e24ed8e01104936f7a25c
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sun Oct 6 14:01:58 2024 +0000
+
+    bumped changelog version
+
 commit cbfd81c853ce92f79068f721b4fa9a9f8f84227c
 Merge: 62a657e d4e7b4c
 Author: Patrick Schleizer <adrelanos@whonix.org>
