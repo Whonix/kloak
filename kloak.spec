@@ -1,5 +1,5 @@
 Name:           kloak
-Version:        0.3.6
+Version:        0.3.7
 Release:        %autorelease
 Summary:        Keystroke-level online anonymization kernel
 
