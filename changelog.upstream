@@ -1,3 +1,60 @@
+commit 117fad21aeb4ec052fdbdbc4113fc6e36b2fb63c
+Merge: 1c4ecca d6ad4e2
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Wed Nov 20 09:52:40 2024 -0500
+
+    Merge remote-tracking branch 'github-whonix/master'
+
+commit d6ad4e2e65a25d8e78909e6a5eccf6a6012b4489
+Merge: 3030e48 76b7750
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Wed Nov 20 09:50:40 2024 -0500
+
+    Merge pull request #5 from Fat-Zer/better-makefile
+    
+    A slightly more sophisticated Makefile
+
+commit 76b775049168cc327b2a13665d528e18fe266679
+Author: Alexander Golubev <fatzer2@gmail.com>
+Date:   Fri Nov 15 22:00:07 2024 +0300
+
+    A slightly more sophisticated Makefile
+    
+    - support for override of the compiler and utils
+    - support for append/override CFLAGS
+    - a target to update man pages
+    - install target
+    - better handling of conditional flags, particularly:
+      - disable some warnings on non-gcc compilers
+      - handle GNU's tuples like `x86-64-pc-linux-gnu` and
+        `aarch-unknowv-linux-gnu`
+    - organize CFLAGS by sorting them into categories
+    
+    Signed-off-by: Alexander Golubev <fatzer2@gmail.com>
+
+commit 3030e488a5aa4e9cecae0b932ff2c5564f2d7142
+Merge: 1c4ecca 74f12a7
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Mon Nov 18 07:34:36 2024 -0500
+
+    Merge pull request #6 from siliconwaffle/master
+    
+    Update kloak.spec
+
+commit 74f12a71993ba7ec26144730a48dc4c0e6a11a54
+Author: siliconwaffle <157927978+siliconwaffle@users.noreply.github.com>
+Date:   Sun Nov 17 17:13:24 2024 +0000
+
+    Update kloak.spec
+    
+    bump version tag
+
+commit 1c4ecca1fc41b497ea55419e34d4ec999d759a21
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Thu Nov 7 16:04:07 2024 +0000
+
+    bumped changelog version
+
 commit 3302108e60a944226cd6103f748a69e84a0d55c3
 Merge: 55879cf 9c57eba
 Author: Patrick Schleizer <adrelanos@whonix.org>
