@@ -1,3 +1,9 @@
+kloak (0:0.3.9-1) unstable; urgency=medium
+
+  * New upstream version (local package).
+
+ -- Patrick Schleizer <adrelanos@whonix.org>  Tue, 31 Dec 2024 19:26:41 +0000
+
 kloak (0:0.3.8-1) unstable; urgency=medium
 
   * New upstream version (local package).
