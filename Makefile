@@ -15,7 +15,7 @@ sbindir        ?= $(prefix)/sbin
 datadir        ?= $(prefix)/share
 mandir         ?= $(datadir)/man
 
-udev_rules_dir ?= /lib/udev/rules.d
+udev_rules_dir ?= /usr/lib/udev/rules.d
 apparmor_dir   ?= /etc/apparmor.d/
 systemd_dir    ?= /usr/lib/systemd/system
 
@@ -26,16 +26,15 @@ CC_VERSION=$(shell $(CC) --version)
 #
 # Omitted the following flags:
 # -D_GLIBCXX_ASSERTIONS  # application is not written in C++
-# -fstrict-flex-arrays=3 # not supported in Debian Bookworm's GCC version (12)
 # -fPIC -shared          # not a shared library
 # -fexceptions           # not multithreaded
-# -fhardened             # not supported in Debian Bookworm's GCC version (12)
+# -fhardened             # superfluous when building an apt package
 #
 # Added the following flags:
 # -fsanitize=address,undefined # enable ASan/UBSan
 WARN_CFLAGS := -Wall -Wformat -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 	-Werror=format-security -Werror=implicit -Werror=int-conversion \
-	-Werror=incompatible-pointer-types
+	-Werror=incompatible-pointer-types -fstrict-flex-arrays=3
 
 ifeq (,$(findstring clang,$(CC_VERSION))) # if not clang
 WARN_CFLAGS += -Wtrampolines -Wbidi-chars=any  # clang as for 18.1.8 doesn't support this warnings
@@ -80,10 +79,10 @@ auto-generated-man-pages/% : man/%.ronn
 clean :
 	rm -f kloak eventcap
 
-install : all lib/udev/rules.d/95-kloak.rules etc/apparmor.d/usr.sbin.kloak  usr/lib/systemd/system/kloak.service $(MANPAGES)
+install : all usr/lib/udev/rules.d/95-kloak.rules etc/apparmor.d/usr.sbin.kloak  usr/lib/systemd/system/kloak.service $(MANPAGES)
 	$(INSTALL) -d -m 755 $(addprefix $(DESTDIR), $(sbindir) $(mandir)/man8 $(udev_rules_dir) $(apparmor_dir) $(systemd_dir))
 	$(INSTALL) -m 755 kloak eventcap $(DESTDIR)$(sbindir)
 	$(INSTALL) -m 644 $(MANPAGES) $(DESTDIR)$(mandir)/man8
-	$(INSTALL) -m 644 lib/udev/rules.d/95-kloak.rules $(DESTDIR)$(udev_rules_dir)
+	$(INSTALL) -m 644 usr/lib/udev/rules.d/95-kloak.rules $(DESTDIR)$(udev_rules_dir)
 	$(INSTALL) -m 644 etc/apparmor.d/usr.sbin.kloak $(DESTDIR)$(apparmor_dir)
 	$(INSTALL) -m 644 usr/lib/systemd/system/kloak.service $(DESTDIR)$(systemd_dir)
