@@ -15,7 +15,7 @@ sbindir        ?= $(prefix)/sbin
 datadir        ?= $(prefix)/share
 mandir         ?= $(datadir)/man
 
-udev_rules_dir ?= /lib/udev/rules.d
+udev_rules_dir ?= /usr/lib/udev/rules.d
 apparmor_dir   ?= /etc/apparmor.d/
 systemd_dir    ?= /usr/lib/systemd/system
 
@@ -80,10 +80,10 @@ auto-generated-man-pages/% : man/%.ronn
 clean :
 	rm -f kloak eventcap
 
-install : all lib/udev/rules.d/95-kloak.rules etc/apparmor.d/usr.sbin.kloak  usr/lib/systemd/system/kloak.service $(MANPAGES)
+install : all usr/lib/udev/rules.d/95-kloak.rules etc/apparmor.d/usr.sbin.kloak  usr/lib/systemd/system/kloak.service $(MANPAGES)
 	$(INSTALL) -d -m 755 $(addprefix $(DESTDIR), $(sbindir) $(mandir)/man8 $(udev_rules_dir) $(apparmor_dir) $(systemd_dir))
 	$(INSTALL) -m 755 kloak eventcap $(DESTDIR)$(sbindir)
 	$(INSTALL) -m 644 $(MANPAGES) $(DESTDIR)$(mandir)/man8
-	$(INSTALL) -m 644 lib/udev/rules.d/95-kloak.rules $(DESTDIR)$(udev_rules_dir)
+	$(INSTALL) -m 644 usr/lib/udev/rules.d/95-kloak.rules $(DESTDIR)$(udev_rules_dir)
 	$(INSTALL) -m 644 etc/apparmor.d/usr.sbin.kloak $(DESTDIR)$(apparmor_dir)
 	$(INSTALL) -m 644 usr/lib/systemd/system/kloak.service $(DESTDIR)$(systemd_dir)
