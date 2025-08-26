@@ -4,4 +4,5 @@
 ## This file was generated using 'genmkfile debinstfile'.
 
 etc/*
+lib/*
 usr/*
