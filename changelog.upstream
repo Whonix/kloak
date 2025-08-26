@@ -1,3 +1,21 @@
+commit 686eb6ccc6e929135174e23631dd82e6cfe9d48f
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Tue Aug 26 05:36:56 2025 -0400
+
+    add debian install file (generated using "genmkfile debinstfile")
+
+commit 7e2a7880cfa9cdb31fa5967e5f5a372eb40d6d66
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Tue Aug 26 05:36:44 2025 -0400
+
+    trixie
+
+commit a18c4c8cb4855618dae86183e021859bc91c17a5
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Tue Aug 26 09:30:42 2025 +0000
+
+    bumped changelog version
+
 commit 54e74ef37f6b16936f3ff4cb00531a5d9c787b81
 Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Tue Aug 26 05:30:41 2025 -0400
