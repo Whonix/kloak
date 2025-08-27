@@ -1,36 +1,36 @@
-.\" generated with Ronn-NG/v0.9.1
-.\" http://github.com/apjanke/ronn-ng/tree/0.9.1
+.\" generated with Ronn-NG/v0.10.1
+.\" http://github.com/apjanke/ronn-ng/tree/0.10.1
 .TH "KLOAK" "8" "January 2020" "kloak" "kloak Manual"
 .SH "NAME"
 \fBkloak\fR \- anti keystroke deanonymization tool
 .SH "SYNOPSIS"
 \fBkloak\fR \fIoptions\fR
 .SH "OPTIONS"
-.IP "\[ci]" 4
+.IP "\(bu" 4
 \-h
 .IP
 print usage message and exit
-.IP "\[ci]" 4
+.IP "\(bu" 4
 \-r
 .IP
 filename: device file to read events from
-.IP "\[ci]" 4
+.IP "\(bu" 4
 \-w
 .IP
 filename: device file to write events to (should be uinput)
-.IP "\[ci]" 4
+.IP "\(bu" 4
 \-d
 .IP
 delay: maximum delay (milliseconds) of released events\. Default 100\.
-.IP "\[ci]" 4
+.IP "\(bu" 4
 \-s
 .IP
 startup_timeout: time to wait (milliseconds) before startup\. Default 500\.
-.IP "\[ci]" 4
+.IP "\(bu" 4
 \-k
 .IP
 csv_string: csv list of rescue key names to exit kloak in case the keyboard becomes unresponsive\. Default is 'KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC'\.
-.IP "\[ci]" 4
+.IP "\(bu" 4
 \-v
 .IP
 verbose mode

@@ -33,7 +33,7 @@ events, which are typically used for identification.
 
 %install
 %{__install} -Dm 0644 usr/lib/systemd/system/%{name}.service -t %{buildroot}%{_unitdir}
-%{__install} -Dm 0644 lib/udev/rules.d/*.rules -t %{buildroot}%{_udevrulesdir}
+%{__install} -Dm 0644 usr/lib/udev/rules.d/*.rules -t %{buildroot}%{_udevrulesdir}
 %{__install} -Dm 0755 eventcap -t %{buildroot}%{_sbindir}
 %{__install} -Dm 0755 %{name} -t %{buildroot}%{_sbindir}
 %{__install} -Dm 0644 auto-generated-man-pages/*.8 -t %{buildroot}%{_mandir}/man8
