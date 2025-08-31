@@ -1,12 +1,18 @@
 # anti keystroke deanonymization tool
 
-kloak: *Keystroke-level online anonymization kernel*
+kloak: *Event-level online anonymization kernel for input devices*
 
-A privacy tool that makes keystroke biometrics less effective. This
-is accomplished by obfuscating the time intervals between key press and
-release events, which are typically used for identification.
+A privacy tool that makes keystroke and mouse biometrics less effective. For
+keyboards, this is accomplished by obfuscating the time intervals between
+input events. For mice, this is done by obfuscating the time intervals between
+between mouse input events, the number of mouse input events, and the exact
+path taken by the mouse pointer. This data can be used for identification if
+not obfuscated.
 
-## Usage
+kloak is designed for use on Wayland only. The way it functions could work on
+X11 theoretically, but this is not implemented. Contributions welcome.
+
+## Installation
 
 There are two ways to run kloak:
 
@@ -17,43 +23,17 @@ There are two ways to run kloak:
 
 Install dependencies:
 
-Fedora:
-
-    $ sudo dnf install gcc libevdev-devel libsodium-devel libubsan make pkgconf-pkg-config
-
 Debian:
 
-    $ sudo apt install make pkg-config libsodium-dev libevdev-dev
+    $ sudo apt install make libevdev2 libevdev-dev libinput10 libinput-dev libwayland-client0 libwayland-dev libudev1 libudev-dev libxkbcommon0 libxkbcommon-dev pkg-config
 
-First, compile `kloak` and the event capture tool `eventcap`:
+Fedora:
+
+Unknown currently. Refer to Debian dependency list and install equivalent packages on Fedora.
+
+To compile `kloak`, imply run:
 
     $ make all
-
-Next, start `kloak` as root. This typically must run as root because `kloak` reads from and writes to device files:
-
-    $ sudo ./kloak
-
-**If you start `kloak` and lose control of your keyboard, pressing RShift + LShift + Esc will exit.** You can specify the rescue key combination with the `-k` option.
-
-Verify that `kloak` is running by starting in verbose mode:
-
-    $ sudo ./kloak -v
-    ...
-    Bufferred event at time: 1553710016364.  Type:   1,  Code:  37,  Value:   1,  Scheduled delay   84 ms
-    Released event at time : 1553710016364.  Type:   1,  Code:  37,  Value:   1,  Missed target     -7 ms
-    Bufferred event at time: 1553710016597.  Type:   1,  Code:  37,  Value:   0,  Scheduled delay   39 ms
-    Released event at time : 1553710016597.  Type:   1,  Code:  37,  Value:   0,  Missed target     -6 ms
-    Bufferred event at time: 1553710017039.  Type:   1,  Code:  32,  Value:   1,  Scheduled delay   79 ms
-    Released event at time : 1553710017039.  Type:   1,  Code:  32,  Value:   1,  Missed target     -3 ms
-    Bufferred event at time: 1553710017291.  Type:   1,  Code:  32,  Value:   0,  Scheduled delay   80 ms
-    Bufferred event at time: 1553710017354.  Type:   1,  Code:  39,  Value:   1,  Scheduled delay   94 ms
-    Lower bound raised to:   31 ms
-    Released event at time : 1553710017291.  Type:   1,  Code:  32,  Value:   0,  Missed target    -33 ms
-    Released event at time : 1553710017354.  Type:   1,  Code:  39,  Value:   1,  Missed target      0 ms
-    ...
-
-Notice that the lower bound on the random delay has to be raised when keys are pressed in quick succession. This ensures that the key events are written to `uinput` in the same order as they were generated.
-
 
 ### As a service
 
@@ -95,40 +75,55 @@ sudo apt-get install kloak
 
 See the [Whonix package build documentation](https://www.whonix.org/wiki/Dev/Build_Documentation/security-misc). Replace the sample package name `security-misc` with `kloak` to download, build, and install kloak.
 
-### Whonix contact and support
+## Usage
+
+Once `kloak` is compiled and installed, start it as root. This typically must run as root because `kloak` grabs exclusive access to input device files:
+
+    $ sudo ./kloak
+
+Then attempt to move the mouse. A red `+` sign should move around on the display. This is `kloak`'s mouse cursor. If you see this, `kloak` is running properly.
+
+You can use the keyboard the same way you usually would. Keystrokes will not appear immediately when typed, but will be delayed by semi-random amounts of time. This is what provides the anonymity benefits of kloak.
+
+The mouse can also be used the same as usual. When you move the mouse, only `kloak`'s mouse cursor will initially move; the operating system's cursor will "chase" it by jumping to `kloak`'s cursor's position at semi-random times. `kloak` will properly record where click events occur so that even if you click a location before the operating system's mouse cursor reaches that location, the click will register in the intended location.
+
+If `kloak` is installed as a service, you should see the red `+` mouse cursor upon startup. All input events will be anonymized automatically.
+
+## Whonix contact and support
 
 * [Free Forum Support](https://forums.whonix.org)
 * [Professional Support](https://www.whonix.org/wiki/Professional_Support)
 
-### Donate
+## Donate
 
 `kloak` requires [donations](https://www.whonix.org/wiki/Donate) to stay alive!
 
-### Troubleshooting
+## Troubleshooting
 
-#### My keyboard seems very slow
+### My keyboard or mouse seems very slow
 
-`kloak` works by introducing a random delay to each key press and release event. This requires temporarily buffering the event before it reaches the application (e.g., a text editor).
+`kloak` works by introducing a random delay to each input event (key press, key release, mouse move, etc). This requires temporarily buffering the event before it reaches the application (e.g., a text editor).
 
-The maximum delay is specified with the -d option. This is the maximum delay (in milliseconds) that can occur between the physical key events and writing key events to the user-level input device. The default is 100 ms, which was shown to achieve about a 20-30% reduction in identification accuracy and doesn't create too much lag between the user and the application (see the paper below). As the maximum delay increases, the ability to obfuscate typing behavior also increases and the responsiveness of the application decreases. This reflects a tradeoff between usability and privacy.
+The maximum delay is specified with the -d option. This is the maximum delay (in milliseconds) that can occur between the physical input events and sending input events to the Wayland compositor. The default is 100 ms, which was shown to achieve about a 20-30% reduction in identification accuracy and doesn't create too much lag between the user and the application (see the paper below). As the maximum delay increases, the ability to obfuscate typing behavior also increases and the responsiveness of the application decreases. This reflects a tradeoff between usability and privacy.
 
 If you're a fast typist and it seems like there is a long lag between pressing a key and seeing the character on screen, try lowering the maximum delay. Alternately, if you're a slower typist, you might be able to increase the maximum delay without noticing much difference. Automatically determining the best lag for each typing speed is an item for future work.
 
-### Options
+## Options
 
 The full usage and options are:
 
     $ ./kloak -h
 
     Usage: kloak [options]
+    Anonymizes keyboard and mouse input patterns by injecting jitter into input
+    events. Designed specifically for wlroots-based Wayland compositors. Will NOT
+    work with X11.
+
     Options:
-      -r filename: device file to read events from. Can specify multiple -r options.
-      -d delay: maximum delay (milliseconds) of released events. Default 100.
-      -s startup_timeout: time to wait (milliseconds) before startup. Default 500.
-      -k csv_string: csv list of rescue key names to exit kloak in case the
-         keyboard becomes unresponsive. Default is 'KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC'.
-      -p: persistent mode (disable rescue key sequence)
-      -v: verbose mode
+      -d, --delay=milliseconds          maximum delay of released events.
+                                        Default 100.
+      -s, --start-delay=milliseconds    time to wait before startup. Default 500.
+      -h, --help                        print help
 
 ## Try it out
 
@@ -149,15 +144,15 @@ For more info, see the paper [Obfuscating Keystroke Time Intervals to Avoid Iden
 
 ### How it works
 
-The time between key press and release events are typically used to identify users by their typing behavior. `kloak` obfuscates these time intervals by introducing a random delay between the physical key events and the arrival of key events at the application, for example a web browser.
+The time between key press and release events are typically used to identify users by their typing behavior. The pattern of mouse movements and clicks can be used in a similar fashion. `kloak` obfuscates these time intervals and patterns by introducing a random delay between the physical input events and the arrival of input events at the application, for example a web browser. For mice, the number of input events is also obfuscated by combining many small mouse move events into a few mouse jumps. This also obfuscates the exact shape of the mouse movement path.
 
-`kloak` grabs the input device and writes delayed key events to the output device. Grabbing the device disables any other application from reading the events. Events are scheduled to be released in a separate thread, where a random delay is introduced before they are written to a user-level input device via `uinput`. This was inspired from [kbd-mangler](https://github.com/bgeradz/Input-Mangler/).
+`kloak` grabs the input device and sends delayed input events to the Wayland compositor using emulated input protocols. Grabbing the device disables any other application from reading the events. Events are scheduled to be released at a later time as they are recieved, and a semi-random delay is introduced before they are sent to the compositor.
 
 ### When does it fail
 
 `kloak` does not protect against all forms of keystroke biometrics that can be used for identification. Specifically,
 
 * If the delay is too small, it is not effective. Adjust the delay to as high a value that's comfortable.
-* Repeated key presses are not obfuscated. If your system is set to repeat held-down keys at a unique rate, this could leak your identity.
+* Repeated key presses are not obfuscated. If your system is set to repeat held-down keys at a unique rate, this could leak your identity. (TODO: Is this still the case, or are held-down keys obfuscated now?)
 * Writing style is still apparent, in which [stylometry techniques could be used to determine authorship](https://vmonaco.com/papers/An%20investigation%20of%20keystroke%20and%20stylometry%20traits%20for%20authenticating%20online%20test%20takers.pdf).
 * Higher level cognitive behavior, such as editing and application usage, are still apparent. These lower-frequency actions are less understood at this point, but could potentially be used to reveal identity.

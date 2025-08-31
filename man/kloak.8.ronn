@@ -17,63 +17,45 @@ kloak(8) -- anti keystroke deanonymization tool
 `kloak` [options]
 
 ## OPTIONS
-  * -h
-
-    print usage message and exit
-
-  * -r
-
-    filename: device file to read events from
-
-  * -w
-
-    filename: device file to write events to (should be uinput)
-
-  * -d
-
-    delay: maximum delay (milliseconds) of released events. Default 100.
-
-  * -s
-
-    startup_timeout: time to wait (milliseconds) before startup. Default 500.
-
-  * -k
-
-    csv_string: csv list of rescue key names to exit kloak in case the
-    keyboard becomes unresponsive. Default is 'KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC'.
-
-  * -v
-
-    verbose mode
+  * `-h`, `--help`:
+    Print usage message and exit.
+  * `-d`, `--delay` :
+    Configure the maximum delay of released events. Default 100.
+  * `-s`, `--start-delay` :
+    Configure the time to wait before starting. Default 500.
 
 ## DESCRIPTION
-kloak is a Keystroke-level online anonymization kernel.
+kloak is an event-level online anonymization kernel for keyboards and mice.
 
-kloak is a privacy tool that makes keystroke biometrics less effective.
-This is accomplished by obfuscating the time intervals between key press
-and release events, which are typically used for identification.
+kloak is a privacy tool that makes input biometrics less effective. For
+keyboards, this is accomplished by obfuscating the time intervals between
+input events. For mice, this is done by obfuscating the time intervals between
+between mouse input events, the number of mouse input events, and the exact
+path taken by the mouse pointer. This data can be used for identification if
+not obfuscated.
 
 ## EXAMPLES
-Use eventcap(8) (or some other event capture tool) and look for the device
-that generates events when keys are pressed.
+On startup, `kloak` will grab all evdev input devices with libinput, and will
+proxy the events from those devices to the running Wayland compositor via
+emulated input protocols. There is no need to configure specific devices to be
+grabbed; `kloak` autodetects devices and displays, even when hotplugged.
 
-Starting `kloak` without any options will use sensible defaults and attempt to
-find the location of the keyboard device and uinput. Note that since `kloak`
-requires reading from and writing to device files, it probably won't work
-without running as root:
+`kloak` requires the ability to exclusively grab input devices under
+/dev/input, thus it usually needs to be run as root:
 
 `sudo ./kloak`
 
-Optionally start `kloak` by specifying the input and output device files.
-The output device should be the location of uinput.
-
-`sudo ./kloak -r /dev/input/event4 -w /dev/uinput`
+Optionally start `kloak` by specifying the event and startup delay. A longer
+startup delay (configured with `-s`) can be useful to avoid problems with
+startup, while a longer event delay (configured with `-d`) will provide
+possibly better anonymity at the cost of reducing usability.
 
 ## WWW
-https://github.com/vmonaco/kloak
+https://github.com/Whonix/kloak
 
 ## CREDITS
-kloak was written by Vinnie Monaco.
+kloak was originally written by Vinnie Monaco. It was then rewritten by Aaron
+Rainbolt to work with Wayland and provide better mouse obfuscation.
 
 ## AUTHOR
 This man page has been written by Patrick Schleizer (adrelanos@whonix.org).

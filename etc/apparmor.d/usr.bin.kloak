@@ -4,9 +4,10 @@ include <tunables/global>
 ## Copyright (C) 2012 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
 ## See the file COPYING for copying conditions.
 
+## TODO: This is probably horribly out of date.
 
-/usr/sbin/kloak {
-  include <local/usr.sbin.kloak>
+/usr/bin/kloak {
+  include <local/usr.bin.kloak>
 
   ## Required for 'kloak -v' (verbose) only.
   network unix stream,
@@ -20,7 +21,7 @@ include <tunables/global>
 
   /etc/ld.so.cache r,
   /etc/ld.so.preload r,
-  /usr/sbin/kloak mr,
+  /usr/bin/kloak mr,
   /{,usr/}lib{,32,64}/** mr,
   owner /dev/input/event* r,
   owner /dev/uinput rw,
@@ -30,5 +31,5 @@ include <tunables/global>
   owner /sys/devices/virtual/input/** r,
 
   # Site-specific additions and overrides. See local/README for details.
-  #include <local/usr.sbin.kloak>
+  #include <local/usr.bin.kloak>
 }

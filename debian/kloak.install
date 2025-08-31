@@ -3,8 +3,6 @@
 
 ## Manually maintained file. nogenmkfile
 
-eventcap usr/sbin/
-kloak usr/sbin/
+kloak usr/bin/
 
 etc/*
-usr/*
