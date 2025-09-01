@@ -3,6 +3,49 @@
  * See the file COPYING for copying conditions.
  */
 
+/*
+ * FIXMEs (all of these MUST be fixed before release):
+ * - The virtual mouse cursor DOES NOT MOVE when the wlroots pixman renderer
+ *   is in use. It also shows up in the wrong spot if running in a session
+ *   where Waybar is running.
+ * - When moving the mouse cursor in from the top of a virtual machine window
+ *   when kloak is initially starting, kloak will try to reset the mouse
+ *   pointer location, and in so doing  an attempt to dereference an
+ *   uninitialized output_geometry struct pointer will occur.
+ * - No emergency key functionality exists yet. This will make it impossible
+ *   to use kloak on a multi-user system, as all input devices are locked by
+ *   kloak to a single instance of a Wayland compositor. Multi-user setups
+ *   will have multiple compositors running at the same time, a key combo must
+ *   exist that can force a running kloak instance to relinquish control of
+ *   the input devices so another kloak instance can take over. (Even if there
+ *   aren't multiple human users of a machine, there may be multiple sessions
+ *   that need to use the input devices at the same time, for instance to
+ *   allow fully featured three-finger salute handling. Getting the keyboard
+ *   free from kloak will also be essential to allow TTYs to be used.)
+ * - kloak has to run as root, but it also has to know which compositor to
+ *   connect to. This requires some transfer of environment variables from the
+ *   "correct" user session to the kloak instance. How to define which session
+ *   is "correct" is yet to be determined (assuming a single-seat system, it
+ *   should be whichever session is physically active on the screen at the
+ *   time, but how do we know which one that is, and what the Wayland socket
+ *   corresponding to that session is?)
+ * - We want systemd sandboxing almost certainly, but how to acheive this is
+ *   not yet known. It might be possible to make a privleap exception for
+ *   kloak, then use a systemd user unit to call privleap to call kloak, but
+ *   then the systemd sandboxing needs to be permissive enough to handle both
+ *   leaprun *and* kloak. Alternatively, maybe the "correct" user session
+ *   simply writes data about how to connect to its Wayland compositor to a
+ *   location kloak can find, then uses a privleap exception to restart a
+ *   system-level kloak service which then picks up and uses that data. That's
+ *   probably best.
+ * - The C hardening options were accidentally not getting applied during
+ *   development. This wasn't discovered until Lintian complained about
+ *   missing hardening. The hardening settings are getting applied *now*, but
+ *   they've also turned up a slew of C warnings that need to be dealt with
+ *   (mostly related to unhandled enum values in switch statements and
+ *   possibly unsafe conversions of values from one type to another).
+ */
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <errno.h>

@@ -4,32 +4,37 @@ include <tunables/global>
 ## Copyright (C) 2012 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
 ## See the file COPYING for copying conditions.
 
-## TODO: This is probably horribly out of date.
-
 /usr/bin/kloak {
   include <local/usr.bin.kloak>
 
   ## Required for 'kloak -v' (verbose) only.
   network unix stream,
+  network netlink raw,
 
   signal receive set=cont peer=unconfined,
   signal receive set=exists peer=unconfined,
   signal receive set=kill peer=unconfined,
   signal receive set=term peer=unconfined,
 
-  ptrace readby,
+  capability dac_read_search,
+  capability dac_override,
+  capability net_admin,
+  capability sys_admin,
 
   /etc/ld.so.cache r,
   /etc/ld.so.preload r,
   /usr/bin/kloak mr,
   /{,usr/}lib{,32,64}/** mr,
-  owner /dev/input/event* r,
-  owner /dev/uinput rw,
-  owner /proc/*/cmdline r,
-  owner /proc/*/environ r,
-  owner /proc/*/maps r,
-  owner /sys/devices/virtual/input/** r,
+  owner /dev/input/event* rw,
+  /dev/urandom r,
+  /dev/shm/* mrw,
+  /sys/devices/virtual/dmi/id/uevent r,
+  /sys/bus/ r,
+  /sys/class/ r,
+  /sys/class/** r,
+  /sys/devices/**/uevent r,
+  /run/udev/data/* r,
 
-  # Site-specific additions and overrides. See local/README for details.
-  #include <local/usr.bin.kloak>
+  /usr/share/libinput/ r,
+  /usr/share/libinput/* r,
 }
