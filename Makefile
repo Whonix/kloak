@@ -26,16 +26,15 @@ CC_VERSION=$(shell $(CC) --version)
 #
 # Omitted the following flags:
 # -D_GLIBCXX_ASSERTIONS  # application is not written in C++
-# -fstrict-flex-arrays=3 # not supported in Debian Bookworm's GCC version (12)
 # -fPIC -shared          # not a shared library
 # -fexceptions           # not multithreaded
-# -fhardened             # not supported in Debian Bookworm's GCC version (12)
+# -fhardened             # superfluous when building an apt package
 #
 # Added the following flags:
 # -fsanitize=address,undefined # enable ASan/UBSan
 WARN_CFLAGS := -Wall -Wformat -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 	-Werror=format-security -Werror=implicit -Werror=int-conversion \
-	-Werror=incompatible-pointer-types
+	-Werror=incompatible-pointer-types -fstrict-flex-arrays=3
 
 ifeq (,$(findstring clang,$(CC_VERSION))) # if not clang
 WARN_CFLAGS += -Wtrampolines -Wbidi-chars=any  # clang as for 18.1.8 doesn't support this warnings

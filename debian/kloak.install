@@ -1,7 +1,10 @@
 ## Copyright (C) 2020 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
 ## See the file COPYING for copying conditions.
 
-## This file was generated using 'genmkfile debinstfile'.
+## Manually maintained file. nogenmkfile
+
+eventcap usr/sbin/
+kloak usr/sbin/
 
 etc/*
 usr/*
