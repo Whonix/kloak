@@ -1,3 +1,48 @@
+commit 9ef026b063b64a99b804423ed0a88bf69a095ab5
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Tue Sep 2 14:06:24 2025 +0000
+
+    bumped changelog version
+
+commit 797730bdc9db4121c305e4f8cd68bcb478212472
+Merge: fb06782 f65570e
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Tue Sep 2 10:05:34 2025 -0400
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit f65570e23856227e38efcdce06b819d6ebcd6e5f
+Merge: 29d32d9 fb06782
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Sun Aug 31 12:24:22 2025 -0500
+
+    Merge branch 'master' into arraybolt3/trixie
+
+commit fb0678212ff52bc875d4bbe8bdadc49f24aadef1
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Aug 30 15:05:24 2025 +0000
+
+    bumped changelog version
+
+commit c3a68cd6fee15840ae460674930d43ab52a3d483
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Aug 30 11:03:52 2025 -0400
+
+    trixie
+
+commit 29d32d93f40fdf6ce28e48fcd2aa0f5ed1119a9a
+Merge: 71638b1 4c6e217
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Tue Aug 26 19:26:15 2025 -0500
+
+    Merge branch 'master' into arraybolt3/trixie
+
+commit 4c6e21703b8e4dda3ebd960a465dbd75fa2d9862
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Tue Aug 26 09:39:39 2025 +0000
+
+    bumped changelog version
+
 commit 7c9502615b0dbd016b4ee6e33bcf3f6f1fd94b35
 Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Tue Aug 26 05:39:38 2025 -0400
@@ -40,6 +85,13 @@ Date:   Tue Aug 26 05:30:41 2025 -0400
 
     re-generate man pages (generated using "genmkfile manpages")
 
+commit 71638b16532d8ee0e0bf8209c7496f1a449fc0d3
+Merge: a5975fb 961fcbe
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Thu Aug 21 20:34:12 2025 -0500
+
+    Merge branch 'master' into arraybolt3/trixie
+
 commit 961fcbe5e95b11af712fa388c560f145958a06e5
 Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Wed Aug 20 06:57:33 2025 -0400
@@ -51,6 +103,12 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Wed Aug 20 06:25:39 2025 -0400
 
     readme
+
+commit a5975fb85262c764c71eff61da79ac45e35d3040
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Tue Aug 5 22:58:23 2025 -0500
+
+    Port to Trixie.
 
 commit 804b2c649974f657d152b8c8a0a1231facf34dd3
 Author: Patrick Schleizer <adrelanos@whonix.org>
