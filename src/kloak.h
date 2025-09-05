@@ -7,11 +7,22 @@
 #include <wayland-client.h>
 #include <libinput.h>
 
+/*********************************/
+/* static defines, do not change */
+/*********************************/
+#define ALPHABET_LEN 26
+#define ASCII_UPPERCASE_START 65
+#define ASCII_LOWERCASE_START 97
+
+/*******************/
+/* tunable defines */
+/*******************/
 #define MAX_DRAWABLE_LAYERS 128
 #define CURSOR_RADIUS 15
 #define POLL_TIMEOUT_MS 1
 #define DEFAULT_MAX_DELAY_MS 100
 #define DEFAULT_STARTUP_TIMEOUT_MS 500
+#define MAX_UNRELEASED_FRAMES 3
 
 #ifndef min
 #define min(a, b) ( ((a) < (b)) ? (a) : (b) )
@@ -33,11 +44,11 @@
  */
 struct drawable_layer {
   struct wl_output *output;
-  struct wl_buffer *buffer;
-  size_t width;
-  size_t height;
-  size_t stride;
-  size_t size;
+  struct wl_buffer *buffer_list[MAX_UNRELEASED_FRAMES];
+  int32_t width;
+  int32_t height;
+  int32_t stride;
+  int32_t size;
   uint32_t *pixbuf;
   struct wl_surface *surface;
   struct wl_shm_pool *shm_pool;
@@ -45,10 +56,12 @@ struct drawable_layer {
   struct zwlr_layer_surface_v1 *layer_surface;
   bool layer_surface_configured;
   /* Sync state */
-  bool frame_released;
+  bool frame_in_use[MAX_UNRELEASED_FRAMES];
   bool frame_pending;
   int32_t last_drawn_cursor_x;
   int32_t last_drawn_cursor_y;
+  int32_t cursor_x_pos_list[MAX_UNRELEASED_FRAMES];
+  int32_t cursor_y_pos_list[MAX_UNRELEASED_FRAMES];
 };
 
 /*
@@ -96,8 +109,8 @@ struct input_packet {
   enum libinput_event_type li_event_type;
 
   /* mouse movement bits */
-  uint32_t cursor_x;
-  uint32_t cursor_y;
+  int32_t cursor_x;
+  int32_t cursor_y;
 
   /* generic bits */
   int64_t sched_time;
@@ -119,15 +132,15 @@ struct disp_state {
   bool seat_set;
   struct wl_keyboard *kb;
   struct wl_output *outputs[MAX_DRAWABLE_LAYERS];
-  int output_names[MAX_DRAWABLE_LAYERS];
+  uint32_t output_names[MAX_DRAWABLE_LAYERS];
   struct zxdg_output_manager_v1 *xdg_output_manager;
   struct zxdg_output_v1 *xdg_outputs[MAX_DRAWABLE_LAYERS];
   struct output_geometry *output_geometries[MAX_DRAWABLE_LAYERS];
   struct output_geometry *pending_output_geometries[MAX_DRAWABLE_LAYERS];
-  uint32_t global_space_width;
-  uint32_t global_space_height;
-  uint32_t pointer_space_x;
-  uint32_t pointer_space_y;
+  int32_t global_space_width;
+  int32_t global_space_height;
+  int32_t pointer_space_x;
+  int32_t pointer_space_y;
   struct zwlr_layer_shell_v1 *layer_shell;
   struct zwlr_virtual_pointer_manager_v1 *virt_pointer_manager;
   struct zwp_virtual_keyboard_manager_v1 *virt_kb_manager;
@@ -138,7 +151,7 @@ struct disp_state {
   struct xkb_keymap *xkb_keymap;
   struct xkb_state *xkb_state;
   char *old_kb_map_shm;
-  uint32_t old_kb_map_shm_size;
+  int32_t old_kb_map_shm_size;
   struct drawable_layer *layers[MAX_DRAWABLE_LAYERS];
 };
 
@@ -147,12 +160,12 @@ struct disp_state {
 /***************/
 
 /*
- * A 64-bit unsigned integer with direct access to the constituent bytes. Used
+ * A 64-bit signed integer with direct access to the constituent bytes. Used
  * to allow getting 64-bit integers from /dev/urandom.
  */
-union rand_uint64 {
-  uint64_t val;
-  char raw[sizeof(uint64_t)];
+union rand_int64 {
+  int64_t val;
+  char raw[sizeof(int64_t)];
 };
 
 /*********************/
@@ -164,17 +177,17 @@ union rand_uint64 {
  * specified buffer. applayer_random_init must be called before this function
  * will behave as intended.
  */
-static void read_random(char * buf, size_t len);
+static void read_random(char * buf, ssize_t len);
 
 /*
  * Populates a string with a number of random characters in the set [a-zA-Z].
  */
-static void randname(char *buf, size_t len);
+static void randname(char *buf, ssize_t len);
 
 /*
  * Creates a mmap-able shared memory file of the specified size.
  */
-static int create_shm_file(size_t size);
+static int create_shm_file(ssize_t size);
 
 /*
  * Returns a monotonic 64-bit timestamp.
@@ -182,7 +195,7 @@ static int create_shm_file(size_t size);
 static int64_t current_time_ms(void);
 
 /*
- * Generates a random 64-bit number between the two specified numbers. Uses
+ * Generates a random 64-bit number between lower and upper inclusive. Uses
  * /dev/urandom as its source.
  */
 static int64_t random_between(int64_t lower, int64_t upper);
@@ -190,8 +203,8 @@ static int64_t random_between(int64_t lower, int64_t upper);
 /*
  * Determine if a point falls inside an area.
  */
-static bool check_point_in_area(uint32_t x, uint32_t y, uint32_t rect_x,
-  uint32_t rect_y, uint32_t rect_width, uint32_t rect_height);
+static bool check_point_in_area(int32_t x, int32_t y, int32_t rect_x,
+  int32_t rect_y, int32_t rect_width, int32_t rect_height);
 
 /*
  * Determine if two screens are touching or overlapping given their
@@ -219,7 +232,7 @@ static struct screen_local_coord abs_coord_to_screen_local_coord(int32_t x,
  * Converts a set of coordinates in screen-local space to a set of coordinates
  * in compositor-global space.
  */
-static struct coord screen_local_coord_to_abs_coord(uint32_t x, uint32_t y,
+static struct coord screen_local_coord_to_abs_coord(int32_t x, int32_t y,
   int32_t output_idx);
 
 /*
@@ -236,7 +249,17 @@ static struct coord traverse_line(struct coord start, struct coord end,
  * set to true, crosshairs representing the cursor will be drawn in the block,
  * otherwise the block will simply blank out anything that it is drawing over.
  */
-static void draw_block(uint32_t * pixbuf, int32_t x, int32_t y,
+static void draw_block(uint32_t * pixbuf, int32_t offset, int32_t x, int32_t y,
+  int32_t layer_width, int32_t layer_height, int32_t rad, bool crosshair);
+
+/*
+ * Parse an option parameter as an unsigned integer.
+ */
+static int32_t parse_uintarg(const char *arg_name, const char *val);
+
+/*
+ */
+static void draw_block(uint32_t * pixbuf, int32_t offset, int32_t x, int32_t y,
   int32_t layer_width, int32_t layer_height, int32_t rad, bool crosshair);
 
 /*
@@ -247,7 +270,7 @@ static int32_t parse_uintarg(const char *arg_name, const char *val);
 /*
  * Sleeps for the specified number of milliseconds.
  */
-static void sleep_ms(long ms);
+static int32_t sleep_ms(int64_t ms);
 
 /********************/
 /* wayland handling */
@@ -351,7 +374,7 @@ static void damage_surface_enh(struct wl_surface *surface, int32_t x,
  * isn't one already queued, and update a queued mouse movement event to
  * reflect the current virtual cursor position otherwise.
  */
-static struct input_packet * update_virtual_cursor(uint32_t ts_milliseconds);
+static struct input_packet * update_virtual_cursor();
 
 /*
  * Processes a libinput event, sending emulated input to the compositor as

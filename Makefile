@@ -29,6 +29,7 @@ CC_VERSION=$(shell $(CC) --version)
 #
 # Added the following flags:
 # -fsanitize=address,undefined # enable ASan/UBSan
+# -ftrapv                      # Crash on signed integer overflow/underflow
 WARN_CFLAGS := -Wall -Wformat -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 	-Werror=format-security -Werror=implicit -Werror=int-conversion \
 	-Werror=incompatible-pointer-types -fstrict-flex-arrays=3
@@ -39,7 +40,7 @@ endif
 
 FORTIFY_CFLAGS := -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fstack-clash-protection \
 	-fstack-protector-strong -fno-delete-null-pointer-checks \
-	-fno-strict-overflow -fno-strict-aliasing -fsanitize=undefined
+	-fno-strict-overflow -fno-strict-aliasing -fsanitize=undefined -ftrapv
 
 ifeq (yes,$(patsubst x86_64%-linux-gnu,yes,$(TARGETARCH)))
 FORTIFY_CFLAGS += -fcf-protection=full # only supported on x86_64

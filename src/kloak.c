@@ -5,13 +5,6 @@
 
 /*
  * FIXMEs (all of these MUST be fixed before release):
- * - The virtual mouse cursor DOES NOT MOVE when the wlroots pixman renderer
- *   is in use. It also shows up in the wrong spot if running in a session
- *   where Waybar is running.
- * - When moving the mouse cursor in from the top of a virtual machine window
- *   when kloak is initially starting, kloak will try to reset the mouse
- *   pointer location, and in so doing  an attempt to dereference an
- *   uninitialized output_geometry struct pointer will occur.
  * - No emergency key functionality exists yet. This will make it impossible
  *   to use kloak on a multi-user system, as all input devices are locked by
  *   kloak to a single instance of a Wayland compositor. Multi-user setups
@@ -38,12 +31,23 @@
  *   location kloak can find, then uses a privleap exception to restart a
  *   system-level kloak service which then picks up and uses that data. That's
  *   probably best.
- * - The C hardening options were accidentally not getting applied during
- *   development. This wasn't discovered until Lintian complained about
- *   missing hardening. The hardening settings are getting applied *now*, but
- *   they've also turned up a slew of C warnings that need to be dealt with
- *   (mostly related to unhandled enum values in switch statements and
- *   possibly unsafe conversions of values from one type to another).
+ * - Possibly allow configuring the crosshair color? Red might not work for
+ *   everyone.
+ * - XKB isn't quite working - Alt+Tab works but you sometimes have to tap Alt
+ *   to get the window stack popup to go away, pressing and holding Alt while
+ *   dragging the mouse makes Alt effectively stuck for all mouse click
+ *   events.
+ */
+
+/*
+ * NOTES FOR DEVELOPERS:
+ * - Use signed arithmetic wherever possible. Any form of integer
+ *   over/underflow is dangerous here, thus kloak has -ftrapv enabled and thus
+ *   signed arithmetic over/underflow will simply crash (and thus restart)
+ *   kloak rather than resulting in memory corruption. Unsigned over/underflow
+ *   however does NOT trap because it is well-defined in C. Thus avoid
+ *   unsigned arithmetic wherever possible.
+ * - Use an assert to check that a value is within bounds before every cast.
  */
 
 #include <stdlib.h>
@@ -63,6 +67,8 @@
 #include <math.h>
 #include <sys/queue.h>
 #include <getopt.h>
+#include <assert.h>
+#include <limits.h>
 
 #include <wayland-client.h>
 #include "xdg-output-protocol.h"
@@ -103,38 +109,68 @@ int randfd;
 /* utility functions */
 /*********************/
 
-static void read_random(char *buf, size_t len) {
-  if (read(randfd, buf, len) < len) {
+static void read_random(char *buf, ssize_t len) {
+  assert(len >= 0);
+  assert(randfd > 0);
+  assert(buf != NULL);
+
+  if (read(randfd, buf, (size_t)(len)) < len) {
     fprintf(stderr,
-      "FATAL ERROR: Could not read %d byte(s) from /dev/urandom!\n", len);
+      "FATAL ERROR: Could not read %ld byte(s) from /dev/urandom!\n", len);
     exit(1);
   }
 }
 
-static void randname(char *buf, size_t len) {
+static void randname(char *buf, ssize_t len) {
   char randchar = 0;
-  for (size_t i = 0; i < len; ++i) {
+
+  assert(len >= 0);
+  assert(buf != NULL);
+
+  for (ssize_t i = 0; i < len; ++i) {
     do {
       read_random(&randchar, 1);
-      if (randchar & 0x80)
-        randchar ^= 0x80;
-    } while (randchar >= (127 - 127 % 52));
+      if (randchar == CHAR_MIN) {
+        randchar = 0;
+      } else {
+        randchar = (char)(abs(randchar));
+      }
+    } while (randchar >= (CHAR_MAX - (CHAR_MAX % ALPHABET_LEN)));
 
-    randchar %= 52;
-    if (randchar < 26) {
-      randchar += 65;
+    randchar %= (ALPHABET_LEN * 2);
+    if (randchar < ALPHABET_LEN) {
+      randchar += ASCII_UPPERCASE_START;
     } else {
-      randchar += 71;
+      randchar += ASCII_LOWERCASE_START;
     }
     buf[i] = randchar;
   }
 }
 
-static int create_shm_file(size_t size) {
+static int create_shm_file(ssize_t size) {
   int32_t retries = 100;
   int fd = -1;
+  /* 18 = length of string '/kloak-XXXXXXXXXX' + NULL terminator */
+  char name[18];
+
+  assert(size >= 0);
+  /* 
+   * TODO: Try to choose whether to compare against INT32_MAX or INT64_MAX
+   * at compile time if possible.
+   */
+  if (sizeof(off_t) == 4) {
+    assert(size <= INT32_MAX);
+  } else if (sizeof(off_t) == 8) {
+    assert(size <= INT64_MAX);
+  } else {
+    fprintf(stderr,
+      "FATAL ERROR: off_t is not 32-bit or 64-bit, cannot continue\n");
+    exit(1);
+  }
+
   do {
-    char name[] = "/kloak-XXXXXXXXXX";
+    strcpy(name, "/kloak-XXXXXXXXXX");
+    /* 10 = length of 'XXXXXXXXXX', 11 = length + NULL terminator */
     randname(name + sizeof(name) - 11, 10);
     --retries;
     fd = shm_open(name, O_RDWR | O_CREAT | O_EXCL, 0600);
@@ -146,13 +182,14 @@ static int create_shm_file(size_t size) {
 
   if (fd == -1) {
     fprintf(stderr,
-      "FATAL ERROR: Could not create shared memory fd: Resource temporarily unavailable\n");
+      "FATAL ERROR: Could not create shared memory fd: %s\n",
+      strerror(errno));
     exit(1);
   }
 
   int32_t ret;
   do {
-    ret = ftruncate(fd, size);
+    ret = ftruncate(fd, (off_t)(size));
   } while (ret < 0 && errno == EINTR);
   if (ret < 0) {
     close(fd);
@@ -168,35 +205,43 @@ static int create_shm_file(size_t size) {
 static int64_t current_time_ms(void) {
   struct timespec spec;
   clock_gettime(CLOCK_MONOTONIC, &spec);
-  return (spec.tv_sec) * 1000 + (spec.tv_nsec) / 1000000;
+  int64_t result = (spec.tv_sec * 1000) + (spec.tv_nsec / 1000000);
+  assert(result >= 0);
+  return result;
 }
 
 static int64_t random_between(int64_t lower, int64_t upper) {
-  uint64_t maxval;
-  union rand_uint64 randval;
+  assert(lower >= 0);
+  assert(upper >= 0);
+
+  int64_t maxval;
+  union rand_int64 randval;
   /* default to max if the interval is not valid */
   if (lower >= upper) {
     return upper;
   }
-  if (lower < 0 || upper < 0) {
-    return 0;
-  }
 
   maxval = upper - lower + 1;
+  assert(maxval > 0);
   do {
-    read_random(randval.raw, sizeof(uint64_t));
-  } while (randval.val >= (UINT64_MAX - UINT64_MAX % maxval));
+    read_random(randval.raw, sizeof(int64_t));
+    if (randval.val == INT64_MIN) {
+      randval.val = 0;
+    } else {
+      randval.val = llabs(randval.val);
+    }
+  } while (randval.val >= (INT64_MAX - (INT64_MAX % maxval)));
 
   randval.val %= maxval;
-  uint64_t out_val = lower + randval.val;
-  if (out_val > INT64_MAX) {
-    return 0;
-  }
-  return (int64_t) lower + randval.val;
+  return lower + randval.val;
 }
 
-static bool check_point_in_area(uint32_t x, uint32_t y, uint32_t rect_x,
-  uint32_t rect_y, uint32_t rect_width, uint32_t rect_height) {
+static bool check_point_in_area(int32_t x, int32_t y, int32_t rect_x,
+  int32_t rect_y, int32_t rect_width, int32_t rect_height) {
+  if (x < 0 || y < 0 || rect_x < 0 || rect_y < 0 || rect_width < 0
+    || rect_height < 0) {
+    return false;
+  }
   if (x >= rect_x && x < rect_x + rect_width
     && y >= rect_y && y < rect_y + rect_height) {
     return true;
@@ -220,6 +265,11 @@ static bool check_screen_touch(struct output_geometry scr1,
    * current algorithm seems to deal with that particular edge case
    * acceptably well...
    */
+
+  if (scr1.x < 0 || scr1.y < 0 || scr1.width < 0 || scr1.height < 0
+    || scr2.x < 0 || scr2.y < 0 || scr2.width < 0 || scr2.height < 0) {
+    return false;
+  }
 
   if (scr1.x > 0) {
     scr1.x -= 1;
@@ -254,29 +304,36 @@ static bool check_screen_touch(struct output_geometry scr1,
 }
 
 static void recalc_global_space(struct disp_state * state) {
-  uint32_t ul_corner_x = UINT32_MAX;
-  uint32_t ul_corner_y = UINT32_MAX;
-  uint32_t br_corner_x = 0;
-  uint32_t br_corner_y = 0;
+  int32_t ul_corner_x = INT32_MAX;
+  int32_t ul_corner_y = INT32_MAX;
+  int32_t br_corner_x = 0;
+  int32_t br_corner_y = 0;
 
   struct output_geometry *screen_list[MAX_DRAWABLE_LAYERS];
-  size_t screen_list_len = 0;
+  ssize_t screen_list_len = 0;
 
-  for (size_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
-    if (!state->output_geometries[i])
+  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+    if (!state->output_geometries[i]) {
       continue;
+    }
+    int32_t cur_geom_x = state->output_geometries[i]->x;
+    int32_t cur_geom_y = state->output_geometries[i]->y;
+    int32_t cur_geom_width = state->output_geometries[i]->width;
+    int32_t cur_geom_height = state->output_geometries[i]->height;
+    if (cur_geom_x < 0 || cur_geom_y < 0
+      || cur_geom_width < 0 || cur_geom_height < 0) {
+      continue;
+    }
     screen_list[screen_list_len] = state->output_geometries[i];
     ++screen_list_len;
-    if (state->output_geometries[i]->x < ul_corner_x) {
-      ul_corner_x = state->output_geometries[i]->x;
+    if (cur_geom_x < ul_corner_x) {
+      ul_corner_x = cur_geom_x;
     }
-    if (state->output_geometries[i]->y < ul_corner_y) {
-      ul_corner_y = state->output_geometries[i]->y;
+    if (cur_geom_y < ul_corner_y) {
+      ul_corner_y = cur_geom_y;
     }
-    uint32_t temp_br_x
-      = state->output_geometries[i]->x + state->output_geometries[i]->width;
-    uint32_t temp_br_y
-      = state->output_geometries[i]->y + state->output_geometries[i]->height;
+    int32_t temp_br_x = cur_geom_x + cur_geom_width;
+    int32_t temp_br_y = cur_geom_y + cur_geom_height;
     if (temp_br_x > br_corner_x) {
       br_corner_x = temp_br_x;
     }
@@ -285,43 +342,42 @@ static void recalc_global_space(struct disp_state * state) {
     }
   }
 
+  /* Silently fail if we haven't gotten a valid state yet */
+  if (screen_list_len <= 0) {
+    return;
+  }
   if (ul_corner_x > br_corner_x) {
-    /* Maybe we just haven't gotten a valid screen state yet, silently fail */
     return;
   }
   if (ul_corner_y > br_corner_y) {
-    /* same as above */
     return;
   }
 
   struct output_geometry *conn_screen_list[MAX_DRAWABLE_LAYERS];
   conn_screen_list[0] = screen_list[0];
-  size_t conn_screen_list_len = 1;
+  ssize_t conn_screen_list_len = 1;
 
   /*
    * Check for gaps between the screens. We don't support running if gaps are
-   * present.
-   *
-   * If a screen's left edge touches another screen, current_screen->x ==
-   * left_screen->x + left_screen->width.
-   * If a screen's right edge touches another screen, current_screen->x +
-   * current_screen->width == right_screen->x
-   * If a screen's top edge touches another screen, current_screen->y ==
-   * up_screen->y + up_screen->height
-   * If a screen's bottom edge touches another screen, current_screen->y +
-   * current_screen->height == bottom_screen->y
+   * present. To do this, we start with an arbitrary screen, then find all
+   * screens touching it, then find all screens touching those screens, and so
+   * on, until we can't find any more screens touching whatever "zone" we
+   * started in. If the number of connected screens is equal to the number of
+   * attached screens, then all screens are connected, otherwise there is a
+   * gap somewhere.
    */
-  for (size_t i = 0; i < conn_screen_list_len; ++i) {
-    for (size_t j = 0; j < screen_list_len; ++j) {
+  for (ssize_t i = 0; i < conn_screen_list_len; ++i) {
+    for (ssize_t j = 0; j < screen_list_len; ++j) {
       bool screen_in_conn_list = false;
-      for (size_t k = 0; k < conn_screen_list_len; ++k) {
+      for (ssize_t k = 0; k < conn_screen_list_len; ++k) {
         if (screen_list[j] == conn_screen_list[k]) {
           screen_in_conn_list = true;
           break;
         }
       }
-      if (screen_in_conn_list)
+      if (screen_in_conn_list) {
         continue;
+      }
       struct output_geometry *conn_screen = conn_screen_list[i];
       struct output_geometry *cur_screen = screen_list[j];
       if (check_screen_touch(*conn_screen, *cur_screen)) {
@@ -347,28 +403,39 @@ static void recalc_global_space(struct disp_state * state) {
 static struct screen_local_coord abs_coord_to_screen_local_coord(int32_t x,
   int32_t y) {
   struct screen_local_coord out_data = { 0 };
+  if (x < 0 || y < 0) {
+    return out_data;
+  }
 
-  for (size_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+  for (int32_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
     if (!state.output_geometries[i]) {
       continue;
     }
-    if (!(x >= state.output_geometries[i]->x)) {
+
+    int32_t cur_geom_x = state.output_geometries[i]->x;
+    int32_t cur_geom_y = state.output_geometries[i]->y;
+    int32_t cur_geom_width = state.output_geometries[i]->width;
+    int32_t cur_geom_height = state.output_geometries[i]->height;
+    if (cur_geom_x < 0 || cur_geom_y < 0 || cur_geom_width < 0
+      || cur_geom_height < 0 ) {
       continue;
     }
-    if (!(y >= state.output_geometries[i]->y)) {
+
+    if (!(x >= cur_geom_x)) {
       continue;
     }
-    if (!(x < state.output_geometries[i]->x
-      + state.output_geometries[i]->width)) {
+    if (!(y >= cur_geom_y)) {
       continue;
     }
-    if (!(y < state.output_geometries[i]->y
-      + state.output_geometries[i]->height)) {
+    if (!(x < cur_geom_x + cur_geom_width)) {
+      continue;
+    }
+    if (!(y < cur_geom_y + cur_geom_height)) {
       continue;
     }
     out_data.output_idx = i;
-    out_data.x = x - state.output_geometries[i]->x;
-    out_data.y = y - state.output_geometries[i]->y;
+    out_data.x = x - cur_geom_x;
+    out_data.y = y - cur_geom_y;
     out_data.valid = true;
     break;
   }
@@ -380,20 +447,32 @@ static struct screen_local_coord abs_coord_to_screen_local_coord(int32_t x,
   return out_data;
 }
 
-static struct coord screen_local_coord_to_abs_coord(uint32_t x, uint32_t y,
+static struct coord screen_local_coord_to_abs_coord(int32_t x, int32_t y,
   int32_t output_idx) {
   struct coord out_val = {
     .x = -1,
     .y = -1,
   };
 
-  if (!state.layers[output_idx]
-    || x >= state.output_geometries[output_idx]->width
-    || y >= state.output_geometries[output_idx]->height) {
+  assert(output_idx >= 0);
+  if (x < 0 || y < 0) {
     return out_val;
   }
-  out_val.x = state.output_geometries[output_idx]->x + x;
-  out_val.y = state.output_geometries[output_idx]->y + y;
+
+  if (!state.layers[output_idx]) {
+    return out_val;
+  }
+  int32_t cur_geom_x = state.output_geometries[output_idx]->x;
+  int32_t cur_geom_y = state.output_geometries[output_idx]->y;
+  int32_t cur_geom_width = state.output_geometries[output_idx]->width;
+  int32_t cur_geom_height = state.output_geometries[output_idx]->height;
+  if (cur_geom_x < 0 || cur_geom_y < 0 || cur_geom_width < 0
+    || cur_geom_height < 0) {
+    return out_val;
+  }
+
+  out_val.x = cur_geom_x + x;
+  out_val.y = cur_geom_y + y;
   return out_val;
 }
 
@@ -416,11 +495,7 @@ struct coord traverse_line(struct coord start, struct coord end,
   }
 
   double slope = num / denom;
-  double steep;
-  if (slope < 0)
-    steep = -slope;
-  else
-    steep = slope;
+  double steep = fabs(slope);
 
   if (steep < 1) {
     if (start.x < end.x) {
@@ -449,7 +524,7 @@ struct coord traverse_line(struct coord start, struct coord end,
   return out_val;
 }
 
-static void draw_block(uint32_t *pixbuf, int32_t x, int32_t y,
+static void draw_block(uint32_t *pixbuf, int32_t offset, int32_t x, int32_t y,
   int32_t layer_width, int32_t layer_height, int32_t rad, bool crosshair) {
   int32_t start_x = x - rad;
   if (start_x < 0) start_x = 0;
@@ -463,11 +538,11 @@ static void draw_block(uint32_t *pixbuf, int32_t x, int32_t y,
   for (int32_t work_y = start_y; work_y <= end_y; ++work_y) {
     for (int32_t work_x = start_x; work_x <= end_x; ++work_x) {
       if (crosshair && work_x == x) {
-        pixbuf[work_y * layer_width + work_x] = 0xffff0000;
+        pixbuf[offset + (work_y * layer_width + work_x)] = 0xffff0000;
       } else if (crosshair && work_y == y) {
-        pixbuf[work_y * layer_width + work_x] = 0xffff0000;
+        pixbuf[offset + (work_y * layer_width + work_x)] = 0xffff0000;
       } else {
-        pixbuf[work_y * layer_width + work_x] = 0x00000000;
+        pixbuf[offset + (work_y * layer_width + work_x)] = 0x00000000;
       }
     }
   }
@@ -481,10 +556,10 @@ static int32_t parse_uintarg(const char *arg_name, const char *val) {
   if (*val_endchar != '\0') {
     goto parse_uintarg_error;
   }
-  if (val_int > UINT32_MAX) {
+  if (val_int > INT32_MAX) {
     goto parse_uintarg_error;
   }
-  return val_int;
+  return (int32_t)(val_int);
 
 parse_uintarg_error:
   fprintf(stderr,
@@ -493,9 +568,10 @@ parse_uintarg_error:
   return -1;
 }
 
-static void sleep_ms(long ms) {
+static int32_t sleep_ms(int64_t ms) {
+  assert(ms >= 0);
   struct timespec ts;
-  ts.tv_sec = ms / 1000;
+  ts.tv_sec = (time_t)(ms / 1000);
   ts.tv_nsec = (ms % 1000) * 1000000;
   int nanosleep_ret;
   do {
@@ -503,10 +579,9 @@ static void sleep_ms(long ms) {
   } while (nanosleep_ret == -1 && errno == EINTR);
 
   if (nanosleep_ret == -1) {
-    fprintf(stderr,
-      "FATAL ERROR: Could not sleep for requested start duration!\n");
-    exit(1);
+    return -1;
   }
+  return 0;
 }
 
 /********************/
@@ -531,7 +606,7 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
     state->shm = wl_registry_bind(registry, name, &wl_shm_interface, 2);
   } else if (strcmp(interface, wl_output_interface.name) == 0) {
     bool new_layer_allocated = false;
-    for (size_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
       if (!state->layers[i]) {
         state->outputs[i] = wl_registry_bind(registry, name,
           &wl_output_interface, 4);
@@ -571,19 +646,19 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
   } else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
     state->xdg_output_manager = wl_registry_bind(registry, name,
       &zxdg_output_manager_v1_interface, 3);
-    for (size_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
-      if (state->outputs[i]) {
-        if (!state->xdg_outputs[i]) {
-          /* This is where we make xdg_outputs for any wl_outputs that were
-           * sent too early. */
-          state->xdg_outputs[i] = zxdg_output_manager_v1_get_xdg_output(
-            state->xdg_output_manager, state->outputs[i]);
-          zxdg_output_v1_add_listener(state->xdg_outputs[i],
-            &xdg_output_listener, state);
-          wl_output_add_listener(state->outputs[i], &output_listener, state);
-          state->pending_output_geometries[i] = calloc(1,
-            sizeof(struct output_geometry));
-        }
+    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+      if ((state->outputs[i]) && (!state->xdg_outputs[i])) {
+        /* 
+	 * This is where we make xdg_outputs for any wl_outputs that were
+         * sent too early.
+	 */
+        state->xdg_outputs[i] = zxdg_output_manager_v1_get_xdg_output(
+          state->xdg_output_manager, state->outputs[i]);
+        zxdg_output_v1_add_listener(state->xdg_outputs[i],
+          &xdg_output_listener, state);
+        wl_output_add_listener(state->outputs[i], &output_listener, state);
+        state->pending_output_geometries[i] = calloc(1,
+          sizeof(struct output_geometry));
       }
     }
   } else if (strcmp(interface, zwlr_layer_shell_v1_interface.name) == 0) {
@@ -606,7 +681,7 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
 static void registry_handle_global_remove(void *data,
   struct wl_registry *registry, uint32_t name) {
   struct disp_state *state = data;
-  for (size_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
     if (state->layers[i]) {
       if (state->output_names[i] == name) {
         struct drawable_layer *layer = state->layers[i];
@@ -621,7 +696,8 @@ static void registry_handle_global_remove(void *data,
         state->output_geometries[i] = NULL;
         wl_surface_destroy(layer->surface);
         if (layer->pixbuf != NULL) {
-          munmap(layer->pixbuf, layer->size);
+          assert(layer->size >= 0);
+          munmap(layer->pixbuf, (size_t)(layer->size));
         }
         if (layer->shm_pool != NULL) {
           wl_shm_pool_destroy(layer->shm_pool);
@@ -633,6 +709,11 @@ static void registry_handle_global_remove(void *data,
       }
     }
   }
+
+  /*
+   * TODO: Should we start explicitly deinitializing all non-layer-specific
+   * bits of state here?
+   */
 }
 
 static void seat_handle_name(void *data, struct wl_seat *seat,
@@ -657,6 +738,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *seat,
 
 static void kb_handle_keymap(void *data, struct wl_keyboard *kb,
   uint32_t format, int32_t fd, uint32_t size) {
+  assert(size <= INT32_MAX);
   struct disp_state *state = data;
   char *kb_map_shm = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
   if (kb_map_shm == MAP_FAILED) {
@@ -670,12 +752,13 @@ static void kb_handle_keymap(void *data, struct wl_keyboard *kb,
       close(fd);
       return;
     } else {
-      munmap(state->old_kb_map_shm, state->old_kb_map_shm_size);
+      assert(state->old_kb_map_shm_size >= 0);
+      munmap(state->old_kb_map_shm, (size_t)(state->old_kb_map_shm_size));
     }
   }
   zwp_virtual_keyboard_v1_keymap(state->virt_kb, format, fd, size);
   state->old_kb_map_shm = kb_map_shm;
-  state->old_kb_map_shm_size = size;
+  state->old_kb_map_shm_size = (int32_t)(size);
   if (state->xkb_keymap) {
     xkb_keymap_unref(state->xkb_keymap);
   }
@@ -725,11 +808,25 @@ static void kb_handle_repeat_info(void *data, struct wl_keyboard *kb,
 }
 
 static void wl_buffer_release(void *data, struct wl_buffer *buffer) {
-  for (size_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
-    if (state.layers[i]) {
-      if (state.layers[i]->buffer == buffer) {
-        state.layers[i]->frame_released = true;
-        state.layers[i]->buffer = NULL;
+  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+    if (!state.layers[i]) {
+      continue;
+    }
+    for (int32_t j = 0; j < MAX_UNRELEASED_FRAMES; ++j) {
+      if (state.layers[i]->buffer_list[j] == buffer) {
+        state.layers[i]->frame_in_use[j] = false;
+        state.layers[i]->buffer_list[j] = NULL;
+        /* Blank out the location where the cursor was drawn previously */
+        draw_block(
+          state.layers[i]->pixbuf,
+          (state.layers[i]->size * j) / 4,
+          state.layers[i]->cursor_x_pos_list[j],
+          state.layers[i]->cursor_y_pos_list[j],
+          state.layers[i]->width,
+          state.layers[i]->height,
+          CURSOR_RADIUS,
+          false
+        );
         break;
       }
     }
@@ -750,13 +847,13 @@ static void wl_output_handle_mode(void *data, struct wl_output *output,
 
 static void wl_output_info_done(void *data, struct wl_output *output) {
   struct disp_state *state = data;
-  for (size_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
     if (state->outputs[i] == output) {
       struct output_geometry *geometry = state->pending_output_geometries[i];
       if (geometry->x == 0 && geometry->y == 0 && geometry->width == 0
         && geometry->height == 0)
         return;
-      state->output_geometries[i] = state->pending_output_geometries[i];
+      state->output_geometries[i] = geometry;
       recalc_global_space(state);
       break;
     }
@@ -781,7 +878,7 @@ static void wl_output_handle_description(void *data, struct wl_output *output,
 static void xdg_output_handle_logical_position(void *data,
   struct zxdg_output_v1 *xdg_output, int32_t x, int32_t y) {
   struct disp_state *state = data;
-  for (size_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
     if (state->xdg_outputs[i] == xdg_output) {
       state->pending_output_geometries[i]->x = x;
       state->pending_output_geometries[i]->y = y;
@@ -793,7 +890,7 @@ static void xdg_output_handle_logical_position(void *data,
 static void xdg_output_handle_logical_size(void *data,
   struct zxdg_output_v1 *xdg_output, int32_t width, int32_t height) {
   struct disp_state *state = data;
-  for (size_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
     if (state->xdg_outputs[i] == xdg_output) {
       state->pending_output_geometries[i]->width = width;
       state->pending_output_geometries[i]->height = height;
@@ -821,8 +918,8 @@ static void layer_surface_configure(void *data,
   struct zwlr_layer_surface_v1 *layer_surface, uint32_t serial, uint32_t width,
   uint32_t height) {
   struct disp_state *state = data;
-  struct drawable_layer *layer;
-  for (size_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+  struct drawable_layer *layer = NULL;
+  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
     if (state->layers[i]) {
       if (state->layers[i]->layer_surface == layer_surface) {
         layer = state->layers[i];
@@ -830,18 +927,22 @@ static void layer_surface_configure(void *data,
       }
     }
   }
-  layer->width = width;
-  layer->height = height;
-  layer->stride = width * 4;
-  layer->size = layer->stride * (size_t) height;
-  int shm_fd = create_shm_file(layer->size);
+  assert(layer != NULL);
+  assert(width * 4 <= INT32_MAX);
+  assert(height <= INT32_MAX);
+  layer->width = (int32_t)(width);
+  layer->height = (int32_t)(height);
+  layer->stride = (int32_t)(width * 4);
+  layer->size = layer->stride * layer->height;
+  assert(layer->size >= 0);
+  int shm_fd = create_shm_file(layer->size * MAX_UNRELEASED_FRAMES);
   if (shm_fd == -1) {
     fprintf(stderr,
       "FATAL ERROR: Cannot allocate shared memory block for frame: %s\n",
       strerror(errno));
     exit(1);
   }
-  layer->pixbuf = mmap(NULL, layer->size, PROT_READ | PROT_WRITE,
+  layer->pixbuf = mmap(NULL, (size_t)(layer->size * MAX_UNRELEASED_FRAMES), PROT_READ | PROT_WRITE,
     MAP_SHARED, shm_fd, 0);
   if (layer->pixbuf == MAP_FAILED) {
     close(shm_fd);
@@ -851,7 +952,7 @@ static void layer_surface_configure(void *data,
     exit(1);
   }
   layer->shm_pool = wl_shm_create_pool(state->shm, shm_fd,
-    layer->size);
+    layer->size * MAX_UNRELEASED_FRAMES);
 
   struct wl_region *zeroed_region = wl_compositor_create_region(
     state->compositor);
@@ -887,34 +988,43 @@ static void li_close_restricted(int fd, void *user_data) {
 /************************/
 
 static void draw_frame(struct drawable_layer *layer) {
-  if (!layer->frame_released)
-    return;
+  int32_t chosen_frame_idx = -1;
+
   if (!layer->layer_surface_configured)
     return;
+
+  for (int32_t i = 0; i < MAX_UNRELEASED_FRAMES; ++i) {
+    if (!layer->frame_in_use[i]) {
+      chosen_frame_idx = i;
+      break;
+    }
+  }
+  if (chosen_frame_idx == -1) {
+    return;
+  }
+
   layer->frame_pending = false;
 
-  struct wl_buffer *buffer = wl_shm_pool_create_buffer(layer->shm_pool, 0,
-    layer->width, layer->height, layer->stride, WL_SHM_FORMAT_ARGB8888);
+  struct wl_buffer *buffer = wl_shm_pool_create_buffer(layer->shm_pool,
+    layer->size * chosen_frame_idx, layer->width, layer->height,
+    layer->stride, WL_SHM_FORMAT_ARGB8888);
 
+  assert(cursor_x < INT32_MAX && cursor_x >= 0);
+  assert(cursor_y < INT32_MAX && cursor_y >= 0);
   struct screen_local_coord scr_coord = abs_coord_to_screen_local_coord(
-    (int32_t) cursor_x, (int32_t) cursor_y);
-  struct screen_local_coord prev_scr_coord = abs_coord_to_screen_local_coord(
-    (int32_t) prev_cursor_x, (int32_t) prev_cursor_y);
+    (int32_t)(cursor_x), (int32_t)(cursor_y));
 
   bool cursor_is_on_layer = false;
-  for (size_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
-    if (state.layers[i] == layer) {
-      if (i == scr_coord.output_idx) {
+  if (scr_coord.valid) {
+    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+      if ((state.layers[i] == layer) && (i == scr_coord.output_idx)) {
         cursor_is_on_layer = true;
       }
     }
   }
 
   if (layer->last_drawn_cursor_x >= 0 && layer->last_drawn_cursor_y >= 0) {
-    /* Blank out the previous cursor location */
-    draw_block(layer->pixbuf, layer->last_drawn_cursor_x,
-      layer->last_drawn_cursor_y, layer->width, layer->height,
-      CURSOR_RADIUS, false);
+    /* Damage the previous cursor location */
     damage_surface_enh(layer->surface,
       layer->last_drawn_cursor_x - CURSOR_RADIUS,
       layer->last_drawn_cursor_y - CURSOR_RADIUS,
@@ -923,15 +1033,16 @@ static void draw_frame(struct drawable_layer *layer) {
   }
   if (cursor_is_on_layer) {
     /* Draw red crosshairs at the pointer location */
-    draw_block(layer->pixbuf, scr_coord.x, scr_coord.y, layer->width,
-      layer->height, CURSOR_RADIUS, true);
+    draw_block(layer->pixbuf, (layer->size * chosen_frame_idx) / 4,
+      scr_coord.x, scr_coord.y, layer->width, layer->height, CURSOR_RADIUS,
+      true);
     damage_surface_enh(layer->surface, scr_coord.x - CURSOR_RADIUS,
       scr_coord.y - CURSOR_RADIUS, scr_coord.x + CURSOR_RADIUS + 1,
       scr_coord.y + CURSOR_RADIUS + 1);
   }
 
   wl_buffer_add_listener(buffer, &buffer_listener, NULL);
-  layer->buffer = buffer;
+  layer->buffer_list[chosen_frame_idx] = buffer;
   wl_surface_attach(layer->surface, buffer, 0, 0);
   wl_surface_commit(layer->surface);
   if (cursor_is_on_layer) {
@@ -941,16 +1052,21 @@ static void draw_frame(struct drawable_layer *layer) {
     layer->last_drawn_cursor_x = -1;
     layer->last_drawn_cursor_y = -1;
   }
-  layer->frame_released = false;
+  layer->cursor_x_pos_list[chosen_frame_idx] = layer->last_drawn_cursor_x;
+  layer->cursor_y_pos_list[chosen_frame_idx] = layer->last_drawn_cursor_y;
+  layer->frame_in_use[chosen_frame_idx] = true;
 }
 
 static struct drawable_layer *allocate_drawable_layer(struct disp_state *state,
   struct wl_output *output) {
   struct drawable_layer *layer = calloc(1, sizeof(struct drawable_layer));
-  layer->frame_released = true;
   layer->frame_pending = true;
   layer->last_drawn_cursor_x = -1;
   layer->last_drawn_cursor_y = -1;
+  for (ssize_t i = 0; i < MAX_UNRELEASED_FRAMES; ++i) {
+    layer->cursor_x_pos_list[i] = -1;
+    layer->cursor_y_pos_list[i] = -1;
+  }
   layer->output = output;
   layer->surface = wl_compositor_create_surface(state->compositor);
   if (!layer->surface) {
@@ -971,6 +1087,7 @@ static struct drawable_layer *allocate_drawable_layer(struct disp_state *state,
     ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT);
   zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
     ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
+  zwlr_layer_surface_v1_set_exclusive_zone(layer->layer_surface, -1);
   wl_surface_commit(layer->surface);
 
   return layer;
@@ -978,14 +1095,18 @@ static struct drawable_layer *allocate_drawable_layer(struct disp_state *state,
 
 static void damage_surface_enh(struct wl_surface *surface, int32_t x,
   int32_t y, int32_t width, int32_t height) {
+  assert(width >= 0);
+  assert(height >= 0);
   if (x < 0) x = 0;
   if (y < 0) y = 0;
   wl_surface_damage_buffer(surface, x, y, width, height);
 }
 
-static struct input_packet * update_virtual_cursor(uint32_t ts_milliseconds) {
+static struct input_packet * update_virtual_cursor() {
+  assert(prev_cursor_x < INT32_MAX && prev_cursor_x >= 0);
+  assert(prev_cursor_y < INT32_MAX && prev_cursor_y >= 0);
   struct screen_local_coord prev_scr_coord = abs_coord_to_screen_local_coord(
-    (int32_t) prev_cursor_x, (int32_t) prev_cursor_y);
+    (int32_t)(prev_cursor_x), (int32_t)(prev_cursor_y));
 
   if (!prev_scr_coord.valid || !state.layers[prev_scr_coord.output_idx]) {
     /* We've somehow gotten into a spot where the previous coordinate data
@@ -999,8 +1120,11 @@ static struct input_packet * update_virtual_cursor(uint32_t ts_milliseconds) {
         prev_cursor_y = sane_location.y;
         cursor_x = sane_location.x;
         cursor_y = sane_location.y;
+        assert(prev_cursor_x < INT32_MAX && prev_cursor_x >= 0);
+        assert(prev_cursor_y < INT32_MAX && prev_cursor_y >= 0);
         prev_scr_coord = abs_coord_to_screen_local_coord(
-          (int32_t) prev_cursor_x, (int32_t) prev_cursor_y);
+          (int32_t)(prev_cursor_x), (int32_t)(prev_cursor_y));
+        break;
       }
     }
   }
@@ -1031,16 +1155,18 @@ static struct input_packet * update_virtual_cursor(uint32_t ts_milliseconds) {
    *   back on a screen, move the end location so that we can walk to it in a
    *   vertical line. This allows us to "glide" along the wall.
    *
-   * This sounds like an awful lot of work, but I couldn't find another way to
-   * get the mouse to glide smoothly along edges while still respecting them.
+   * There may be a more efficient algorithm for this. Contributions welcome.
    */
+
+  assert(cursor_x < INT32_MAX && cursor_x >= 0);
+  assert(cursor_y < INT32_MAX && cursor_y >= 0);
   struct coord start = {
-    .x = (int32_t) prev_cursor_x,
-    .y = (int32_t) prev_cursor_y,
+    .x = (int32_t)(prev_cursor_x),
+    .y = (int32_t)(prev_cursor_y),
   };
   struct coord end = {
-    .x = (int32_t) cursor_x,
-    .y = (int32_t) cursor_y,
+    .x = (int32_t)(cursor_x),
+    .y = (int32_t)(cursor_y),
   };
   struct coord prev_trav_coord = start;
   bool end_x_hit = false;
@@ -1052,8 +1178,10 @@ static struct input_packet * update_virtual_cursor(uint32_t ts_milliseconds) {
     struct screen_local_coord trav_scr_coord
       = abs_coord_to_screen_local_coord(trav_coord.x, trav_coord.y);
     if (!trav_scr_coord.valid) {
-      /* Figure out what direction we moved when we went off screen, and move
-       * move backwards in that direction, but in only one dimension. */
+      /* 
+       * Figure out what direction we moved when we went off screen, and move
+       * move backwards in that direction, but in only one dimension.
+       */
       if (prev_trav_coord.x < trav_coord.x) {
         trav_scr_coord = abs_coord_to_screen_local_coord(trav_coord.x - 1,
           trav_coord.y);
@@ -1098,20 +1226,24 @@ static struct input_packet * update_virtual_cursor(uint32_t ts_milliseconds) {
           continue;
         }
       }
+      /* This should never be reached, but just in case... */
+      abort();
     }
     if (end_x_hit && end_y_hit) {
-      if ((int32_t) cursor_x != end.x) {
+      if ((int32_t)(cursor_x) != end.x) {
         cursor_x = end.x;
       }
-      if ((int32_t) cursor_y != end.y) {
+      if ((int32_t)(cursor_y) != end.y) {
         cursor_y = end.y;
       }
       break;
     }
     prev_trav_coord = trav_coord;
   }
+  assert(cursor_x < INT32_MAX && cursor_x >= 0);
+  assert(cursor_y < INT32_MAX && cursor_y >= 0);
   struct screen_local_coord scr_coord = abs_coord_to_screen_local_coord(
-    (int32_t) cursor_x, (int32_t) cursor_y);
+    (int32_t)(cursor_x), (int32_t)(cursor_y));
 
   state.layers[prev_scr_coord.output_idx]->frame_pending = true;
   state.layers[scr_coord.output_idx]->frame_pending = true;
@@ -1120,8 +1252,8 @@ static struct input_packet * update_virtual_cursor(uint32_t ts_milliseconds) {
   /* = rather than == is intentional here */
   if ((old_ev_packet = TAILQ_LAST(&head, tailhead))
     && (!old_ev_packet->is_libinput)) {
-    old_ev_packet->cursor_x = (uint32_t) cursor_x;
-    old_ev_packet->cursor_y = (uint32_t) cursor_y;
+    old_ev_packet->cursor_x = (int32_t)(cursor_x);
+    old_ev_packet->cursor_y = (int32_t)(cursor_y);
     return NULL;
   } else {
     struct input_packet *ev_packet = calloc(1, sizeof(struct input_packet));
@@ -1131,8 +1263,8 @@ static struct input_packet * update_virtual_cursor(uint32_t ts_milliseconds) {
       exit(1);
     }
     ev_packet->is_libinput = false;
-    ev_packet->cursor_x = (uint32_t) cursor_x;
-    ev_packet->cursor_y = (uint32_t) cursor_y;
+    ev_packet->cursor_x = (int32_t)(cursor_x);
+    ev_packet->cursor_y = (int32_t)(cursor_y);
     return ev_packet;
   }
 }
@@ -1148,6 +1280,7 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
       libinput_device_config_tap_set_enabled(new_dev,
         LIBINPUT_CONFIG_TAP_ENABLED);
     }
+
   } else if (ev_type == LIBINPUT_EVENT_POINTER_BUTTON) {
     mouse_event_handled = true;
     struct libinput_event_pointer *pointer_event
@@ -1183,9 +1316,8 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
       double vert_scroll_value = libinput_event_pointer_get_scroll_value(
         pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
       if (vert_scroll_value == 0) {
-        zwlr_virtual_pointer_v1_axis_stop(
-          state.virt_pointer, ts_milliseconds,
-          WL_POINTER_AXIS_VERTICAL_SCROLL);
+        zwlr_virtual_pointer_v1_axis_stop(state.virt_pointer,
+          ts_milliseconds, WL_POINTER_AXIS_VERTICAL_SCROLL);
       } else {
         zwlr_virtual_pointer_v1_axis(state.virt_pointer, ts_milliseconds,
           WL_POINTER_AXIS_VERTICAL_SCROLL,
@@ -1204,6 +1336,8 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
           zwlr_virtual_pointer_v1_axis_source(state.virt_pointer,
             WL_POINTER_AXIS_SOURCE_CONTINUOUS);
           break;
+        default:
+          abort();
       }
     }
 
@@ -1231,6 +1365,8 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
           zwlr_virtual_pointer_v1_axis_source(state.virt_pointer,
             WL_POINTER_AXIS_SOURCE_CONTINUOUS);
           break;
+        default:
+          abort();
       }
     }
 
@@ -1271,24 +1407,22 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
 
 static void queue_libinput_event_and_relocate_virtual_cursor(
   enum libinput_event_type li_event_type, struct libinput_event *li_event) {
-  int64_t current_time = current_time_ms();
-  int64_t lower_bound = min(max(prev_release_time - current_time, 0),
-    max_delay);
-  int64_t random_delay = random_between(lower_bound, max_delay);
   struct input_packet *ev_packet;
 
   if (li_event_type == LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE) {
     struct libinput_event_pointer *pointer_event
       = libinput_event_get_pointer_event(li_event);
+    assert(state.global_space_width >= 0);
+    assert(state.global_space_height >= 0);
     double abs_x = libinput_event_pointer_get_absolute_x_transformed(
-      pointer_event, state.global_space_width);
+      pointer_event, (uint32_t)(state.global_space_width));
     double abs_y = libinput_event_pointer_get_absolute_y_transformed(
-      pointer_event, state.global_space_height);
+      pointer_event, (uint32_t)(state.global_space_height));
     prev_cursor_x = cursor_x;
     prev_cursor_y = cursor_y;
     cursor_x = abs_x;
     cursor_y = abs_y;
-    ev_packet = update_virtual_cursor((uint32_t) current_time);
+    ev_packet = update_virtual_cursor();
     libinput_event_destroy(li_event);
     if (!ev_packet) {
       return;
@@ -1309,7 +1443,7 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
       cursor_x = state.global_space_width - 1;
     if (cursor_y > state.global_space_height - 1)
       cursor_y = state.global_space_height - 1;
-    ev_packet = update_virtual_cursor((uint32_t) current_time);
+    ev_packet = update_virtual_cursor();
     libinput_event_destroy(li_event);
     if (!ev_packet) {
       return;
@@ -1327,6 +1461,10 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
     ev_packet->li_event_type = li_event_type;
   }
 
+  int64_t current_time = current_time_ms();
+  int64_t lower_bound = min(max(prev_release_time - current_time, 0),
+    max_delay);
+  int64_t random_delay = random_between(lower_bound, max_delay);
   ev_packet->sched_time = current_time + random_delay;
   TAILQ_INSERT_TAIL(&head, ev_packet, entries);
   prev_release_time = ev_packet->sched_time;
@@ -1338,15 +1476,23 @@ static void release_scheduled_input_events(void) {
   while ((packet = TAILQ_FIRST(&head))
     && (current_time >= packet->sched_time)) {
     if (packet->is_libinput) {
+      assert(packet->sched_time >= 0);
       handle_libinput_event(packet->li_event_type, packet->li_event,
-        (uint32_t) packet->sched_time);
+        (uint32_t)(packet->sched_time));
     } else {
+      assert(packet->sched_time >= 0);
+      assert(state.pointer_space_x >= 0);
+      assert(state.pointer_space_y >= 0);
+      assert(packet->cursor_x >= state.pointer_space_x);
+      assert(packet->cursor_y >= state.pointer_space_y);
+      assert(state.global_space_width >= state.pointer_space_x);
+      assert(state.global_space_height >= state.pointer_space_y);
       zwlr_virtual_pointer_v1_motion_absolute(
-        state.virt_pointer, (uint32_t) packet->sched_time,
-        (uint32_t) packet->cursor_x - state.pointer_space_x,
-        (uint32_t) packet->cursor_y - state.pointer_space_y,
-        state.global_space_width - state.pointer_space_x,
-        state.global_space_height - state.pointer_space_y);
+        state.virt_pointer, (uint32_t)(packet->sched_time),
+        (uint32_t)(packet->cursor_x - state.pointer_space_x),
+        (uint32_t)(packet->cursor_y - state.pointer_space_y),
+        (uint32_t)(state.global_space_width - state.pointer_space_x),
+        (uint32_t)(state.global_space_height - state.pointer_space_y));
       zwlr_virtual_pointer_v1_frame(state.virt_pointer);
     }
     TAILQ_REMOVE(&head, packet, entries);
@@ -1390,9 +1536,10 @@ static void applayer_random_init(void) {
 }
 
 static void applayer_wayland_init(void) {
-  /* Technically we also initialize xkbcommon in here but it's only involved
-   * because it turned out to be important for sending key events to
-   * Wayland. */
+  /* 
+   * Technically we also initialize xkbcommon here, but it's only involved
+   * because it's important for sending key events to Wayland.
+   */
   state.display = wl_display_connect(NULL);
   if (!state.display) {
     fprintf(stderr, "FATAL ERROR: Could not get Wayland display!\n");
@@ -1408,17 +1555,24 @@ static void applayer_wayland_init(void) {
   wl_registry_add_listener(state.registry, &registry_listener, &state);
   wl_display_roundtrip(state.display);
 
-  /* At this point, the shm, compositor, and wm_base objects will be
-   * allocated by registry global handler. */
+  /* 
+   * At this point, the shm, compositor, and wm_base objects will be
+   * allocated by registry global handler.
+   *
+   * TODO: Add feature checks here, if the compositor doesn't support all the
+   * features we need we should bail out.
+   */
 
   state.virt_kb = zwp_virtual_keyboard_manager_v1_create_virtual_keyboard(
     state.virt_kb_manager, state.seat);
-  /* The virtual-keyboard-v1 protocol returns 0 when making a new virtual
+  /* 
+   * The virtual-keyboard-v1 protocol returns 0 when making a new virtual
    * keyboard if kloak is unauthorized to create a virtual keyboard. However,
    * the protocol treats this as an enum value, meaning... we have to compare
    * a pointer to an enum. This is horrible and the protocol really shouldn't
-   * require this, but it does, so... */
-  if ((uint64_t)state.virt_kb
+   * require this, but it does, so...
+   */
+  if ((uint64_t)(state.virt_kb)
     == ZWP_VIRTUAL_KEYBOARD_MANAGER_V1_ERROR_UNAUTHORIZED) {
     fprintf(stderr,
       "Not authorized to create a virtual keyboard! Bailing out.\n");
@@ -1431,12 +1585,20 @@ static void applayer_wayland_init(void) {
     fprintf(stderr, "FATAL ERROR: Could not create XKB context!\n");
     exit(1);
   }
+
+  /* Make sure any remaining allocations and similar have finished */
+  wl_display_roundtrip(state.display);
+
+  /* TODO: Add more compositor feature checks here. */
 }
 
 static void applayer_libinput_init(void) {
   udev_ctx = udev_new();
   li = libinput_udev_create_context(&li_interface, NULL, udev_ctx);
-  /* TODO: Allow customizing the seat with a command line arg */
+  /*
+   * TODO: Allow customizing the seat with a command line arg. Or, possibly,
+   * autodetect the proper seat from the compositor.
+   */
   libinput_udev_assign_seat(li, "seat0");
   TAILQ_INIT(&head);
 }
@@ -1459,11 +1621,12 @@ static void parse_cli_args(int argc, char **argv) {
   };
   int getopt_rslt;
 
-  while(1) {
+  while(true) {
     getopt_rslt = getopt_long(argc, argv, optstring, optarr, NULL);
     if (getopt_rslt == -1) {
       break;
     } else if (getopt_rslt == '?') {
+      print_usage();
       exit(1);
     } else if (getopt_rslt == 'd') {
       max_delay = parse_uintarg("delay", optarg);
@@ -1491,19 +1654,24 @@ int main(int argc, char **argv) {
     exit(1);
   }
   parse_cli_args(argc, argv);
-  sleep_ms(startup_delay);
+  if (sleep_ms(startup_delay) != 0) {
+    fprintf(stderr,
+      "FATAL ERROR: Could not sleep for requested start duration!\n");
+    exit(1);
+  }
 
   applayer_random_init();
   applayer_wayland_init();
   applayer_libinput_init();
   applayer_poll_init();
 
-  for (;;) {
-    while (wl_display_prepare_read(state.display) != 0)
+  while (true) {
+    while (wl_display_prepare_read(state.display) != 0) {
       wl_display_dispatch_pending(state.display);
+    }
     wl_display_flush(state.display);
 
-    for (;;) {
+    while (true) {
       enum libinput_event_type next_ev_type = libinput_next_event_type(li);
       if (next_ev_type == LIBINPUT_EVENT_NONE)
         break;
@@ -1514,11 +1682,13 @@ int main(int argc, char **argv) {
 
     release_scheduled_input_events();
 
-    for (size_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
-      if (!state.layers[i])
+    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+      if (!state.layers[i]) {
         continue;
-      if (state.layers[i]->frame_pending)
+      }
+      if (state.layers[i]->frame_pending) {
         draw_frame(state.layers[i]);
+      }
     }
     wl_display_flush(state.display);
 
