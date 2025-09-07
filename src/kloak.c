@@ -22,6 +22,101 @@
  *   should be whichever session is physically active on the screen at the
  *   time, but how do we know which one that is, and what the Wayland socket
  *   corresponding to that session is?)
+ *   - For solving this particular problem, we can determine what applications
+ *     are running on a specific TTY (readlink on /proc/PID/fd/{1,2} is the
+ *     key here). We can find the Wayland compositor we want here using name
+ *     matching (which means we have to have a hardcoded list of compositors,
+ *     which *stinks*, but oh well, maybe make this configurable?). One can
+ *     access /proc/PID/environ and find XDG_RUNTIME_DIR from that to figure
+ *     out where the wayland socket is. Finally, one can open each wayland-X
+ *     socket under the appropriate XDG_RUNTIME_DIR and query it with
+ *     getsockopt SO_PEERCRED to find the socket that matches the PID of the
+ *     Wayland server. This sounds horrible, and in a way it is, but there
+ *     doesn't seem to be an easy way to find the Wayland socket by digging in
+ *     /proc/PID/fd (the actual socket itself isn't listed there). lsof is
+ *     able to pull this off, but how is unclear. (There's a liblsof now,
+ *     maybe it can be used? It seems to be undocumented...) Another solution
+ *     might be to look at processes other than the Wayland compositor also
+ *     running under the active TTY (because strangely enough multiple
+ *     processes can have the same TTY open when Wayland is in use) and try to
+ *     extract the WAYLAND_DISPLAY variable from one of them to get the right
+ *     compositor socket.
+ *   - Sample code for getting the PID behind a socket (not very robust):
+ *
+ *     #define _GNU_SOURCE
+ *
+ *     #include <stdio.h>
+ *     #include <sys/socket.h>
+ *     #include <sys/un.h>
+ *     #include <stdlib.h>
+ *
+ *     int main(int argc, char **argv) {
+ *       int len;
+ *       struct ucred ucred;
+ *       int sock;
+ *
+ *       if (argc < 2) {
+ *         exit(1);
+ *       }
+ *       if (strlen(argv[1]) > 107) {
+ *         exit(1);
+ *       }
+ *
+ *       struct sockaddr_un sock_addr;
+ *       sock_addr.sun_family = AF_UNIX;
+ *       strcpy(sock_addr.sun_path, argv[1]);
+ *       sock = socket(AF_UNIX, SOCK_STREAM, 0);
+ *       if (connect(sock, &sock_addr, sizeof(struct sockaddr_un)) == -1) {
+ *         exit(1);
+ *       }
+ *       if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &ucred, &len) == -1) {
+ *         exit(1);
+ *       }
+ *       printf("PID: %d\n", ucred.pid);
+ *     }
+ *
+ *   - Don't forget that readlink works weird when dealing with files in
+ *     /proc/PID/fd.
+ *
+ *     <arraybolt3>  TIL using `lstat()` on a pseudo-symlink under /proc/self/fd
+ *     always returns a stat.st_size of 64, regardless of the size of the actual path
+ *     the link points to. This makes using `readlink` really tricky.
+ *     <Habbie>  lstat, alloc, readlink? sounds like a race condition always
+ *     <arraybolt3>  Habbie: well it's what readlink's manpage says to do...
+ *     <arraybolt3>  and it has some info about how to detect if a race occurs so you
+ *     can try to correct it
+ *     <Habbie>  it also notes the race, i see
+ *     <arraybolt3>  but those corrective measures work really really poorly when you
+ *     keep being told a 67-character path is 64 characters
+ *     <Habbie>  heh, yes
+ *     <Habbie>  so you'll always hit the painful path
+ *     <arraybolt3>  yep
+ *     <Habbie>  the example that falls back to PATH_MAX on zero - how about doing
+ *     that for 64 too
+ *     <arraybolt3>  4096 isn'
+ *     <arraybolt3>  isn't exactly foolproof
+ *     <Habbie>  oh that's a lot. but why not?
+ *     <arraybolt3>  people nest directories insanely deep sometimes, software has to
+ *     be ready for anything
+ *     <Habbie>  does linux even allow more than that?
+ *     <arraybolt3>  and right now the consequence of a too-small st_size is a sudden
+ *     infinite loop that consumes 100% of one CPU core
+ *     <arraybolt3>  so I need to prevent that
+ *     <arraybolt3>  Habbie: pretty sure yes
+ *     <Habbie>  oof
+ *     <arraybolt3>  ext4 permits inifinite path lengths, but you can't have a
+ *     filename longer than 255 bytes
+ *     <arraybolt3>  hmm, looks liek Bash at least won't go past 4096
+ *     <arraybolt3>  so maybe PATH_MAX is enough
+ *     <arraybolt3>  oh this is evil
+ *     <arraybolt3>  I *can* make deeper directories
+ *     <arraybolt3>  Bash just won't show them in the prompt
+ *     <arraybolt3>  so yeah I'm now in a directory with a 5673-character pathname
+ *     * arraybolt3 groans
+ *     <arraybolt3>  hack; going to just use PATH_MAX anyway and if I get a longer
+ *     path I'll just return the truncated value, it'll probably have enough data in
+ *     it to be useful
+ *
  * - We want systemd sandboxing almost certainly, but how to acheive this is
  *   not yet known. It might be possible to make a privleap exception for
  *   kloak, then use a systemd user unit to call privleap to call kloak, but
@@ -154,7 +249,7 @@ static int create_shm_file(ssize_t size) {
   char name[18];
 
   assert(size >= 0);
-  /* 
+  /*
    * TODO: Try to choose whether to compare against INT32_MAX or INT64_MAX
    * at compile time if possible.
    */
@@ -648,7 +743,7 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
       &zxdg_output_manager_v1_interface, 3);
     for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
       if ((state->outputs[i]) && (!state->xdg_outputs[i])) {
-        /* 
+        /*
 	 * This is where we make xdg_outputs for any wl_outputs that were
          * sent too early.
 	 */
@@ -1178,7 +1273,7 @@ static struct input_packet * update_virtual_cursor() {
     struct screen_local_coord trav_scr_coord
       = abs_coord_to_screen_local_coord(trav_coord.x, trav_coord.y);
     if (!trav_scr_coord.valid) {
-      /* 
+      /*
        * Figure out what direction we moved when we went off screen, and move
        * move backwards in that direction, but in only one dimension.
        */
@@ -1536,7 +1631,7 @@ static void applayer_random_init(void) {
 }
 
 static void applayer_wayland_init(void) {
-  /* 
+  /*
    * Technically we also initialize xkbcommon here, but it's only involved
    * because it's important for sending key events to Wayland.
    */
@@ -1555,7 +1650,7 @@ static void applayer_wayland_init(void) {
   wl_registry_add_listener(state.registry, &registry_listener, &state);
   wl_display_roundtrip(state.display);
 
-  /* 
+  /*
    * At this point, the shm, compositor, and wm_base objects will be
    * allocated by registry global handler.
    *
@@ -1565,7 +1660,7 @@ static void applayer_wayland_init(void) {
 
   state.virt_kb = zwp_virtual_keyboard_manager_v1_create_virtual_keyboard(
     state.virt_kb_manager, state.seat);
-  /* 
+  /*
    * The virtual-keyboard-v1 protocol returns 0 when making a new virtual
    * keyboard if kloak is unauthorized to create a virtual keyboard. However,
    * the protocol treats this as an enum value, meaning... we have to compare
