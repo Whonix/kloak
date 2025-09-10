@@ -55,6 +55,14 @@ struct process_info {
 };
 
 /*
+ * Defines an evdev key code and the corresponding string.
+ */
+struct key_name_value {
+    const char *name;
+    const uint32_t value;
+};
+
+/*
  * Defines a screen-local layer that can be drawn on. Each screen has one
  * drawable layer, the virtual cursor is drawn on this. The layer will be
  * created using layer_shell and will appear on top of all other surfaces if
@@ -368,6 +376,11 @@ static int cmpwlsock(const void *p1, const void *p2);
  */
 static char *query_sock_pid(char *sock_path);
 
+/*
+ * Looks up a key code in the key table.
+ */
+static uint32_t lookup_keycode(const char *name);
+
 /********************/
 /* wayland handling */
 /********************/
@@ -480,6 +493,13 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
   struct libinput_event *li_event, uint32_t ts_milliseconds);
 
 /*
+ * Tracks actively held down keys in the escape key list and terminates kloak
+ * if all escape keys are actively being held down.
+ */
+static void register_esc_combo_event(enum libinput_event_type li_event_type,
+  struct libinput_event *li_event);
+
+/*
  * Schedules a libinput event for future release to the compositor. As a side
  * effect, also redraws the virtual cursor if needed.
  */
@@ -498,6 +518,11 @@ static void release_scheduled_input_events(void);
  * libwayland-client to find and connect to the correct compositor.
  */
 static void find_wl_compositor(void);
+
+/*
+ * Parses an escape key specification into the escape key globals.
+ */
+static void parse_esc_key_str(const char *esc_key_str);
 
 /*
  * Prints usage information.

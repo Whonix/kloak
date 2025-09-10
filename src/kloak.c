@@ -5,16 +5,6 @@
 
 /*
  * FIXMEs (all of these MUST be fixed before release):
- * - No emergency key functionality exists yet. This will make it impossible
- *   to use kloak on a multi-user system, as all input devices are locked by
- *   kloak to a single instance of a Wayland compositor. Multi-user setups
- *   will have multiple compositors running at the same time, a key combo must
- *   exist that can force a running kloak instance to relinquish control of
- *   the input devices so another kloak instance can take over. (Even if there
- *   aren't multiple human users of a machine, there may be multiple sessions
- *   that need to use the input devices at the same time, for instance to
- *   allow fully featured three-finger salute handling. Getting the keyboard
- *   free from kloak will also be essential to allow TTYs to be used.)
  * - We want systemd sandboxing almost certainly, but how to acheive this is
  *   not yet known. It might be possible to make a privleap exception for
  *   kloak, then use a systemd user unit to call privleap to call kloak, but
@@ -67,6 +57,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <ctype.h>
+#include <linux/input.h>
 
 #include <wayland-client.h>
 #include "xdg-output-protocol.h"
@@ -105,6 +96,11 @@ static uint32_t cursor_color = 0xffff0000;
 static char **known_compositor_list = NULL;
 static size_t known_compositor_list_len = 0;
 
+static uint32_t **esc_key_list = NULL;
+static size_t *esc_key_sublist_len = NULL;
+static bool *active_esc_key_list = NULL;
+static size_t esc_key_list_len = 0;
+
 int randfd = 0;
 
 const char *known_compositor_default_list[] = {
@@ -120,6 +116,152 @@ const char *known_compositor_default_list[] = {
   "wayfire",
   "woodland",
   NULL
+};
+const char *default_esc_key_str = "KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC";
+
+static struct key_name_value key_table[] = {
+  {"KEY_ESC", KEY_ESC},
+  {"KEY_1", KEY_1},
+  {"KEY_2", KEY_2},
+  {"KEY_3", KEY_3},
+  {"KEY_4", KEY_4},
+  {"KEY_5", KEY_5},
+  {"KEY_6", KEY_6},
+  {"KEY_7", KEY_7},
+  {"KEY_8", KEY_8},
+  {"KEY_9", KEY_9},
+  {"KEY_0", KEY_0},
+  {"KEY_MINUS", KEY_MINUS},
+  {"KEY_EQUAL", KEY_EQUAL},
+  {"KEY_BACKSPACE", KEY_BACKSPACE},
+  {"KEY_TAB", KEY_TAB},
+  {"KEY_Q", KEY_Q},
+  {"KEY_W", KEY_W},
+  {"KEY_E", KEY_E},
+  {"KEY_R", KEY_R},
+  {"KEY_T", KEY_T},
+  {"KEY_Y", KEY_Y},
+  {"KEY_U", KEY_U},
+  {"KEY_I", KEY_I},
+  {"KEY_O", KEY_O},
+  {"KEY_P", KEY_P},
+  {"KEY_LEFTBRACE", KEY_LEFTBRACE},
+  {"KEY_RIGHTBRACE", KEY_RIGHTBRACE},
+  {"KEY_ENTER", KEY_ENTER},
+  {"KEY_LEFTCTRL", KEY_LEFTCTRL},
+  {"KEY_A", KEY_A},
+  {"KEY_S", KEY_S},
+  {"KEY_D", KEY_D},
+  {"KEY_F", KEY_F},
+  {"KEY_G", KEY_G},
+  {"KEY_H", KEY_H},
+  {"KEY_J", KEY_J},
+  {"KEY_K", KEY_K},
+  {"KEY_L", KEY_L},
+  {"KEY_SEMICOLON", KEY_SEMICOLON},
+  {"KEY_APOSTROPHE", KEY_APOSTROPHE},
+  {"KEY_GRAVE", KEY_GRAVE},
+  {"KEY_LEFTSHIFT", KEY_LEFTSHIFT},
+  {"KEY_BACKSLASH", KEY_BACKSLASH},
+  {"KEY_Z", KEY_Z},
+  {"KEY_X", KEY_X},
+  {"KEY_C", KEY_C},
+  {"KEY_V", KEY_V},
+  {"KEY_B", KEY_B},
+  {"KEY_N", KEY_N},
+  {"KEY_M", KEY_M},
+  {"KEY_COMMA", KEY_COMMA},
+  {"KEY_DOT", KEY_DOT},
+  {"KEY_SLASH", KEY_SLASH},
+  {"KEY_RIGHTSHIFT", KEY_RIGHTSHIFT},
+  {"KEY_KPASTERISK", KEY_KPASTERISK},
+  {"KEY_LEFTALT", KEY_LEFTALT},
+  {"KEY_SPACE", KEY_SPACE},
+  {"KEY_CAPSLOCK", KEY_CAPSLOCK},
+  {"KEY_F1", KEY_F1},
+  {"KEY_F2", KEY_F2},
+  {"KEY_F3", KEY_F3},
+  {"KEY_F4", KEY_F4},
+  {"KEY_F5", KEY_F5},
+  {"KEY_F6", KEY_F6},
+  {"KEY_F7", KEY_F7},
+  {"KEY_F8", KEY_F8},
+  {"KEY_F9", KEY_F9},
+  {"KEY_F10", KEY_F10},
+  {"KEY_NUMLOCK", KEY_NUMLOCK},
+  {"KEY_SCROLLLOCK", KEY_SCROLLLOCK},
+  {"KEY_KP7", KEY_KP7},
+  {"KEY_KP8", KEY_KP8},
+  {"KEY_KP9", KEY_KP9},
+  {"KEY_KPMINUS", KEY_KPMINUS},
+  {"KEY_KP4", KEY_KP4},
+  {"KEY_KP5", KEY_KP5},
+  {"KEY_KP6", KEY_KP6},
+  {"KEY_KPPLUS", KEY_KPPLUS},
+  {"KEY_KP1", KEY_KP1},
+  {"KEY_KP2", KEY_KP2},
+  {"KEY_KP3", KEY_KP3},
+  {"KEY_KP0", KEY_KP0},
+  {"KEY_KPDOT", KEY_KPDOT},
+  {"KEY_ZENKAKUHANKAKU", KEY_ZENKAKUHANKAKU},
+  {"KEY_102ND", KEY_102ND},
+  {"KEY_F11", KEY_F11},
+  {"KEY_F12", KEY_F12},
+  {"KEY_RO", KEY_RO},
+  {"KEY_KATAKANA", KEY_KATAKANA},
+  {"KEY_HIRAGANA", KEY_HIRAGANA},
+  {"KEY_HENKAN", KEY_HENKAN},
+  {"KEY_KATAKANAHIRAGANA", KEY_KATAKANAHIRAGANA},
+  {"KEY_MUHENKAN", KEY_MUHENKAN},
+  {"KEY_KPJPCOMMA", KEY_KPJPCOMMA},
+  {"KEY_KPENTER", KEY_KPENTER},
+  {"KEY_RIGHTCTRL", KEY_RIGHTCTRL},
+  {"KEY_KPSLASH", KEY_KPSLASH},
+  {"KEY_SYSRQ", KEY_SYSRQ},
+  {"KEY_RIGHTALT", KEY_RIGHTALT},
+  {"KEY_LINEFEED", KEY_LINEFEED},
+  {"KEY_HOME", KEY_HOME},
+  {"KEY_UP", KEY_UP},
+  {"KEY_PAGEUP", KEY_PAGEUP},
+  {"KEY_LEFT", KEY_LEFT},
+  {"KEY_RIGHT", KEY_RIGHT},
+  {"KEY_END", KEY_END},
+  {"KEY_DOWN", KEY_DOWN},
+  {"KEY_PAGEDOWN", KEY_PAGEDOWN},
+  {"KEY_INSERT", KEY_INSERT},
+  {"KEY_DELETE", KEY_DELETE},
+  {"KEY_MACRO", KEY_MACRO},
+  {"KEY_MUTE", KEY_MUTE},
+  {"KEY_VOLUMEDOWN", KEY_VOLUMEDOWN},
+  {"KEY_VOLUMEUP", KEY_VOLUMEUP},
+  {"KEY_POWER", KEY_POWER},
+  {"KEY_POWER2", KEY_POWER2},
+  {"KEY_KPEQUAL", KEY_KPEQUAL},
+  {"KEY_KPPLUSMINUS", KEY_KPPLUSMINUS},
+  {"KEY_PAUSE", KEY_PAUSE},
+  {"KEY_SCALE", KEY_SCALE},
+  {"KEY_KPCOMMA", KEY_KPCOMMA},
+  {"KEY_HANGEUL", KEY_HANGEUL},
+  {"KEY_HANGUEL", KEY_HANGUEL},
+  {"KEY_HANJA", KEY_HANJA},
+  {"KEY_YEN", KEY_YEN},
+  {"KEY_LEFTMETA", KEY_LEFTMETA},
+  {"KEY_RIGHTMETA", KEY_RIGHTMETA},
+  {"KEY_COMPOSE", KEY_COMPOSE},
+  {"KEY_F13", KEY_F13},
+  {"KEY_F14", KEY_F14},
+  {"KEY_F15", KEY_F15},
+  {"KEY_F16", KEY_F16},
+  {"KEY_F17", KEY_F17},
+  {"KEY_F18", KEY_F18},
+  {"KEY_F19", KEY_F19},
+  {"KEY_F20", KEY_F20},
+  {"KEY_F21", KEY_F21},
+  {"KEY_F22", KEY_F22},
+  {"KEY_F23", KEY_F23},
+  {"KEY_F24", KEY_F24},
+  {"KEY_UNKNOWN", KEY_UNKNOWN},
+  {NULL, 0}
 };
 
 /*********************/
@@ -226,7 +368,7 @@ static void randname(char *buf, ssize_t len) {
   assert(len >= 0);
   assert(buf != NULL);
 
-  for (ssize_t i = 0; i < len; ++i) {
+  for (ssize_t i = 0; i < len; i++) {
     do {
       read_random(&randchar, 1);
       if (randchar == CHAR_MIN) {
@@ -411,7 +553,7 @@ static void recalc_global_space(struct disp_state * state) {
   struct output_geometry *screen_list[MAX_DRAWABLE_LAYERS];
   ssize_t screen_list_len = 0;
 
-  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (!state->output_geometries[i]) {
       continue;
     }
@@ -424,7 +566,7 @@ static void recalc_global_space(struct disp_state * state) {
       continue;
     }
     screen_list[screen_list_len] = state->output_geometries[i];
-    ++screen_list_len;
+    screen_list_len++;
     if (cur_geom_x < ul_corner_x) {
       ul_corner_x = cur_geom_x;
     }
@@ -465,10 +607,10 @@ static void recalc_global_space(struct disp_state * state) {
    * attached screens, then all screens are connected, otherwise there is a
    * gap somewhere.
    */
-  for (ssize_t i = 0; i < conn_screen_list_len; ++i) {
-    for (ssize_t j = 0; j < screen_list_len; ++j) {
+  for (ssize_t i = 0; i < conn_screen_list_len; i++) {
+    for (ssize_t j = 0; j < screen_list_len; j++) {
       bool screen_in_conn_list = false;
-      for (ssize_t k = 0; k < conn_screen_list_len; ++k) {
+      for (ssize_t k = 0; k < conn_screen_list_len; k++) {
         if (screen_list[j] == conn_screen_list[k]) {
           screen_in_conn_list = true;
           break;
@@ -482,7 +624,7 @@ static void recalc_global_space(struct disp_state * state) {
       if (check_screen_touch(*conn_screen, *cur_screen)) {
         /* Found a touching screen! */
         conn_screen_list[conn_screen_list_len] = cur_screen;
-        ++conn_screen_list_len;
+        conn_screen_list_len++;
       }
     }
   }
@@ -506,7 +648,7 @@ static struct screen_local_coord abs_coord_to_screen_local_coord(int32_t x,
     return out_data;
   }
 
-  for (int32_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+  for (int32_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (!state.output_geometries[i]) {
       continue;
     }
@@ -634,8 +776,8 @@ static void draw_block(uint32_t *pixbuf, int32_t offset, int32_t x, int32_t y,
   int32_t end_y = y + rad;
   if (end_y >= layer_height) end_y = layer_height - 1;
 
-  for (int32_t work_y = start_y; work_y <= end_y; ++work_y) {
-    for (int32_t work_x = start_x; work_x <= end_x; ++work_x) {
+  for (int32_t work_y = start_y; work_y <= end_y; work_y++) {
+    for (int32_t work_x = start_x; work_x <= end_x; work_x++) {
       if (crosshair && work_x == x) {
         pixbuf[offset + (work_y * layer_width + work_x)] = cursor_color;
       } else if (crosshair && work_y == y) {
@@ -752,7 +894,7 @@ static void strlist_append(char *str, char ***strlist, size_t *list_len,
   char **internal_strlist = *strlist;
   size_t internal_list_len = *list_len;
 
-  ++internal_list_len;
+  internal_list_len++;
   internal_strlist = safe_reallocarray(internal_strlist, internal_list_len,
     sizeof(char *));
   if (append_copy) {
@@ -798,9 +940,9 @@ static char *read_as_str(char *file_path, size_t *out_len) {
   if (out_str[file_pos - 1] == '\n') {
     out_str[file_pos - 1] = '\0';
   } else if (out_str[file_pos - 1] != '\0') {
-    ++file_pos;
+    file_pos++;
     if (file_pos > alloc_len) {
-      ++alloc_len;
+      alloc_len++;
       out_str = safe_reallocarray(out_str, 1, (size_t)(alloc_len));
     }
     out_str[file_pos - 1] = '\0';
@@ -877,6 +1019,16 @@ static char *query_sock_pid(char *sock_path) {
   return out_str;
 }
 
+uint32_t lookup_keycode(const char *name) {
+  struct key_name_value *p;
+  for (p = key_table; p->name != NULL; p++) {
+    if (strcmp(p->name, name) == 0) {
+      return p->value;
+    }
+  }
+  return 0;
+}
+
 /********************/
 /* wayland handling */
 /********************/
@@ -899,7 +1051,7 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
     state->shm = wl_registry_bind(registry, name, &wl_shm_interface, 2);
   } else if (strcmp(interface, wl_output_interface.name) == 0) {
     bool new_layer_allocated = false;
-    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
       if (!state->layers[i]) {
         state->outputs[i] = wl_registry_bind(registry, name,
           &wl_output_interface, 4);
@@ -939,7 +1091,7 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
   } else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
     state->xdg_output_manager = wl_registry_bind(registry, name,
       &zxdg_output_manager_v1_interface, 3);
-    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
       if ((state->outputs[i]) && (!state->xdg_outputs[i])) {
         /*
 	 * This is where we make xdg_outputs for any wl_outputs that were
@@ -974,7 +1126,7 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
 static void registry_handle_global_remove(void *data,
   struct wl_registry *registry, uint32_t name) {
   struct disp_state *state = data;
-  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (state->layers[i]) {
       if (state->output_names[i] == name) {
         struct drawable_layer *layer = state->layers[i];
@@ -1101,11 +1253,11 @@ static void kb_handle_repeat_info(void *data, struct wl_keyboard *kb,
 }
 
 static void wl_buffer_release(void *data, struct wl_buffer *buffer) {
-  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (!state.layers[i]) {
       continue;
     }
-    for (int32_t j = 0; j < MAX_UNRELEASED_FRAMES; ++j) {
+    for (int32_t j = 0; j < MAX_UNRELEASED_FRAMES; j++) {
       if (state.layers[i]->buffer_list[j] == buffer) {
         state.layers[i]->frame_in_use[j] = false;
         state.layers[i]->buffer_list[j] = NULL;
@@ -1140,7 +1292,7 @@ static void wl_output_handle_mode(void *data, struct wl_output *output,
 
 static void wl_output_info_done(void *data, struct wl_output *output) {
   struct disp_state *state = data;
-  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (state->outputs[i] == output) {
       struct output_geometry *geometry = state->pending_output_geometries[i];
       if (geometry->x == 0 && geometry->y == 0 && geometry->width == 0
@@ -1171,7 +1323,7 @@ static void wl_output_handle_description(void *data, struct wl_output *output,
 static void xdg_output_handle_logical_position(void *data,
   struct zxdg_output_v1 *xdg_output, int32_t x, int32_t y) {
   struct disp_state *state = data;
-  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (state->xdg_outputs[i] == xdg_output) {
       state->pending_output_geometries[i]->x = x;
       state->pending_output_geometries[i]->y = y;
@@ -1183,7 +1335,7 @@ static void xdg_output_handle_logical_position(void *data,
 static void xdg_output_handle_logical_size(void *data,
   struct zxdg_output_v1 *xdg_output, int32_t width, int32_t height) {
   struct disp_state *state = data;
-  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (state->xdg_outputs[i] == xdg_output) {
       state->pending_output_geometries[i]->width = width;
       state->pending_output_geometries[i]->height = height;
@@ -1212,7 +1364,7 @@ static void layer_surface_configure(void *data,
   uint32_t height) {
   struct disp_state *state = data;
   struct drawable_layer *layer = NULL;
-  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (state->layers[i]) {
       if (state->layers[i]->layer_surface == layer_surface) {
         layer = state->layers[i];
@@ -1286,7 +1438,7 @@ static void draw_frame(struct drawable_layer *layer) {
   if (!layer->layer_surface_configured)
     return;
 
-  for (int32_t i = 0; i < MAX_UNRELEASED_FRAMES; ++i) {
+  for (int32_t i = 0; i < MAX_UNRELEASED_FRAMES; i++) {
     if (!layer->frame_in_use[i]) {
       chosen_frame_idx = i;
       break;
@@ -1309,7 +1461,7 @@ static void draw_frame(struct drawable_layer *layer) {
 
   bool cursor_is_on_layer = false;
   if (scr_coord.valid) {
-    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
       if ((state.layers[i] == layer) && (i == scr_coord.output_idx)) {
         cursor_is_on_layer = true;
       }
@@ -1356,7 +1508,7 @@ static struct drawable_layer *allocate_drawable_layer(struct disp_state *state,
   layer->frame_pending = true;
   layer->last_drawn_cursor_x = -1;
   layer->last_drawn_cursor_y = -1;
-  for (ssize_t i = 0; i < MAX_UNRELEASED_FRAMES; ++i) {
+  for (ssize_t i = 0; i < MAX_UNRELEASED_FRAMES; i++) {
     layer->cursor_x_pos_list[i] = -1;
     layer->cursor_y_pos_list[i] = -1;
   }
@@ -1464,7 +1616,7 @@ static struct input_packet * update_virtual_cursor() {
   struct coord prev_trav_coord = start;
   bool end_x_hit = false;
   bool end_y_hit = false;
-  for (int32_t i = 0; ; ++i) {
+  for (int32_t i = 0; ; i++) {
     struct coord trav_coord = traverse_line(start, end, i);
     if (trav_coord.x == end.x) end_x_hit = true;
     if (trav_coord.y == end.y) end_y_hit = true;
@@ -1698,6 +1850,50 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
   libinput_event_destroy(li_event);
 }
 
+static void register_esc_combo_event(
+  enum libinput_event_type li_event_type, struct libinput_event *li_event) {
+  struct libinput_event_keyboard *kb_event = NULL;
+  uint32_t key = 0;
+  enum libinput_key_state key_state = LIBINPUT_KEY_STATE_PRESSED;
+  size_t i = 0;
+  size_t j = 0;
+  bool hit_exit = true;
+
+  if (li_event_type != LIBINPUT_EVENT_KEYBOARD_KEY) {
+    return;
+  }
+
+  kb_event = libinput_event_get_keyboard_event(li_event);
+  key = libinput_event_keyboard_get_key(kb_event);
+  key_state = libinput_event_keyboard_get_key_state(kb_event);
+
+  for (i = 0; i < esc_key_list_len; i++) {
+    for (j = 0; j < esc_key_sublist_len[i]; j++) {
+      if (esc_key_list[i][j] != key) {
+        continue;
+      }
+
+      if (key_state == LIBINPUT_KEY_STATE_PRESSED) {
+        active_esc_key_list[i] = true;
+      } else {
+        active_esc_key_list[i] = false;
+      }
+      break;
+    }
+  }
+
+  for (i = 0; i < esc_key_list_len; i++) {
+    if (!active_esc_key_list[i]) {
+      hit_exit = false;
+      break;
+    }
+  }
+
+  if (hit_exit) {
+    exit(0);
+  }
+}
+
 static void queue_libinput_event_and_relocate_virtual_cursor(
   enum libinput_event_type li_event_type, struct libinput_event *li_event) {
   struct input_packet *ev_packet;
@@ -1902,7 +2098,7 @@ static void find_wl_compositor(void) {
     }
 
     is_dirname_digits = true;
-    for (i = 0; proc_entry->d_name[i] != '\0'; ++i) {
+    for (i = 0; proc_entry->d_name[i] != '\0'; i++) {
       if (!isdigit(proc_entry->d_name[i])) {
         is_dirname_digits = false;
         break;
@@ -1918,7 +2114,7 @@ static void find_wl_compositor(void) {
       proc_entry->d_name);
 
     if (linkcmp(proc_fd1_path, vt_path) || linkcmp(proc_fd2_path, vt_path)) {
-      ++process_on_vt_list_len;
+      process_on_vt_list_len++;
       process_on_vt_list = safe_reallocarray(process_on_vt_list,
         process_on_vt_list_len, sizeof(struct process_info));
       process_on_vt_list[process_on_vt_list_len - 1].pid_str = safe_calloc(1,
@@ -1946,8 +2142,8 @@ static void find_wl_compositor(void) {
     exit(1);
   }
 
-  for (i = 0; i < process_on_vt_list_len; ++i) {
-    for (j = 0; j < known_compositor_list_len; ++j) {
+  for (i = 0; i < process_on_vt_list_len; i++) {
+    for (j = 0; j < known_compositor_list_len; j++) {
       if (strcmp(process_on_vt_list[i].comm, known_compositor_list[j]) != 0) {
         continue;
       }
@@ -1962,7 +2158,7 @@ static void find_wl_compositor(void) {
     exit(1);
   }
 
-  for (i = 0; i < wl_pid_str_list_len; ++i) {
+  for (i = 0; i < wl_pid_str_list_len; i++) {
     current_process_environ_path = sgenprintf("/proc/%s/environ",
       wl_pid_str_list[i]);
     current_process_environ_contents = read_as_str(
@@ -1995,7 +2191,7 @@ static void find_wl_compositor(void) {
     current_process_environ_contents = NULL;
   }
 
-  for (i = 0; i < xdg_runtime_dir_list_len; ++i) {
+  for (i = 0; i < xdg_runtime_dir_list_len; i++) {
     xdg_runtime_dir = safe_opendir(xdg_runtime_dir_list[i], true);
     if (xdg_runtime_dir == NULL) {
       continue;
@@ -2010,7 +2206,7 @@ static void find_wl_compositor(void) {
         strlen("wayland-")) != 0) {
         continue;
       }
-      ++wayland_socket_list_len;
+      wayland_socket_list_len++;
       wayland_socket_list = safe_reallocarray(wayland_socket_list,
         wayland_socket_list_len, sizeof(struct wayland_socket_info));
       wayland_socket_list[wayland_socket_list_len - 1].xdg_runtime_dir
@@ -2025,13 +2221,10 @@ static void find_wl_compositor(void) {
     safe_closedir(xdg_runtime_dir);
   }
 
-  for (size_t w = 0; w < wayland_socket_list_len; ++w) {
-    printf("In caller: %lu\n", (uint64_t)(wayland_socket_list + w));
-  }
   qsort(wayland_socket_list, wayland_socket_list_len,
     sizeof(struct wayland_socket_info), cmpwlsock);
 
-  for (i = 0; i < wayland_socket_list_len; ++i) {
+  for (i = 0; i < wayland_socket_list_len; i++) {
     sock_path = sgenprintf("%s/%s", wayland_socket_list[i].xdg_runtime_dir,
       wayland_socket_list[i].wayland_socket);
     sock_pid = query_sock_pid(sock_path);
@@ -2040,7 +2233,7 @@ static void find_wl_compositor(void) {
       continue;
     }
 
-    for (j = 0; j < wl_pid_str_list_len; ++j) {
+    for (j = 0; j < wl_pid_str_list_len; j++) {
       if(strcmp(sock_pid, wl_pid_str_list[j]) == 0) {
         xdg_runtime_dir_var = wayland_socket_list[i].xdg_runtime_dir;
         wayland_display_var = wayland_socket_list[i].wayland_socket;
@@ -2059,17 +2252,17 @@ static void find_wl_compositor(void) {
     setenv("XDG_RUNTIME_DIR", xdg_runtime_dir_var, 1);
     setenv("WAYLAND_DISPLAY", wayland_display_var, 1);
 
-    for (i = 0; i < process_on_vt_list_len; ++i) {
+    for (i = 0; i < process_on_vt_list_len; i++) {
       free(process_on_vt_list[i].pid_str);
       free(process_on_vt_list[i].comm);
     }
     free(process_on_vt_list);
     free(wl_pid_str_list);
-    for (i = 0; i < xdg_runtime_dir_list_len; ++i) {
+    for (i = 0; i < xdg_runtime_dir_list_len; i++) {
       free(xdg_runtime_dir_list[i]);
     }
     free(xdg_runtime_dir_list);
-    for (i = 0; i < wayland_socket_list_len; ++i) {
+    for (i = 0; i < wayland_socket_list_len; i++) {
       free(wayland_socket_list[i].xdg_runtime_dir);
       free(wayland_socket_list[i].wayland_socket);
     }
@@ -2082,36 +2275,71 @@ static void find_wl_compositor(void) {
   exit(1);
 }
 
+static void parse_esc_key_str(const char *esc_key_str) {
+  char *esc_key_str_copy = strdup(esc_key_str);
+  char *root_token = NULL;
+  char *sub_token = NULL;
+  size_t i = 0;
+  size_t j = 0;
+
+  for (i = 0; ((root_token = strsep(&esc_key_str_copy, ",")) != NULL); i++) {
+    if (root_token[0] == '\0' ) {
+      fprintf(stderr,
+        "FATAL ERROR: Empty key name specified in escape key list!\n");
+      exit(1);
+    }
+
+    esc_key_list_len++;
+    esc_key_list = safe_reallocarray(esc_key_list, esc_key_list_len,
+      sizeof(uint32_t *));
+    esc_key_sublist_len = safe_reallocarray(esc_key_sublist_len,
+      esc_key_list_len, sizeof(size_t));
+    active_esc_key_list = safe_reallocarray(active_esc_key_list,
+      esc_key_list_len, sizeof(bool));
+    esc_key_sublist_len[esc_key_list_len - 1] = 0;
+
+    for (j = 0; ((sub_token = strsep(&root_token, "|")) != NULL); j++)  {
+      if (sub_token[0] == '\0') {
+        fprintf(stderr,
+          "FATAL ERROR: Empty key name specified in escape key list!\n");
+        exit(1);
+      }
+
+      esc_key_sublist_len[i]++;
+      esc_key_list[i] = safe_reallocarray(esc_key_list[i],
+        esc_key_sublist_len[i], sizeof(uint32_t));
+      esc_key_list[i][j] = lookup_keycode(sub_token);
+      if (esc_key_list[i][j] == 0) {
+        fprintf(stderr, "FATAL ERROR: Unrecognized Key name '%s'!\n",
+          sub_token);
+        exit(1);
+      }
+    }
+  }
+}
+
 static void print_usage(void) {
-  fprintf(stderr,
-    "Usage: kloak [options]\n");
-  fprintf(stderr,
-    "Anonymizes keyboard and mouse input patterns by injecting jitter into input\n");
-  fprintf(stderr,
-    "events. Designed specifically for wlroots-based Wayland compositors. Will NOT\n");
-  fprintf(stderr,
-    "work with X11.\n");
+  fprintf(stderr, "Usage: kloak [options]\n");
+  fprintf(stderr, "Anonymizes keyboard and mouse input patterns by injecting jitter into input\n");
+  fprintf(stderr, "events. Designed specifically for wlroots-based Wayland compositors. Will NOT\n");
+  fprintf(stderr, "work with X11.\n");
   fprintf(stderr, "\n");
-  fprintf(stderr,
-    "Options:\n");
-  fprintf(stderr,
-    "  -d, --delay=milliseconds          maximum delay of released events.\n");
-  fprintf(stderr,
-    "                                    Default is 100.\n");
-  fprintf(stderr,
-    "  -s, --start-delay=milliseconds    time to wait before startup. Default is 500.\n");
-  fprintf(stderr,
-    "  -c, --color=AARRGGBB              color to use for virtual mouse cursor.\n");
-  fprintf(stderr,
-    "                                    Default is ffff0000 (solid red).\n");
-  fprintf(stderr,
-    "  -w, --wayland-list=c1[,c2,...]    List of known Wayland compositors to try to\n");
-  fprintf(stderr,
-    "                                    connect to. Default includes most popular\n");
-  fprintf(stderr,
-    "                                    wlroots-based compositors.\n");
-  fprintf(stderr,
-    "  -h, --help                        print help\n");
+  fprintf(stderr, "Options:\n");
+  fprintf(stderr, "  -d, --delay=milliseconds\n");
+  fprintf(stderr, "    Maximum delay of released events. Default is 100.\n");
+  fprintf(stderr, "  -s, --start-delay=milliseconds\n");
+  fprintf(stderr, "    Time to wait before startup. Default is 500.\n");
+  fprintf(stderr, "  -c, --color=AARRGGBB\n");
+  fprintf(stderr, "    Color to use for virtual mouse cursor. Default is ffff0000 (solid red).\n");
+  fprintf(stderr, "  -w, --wayland-list=c1[,c2,...]\n");
+  fprintf(stderr, "    List of known Wayland compositors to try to connect to. Will try most\n");
+  fprintf(stderr, "    popular wlroots-based compositors by default.\n");
+  fprintf(stderr, "  -k, --esc-key-combo=KEY_1[,KEY_2|KEY_3...]\n");
+  fprintf(stderr, "    Key combination to press to terminate kloak. Keys are separated by\n");
+  fprintf(stderr, "    commas. Keys can be aliased to each other by separating them with a pipe\n");
+  fprintf(stderr, "    character. Default is KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC.\n");
+  fprintf(stderr, "  -h, --help\n");
+  fprintf(stderr, "    Print help.\n");
 }
 
 /****************************/
@@ -2207,6 +2435,7 @@ static void parse_cli_args(int argc, char **argv) {
     {"help", no_argument, NULL, 'h'},
     {"color", required_argument, NULL, 'c'},
     {"wayland-list", required_argument, NULL, 'w'},
+    {"esc-key-combo", required_argument, NULL, 'k'},
     {0, 0, 0, 0}
   };
   int getopt_rslt = 0;
@@ -2237,6 +2466,8 @@ static void parse_cli_args(int argc, char **argv) {
           &known_compositor_list_len, true);
       }
       free(optarg_copy);
+    } else if (getopt_rslt == 'k') {
+      parse_esc_key_str(optarg);
     } else if (getopt_rslt == 'h') {
       print_usage();
       exit(0);
@@ -2247,11 +2478,15 @@ static void parse_cli_args(int argc, char **argv) {
   }
 
   if (known_compositor_list == NULL) {
-    for (i = 0; known_compositor_default_list[i] != NULL; ++i) {
+    for (i = 0; known_compositor_default_list[i] != NULL; i++) {
       default_dup_str = strdup(known_compositor_default_list[i]);
       strlist_append(default_dup_str, &known_compositor_list,
         &known_compositor_list_len, false);
     }
+  }
+
+  if (esc_key_list == NULL) {
+    parse_esc_key_str(default_esc_key_str);
   }
 }
 
@@ -2296,13 +2531,14 @@ int main(int argc, char **argv) {
       if (next_ev_type == LIBINPUT_EVENT_NONE)
         break;
       struct libinput_event *li_event = libinput_get_event(li);
+      register_esc_combo_event(next_ev_type, li_event);
       queue_libinput_event_and_relocate_virtual_cursor(next_ev_type,
         li_event);
     }
 
     release_scheduled_input_events();
 
-    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; ++i) {
+    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
       if (!state.layers[i]) {
         continue;
       }
