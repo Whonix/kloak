@@ -20,9 +20,20 @@ kloak(8) -- anti keystroke deanonymization tool
   * `-h`, `--help`:
     Print usage message and exit.
   * `-d`, `--delay` :
-    Configure the maximum delay of released events. Default 100.
+    Configure the maximum delay of released events. Default is 100.
   * `-s`, `--start-delay` :
-    Configure the time to wait before starting. Default 500.
+    Configure the time to wait before starting. Default is 500.
+  * `-c`, `--color` :
+    Configure the color to use for the virtual mouse cursor. Expects a
+    hexadecimal value in the format AARRGGBB (one byte for each of alpha, red,
+    green, blue). Default is ffff0000 (solid red).
+  * `-w`, `--wayland-list` :
+    Provide a comma-separated list of Wayland compositors to try to connect
+    to. Will try most popular wlroots-based compositors by default.
+  * `-k`, `--esc-key-combo` :
+    Specify the key combination that will terminate kloak. Keys are separated
+    by commas. Keys can be aliased to each other by separating them with a
+    pipe (|) character. Defaults is KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC.
 
 ## DESCRIPTION
 kloak is an event-level online anonymization kernel for keyboards and mice.
@@ -34,7 +45,7 @@ between mouse input events, the number of mouse input events, and the exact
 path taken by the mouse pointer. This data can be used for identification if
 not obfuscated.
 
-## EXAMPLES
+## USAGE
 On startup, `kloak` will grab all evdev input devices with libinput, and will
 proxy the events from those devices to the running Wayland compositor via
 emulated input protocols. There is no need to configure specific devices to be
@@ -48,7 +59,31 @@ grabbed; `kloak` autodetects devices and displays, even when hotplugged.
 Optionally start `kloak` by specifying the event and startup delay. A longer
 startup delay (configured with `-s`) can be useful to avoid problems with
 startup, while a longer event delay (configured with `-d`) will provide
-possibly better anonymity at the cost of reducing usability.
+possibly better anonymity at the cost of reducing usability. There is no need
+to configure `kloak` so it can find your Wayland compositor, even on a system
+with multiple graphically logged in users. `kloak` will automatically detect
+the Wayland compositor running on the display and will connect to that
+compositor.
+
+Once `kloak` is started, a small crosshair will appear in the upper-left
+corner of the screen (red by default, but you may configure its color using
+`-c`). This is the virtual mouse cursor. When you move the mouse pointer, the
+virtual cursor will move first. The real mouse cursor will then chase it in an
+erratic pattern. Websites and most applications can only track the real mouse
+cursor, not the virtual one, thus this hides the rhythm of your actual mouse
+movements from applications. Keystroke rhythms will be obfuscated as well by
+inserting random delays into the usual stream of key press and key release
+events.
+
+Because `kloak` grabs all input devices for itself and only sends those events
+to a single compositor, keyboard and mouse input to anything other than that
+Wayland compositor will not work as long as `kloak` is running. This will
+prevent use of TTYs and complicate switching between multiple graphically
+logged-in users. In order to prevent this from causing a lock-out scenario,
+`kloak` monitors all keystrokes to determine if an "escape combo" has been
+pressed. This escape combo is `KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC` by
+default; you can configure it using the `-k` option. `kloak` will immediately
+exit when this combo is received.
 
 ## WWW
 https://github.com/Whonix/kloak

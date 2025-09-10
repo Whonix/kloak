@@ -4,16 +4,15 @@
  */
 
 /*
- * FIXMEs (all of these MUST be fixed before release):
- * - We want systemd sandboxing almost certainly, but how to acheive this is
- *   not yet known. It might be possible to make a privleap exception for
- *   kloak, then use a systemd user unit to call privleap to call kloak, but
- *   then the systemd sandboxing needs to be permissive enough to handle both
- *   leaprun *and* kloak. Alternatively, maybe the "correct" user session
- *   simply writes data about how to connect to its Wayland compositor to a
- *   location kloak can find, then uses a privleap exception to restart a
- *   system-level kloak service which then picks up and uses that data. That's
- *   probably best.
+ * FIXMEs:
+ * - The Wayland autodetect mechanism is very useful but it's possibly
+ *   dangerously complicated. Create a Python wrapper that autodetects the
+ *   compositor and then either writes out the connection details to a
+ *   temporary file (only accessible by root) or directly launches kloak with
+ *   the needed environment variables set.
+ * - Attempt to get rid of libudev. It requires opening up the sandbox
+ *   significantly more than desirable. Autodetection of input devices can
+ *   probably be done by using fanotify on /dev/input.
  */
 
 /*
@@ -2326,21 +2325,22 @@ static void print_usage(void) {
   fprintf(stderr, "work with X11.\n");
   fprintf(stderr, "\n");
   fprintf(stderr, "Options:\n");
-  fprintf(stderr, "  -d, --delay=milliseconds\n");
-  fprintf(stderr, "    Maximum delay of released events. Default is 100.\n");
-  fprintf(stderr, "  -s, --start-delay=milliseconds\n");
-  fprintf(stderr, "    Time to wait before startup. Default is 500.\n");
-  fprintf(stderr, "  -c, --color=AARRGGBB\n");
-  fprintf(stderr, "    Color to use for virtual mouse cursor. Default is ffff0000 (solid red).\n");
-  fprintf(stderr, "  -w, --wayland-list=c1[,c2,...]\n");
-  fprintf(stderr, "    List of known Wayland compositors to try to connect to. Will try most\n");
-  fprintf(stderr, "    popular wlroots-based compositors by default.\n");
-  fprintf(stderr, "  -k, --esc-key-combo=KEY_![,KEY_2|KEY_3...]\n");
-  fprintf(stderr, "    Key combination to press to terminate kloak. Keys are separated by\n");
-  fprintf(stderr, "    commas. Keys can be aliased to each other by separating them with a pipe\n");
-  fprintf(stderr, "    character. Default is KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC.\n");
   fprintf(stderr, "  -h, --help\n");
   fprintf(stderr, "    Print help.\n");
+  fprintf(stderr, "  -d, --delay=milliseconds\n");
+  fprintf(stderr, "    Configure the maximum delay of released events. Default is 100.\n");
+  fprintf(stderr, "  -s, --start-delay=milliseconds\n");
+  fprintf(stderr, "    Configure the time to wait before startup. Default is 500.\n");
+  fprintf(stderr, "  -c, --color=AARRGGBB\n");
+  fprintf(stderr, "    Configure the color to use for the virtual mouse cursor. Default is\n");
+  fprintf(stderr, "    ffff0000 (solid red).\n");
+  fprintf(stderr, "  -w, --wayland-list=c1[,c2,...]\n");
+  fprintf(stderr, "    Provide a comma-separated list of Wayland compositors to try to connect\n");
+  fprintf(stderr, "    to. Will try most popular wlroots-based compositors by default.\n");
+  fprintf(stderr, "  -k, --esc-key-combo=KEY_![,KEY_2|KEY_3...]\n");
+  fprintf(stderr, "    Specify the key combination that will terminate kloak. Keys are separated\n");
+  fprintf(stderr, "    by commas. Keys can be aliased to each other by separating them with a\n");
+  fprintf(stderr, "    pipe (|) character. Default is KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC.\n");
 }
 
 /****************************/
