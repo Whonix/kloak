@@ -4,5 +4,5 @@
 ## Manually maintained file. nogenmkfile
 
 kloak usr/bin/
-
+usr/*
 etc/*

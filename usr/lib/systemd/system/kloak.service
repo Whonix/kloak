@@ -1,0 +1,54 @@
+## Copyright (C) 2016 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+[Unit]
+Description=kloak anti keystroke deanonymization tool
+Documentation=https://github.com/vmonaco/kloak
+ConditionPathExists=!/run/qubes/this-is-templatevm
+After=graphical.target
+
+[Service]
+Type=simple
+
+## This cannot be trivially made work on Qubes!
+##
+## /dev/input/event0 is not a keyboard device.
+##
+## ls -la /dev/input/event0
+## crw-rw---- 1 root input 13, 64 May  6 08:25 /dev/input/event0
+##
+## ls -la /dev/input/by-path/platform-pcspkr-event-spkr
+## lrwxrwxrwx 1 root root 9 May  6 08:25 /dev/input/by-path/platform-pcspkr-event-spkr -> ../event0
+##
+## https://github.com/QubesOS/qubes-issues/issues/2558
+## https://github.com/QubesOS/qubes-issues/issues/1850
+## https://forums.whonix.org/t/current-state-of-kloak/5605/6
+
+ExecStart=/usr/bin/kloak
+
+Restart=always
+RestartSec=2s
+
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_NET_ADMIN CAP_SYS_ADMIN CAP_SYS_TTY_CONFIG CAP_SYS_PTRACE
+
+ProtectSystem=strict
+#ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+## hardened kernels without CONFIG_USER_NS_UNPRIVILEGED=Y
+## need to:
+## * disable or comment out the 3 'Private' namespaces below
+## $ systemctl edit --full kloak
+PrivateTmp=true
+#PrivateUsers=true
+PrivateNetwork=true
+MemoryDenyWriteExecute=true
+NoNewPrivileges=true
+RestrictRealtime=true
+RestrictNamespaces=true
+SystemCallArchitectures=native
+SystemCallFilter=brk open poll readlink close ioctl mmap munmap read access openat fstat pread64 prctl getdents64 socket connect getsockopt sendmsg recvmsg newfstatat readahead unlink ftruncate fcntl epoll_create1 timerfd_create epoll_ctl statx faccessat2 fstatfs rt_sigprocmask readlinkat setsockopt bind getsockname epoll_wait timerfd_settime
+
+[Install]
+WantedBy=graphical.target

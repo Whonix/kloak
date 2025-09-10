@@ -7,7 +7,6 @@ include <tunables/global>
 /usr/bin/kloak {
   include <local/usr.bin.kloak>
 
-  ## Required for 'kloak -v' (verbose) only.
   network unix stream,
   network netlink raw,
 
@@ -20,12 +19,17 @@ include <tunables/global>
   capability dac_override,
   capability net_admin,
   capability sys_admin,
+  capability sys_tty_config,
+  capability sys_ptrace,
+
+  ptrace (read),
 
   /etc/ld.so.cache r,
   /etc/ld.so.preload r,
   /usr/bin/kloak mr,
   /{,usr/}lib{,32,64}/** mr,
   owner /dev/input/event* rw,
+  /dev/console r,
   /dev/urandom r,
   /dev/shm/* mrw,
   /sys/devices/virtual/dmi/id/uevent r,
@@ -34,6 +38,13 @@ include <tunables/global>
   /sys/class/** r,
   /sys/devices/**/uevent r,
   /run/udev/data/* r,
+  /run/user/*/ r,
+  /run/user/*/wayland-* r,
+  /proc/ r,
+  /proc/*/environ r,
+  /proc/*/comm r,
+  /proc/*/fd/1 r,
+  /proc/*/fd/2 r,
 
   /usr/share/libinput/ r,
   /usr/share/libinput/* r,
