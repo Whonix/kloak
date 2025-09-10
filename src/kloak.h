@@ -13,6 +13,7 @@
 #define ALPHABET_LEN 26
 #define ASCII_UPPERCASE_START 65
 #define ASCII_LOWERCASE_START 97
+#define UNIX_SOCK_PATH_MAX 107
 
 /*******************/
 /* tunable defines */
@@ -35,6 +36,23 @@
 /*******************/
 /* core structures */
 /*******************/
+
+/*
+ * Defines an XDG runtime dir and Wayland socket. The two can be concatenated
+ * together with a slash between to form the full path to the socket.
+ */
+struct wayland_socket_info {
+  char *xdg_runtime_dir;
+  char *wayland_socket;
+};
+
+/*
+ * Defines a process on the system by its PID and "comm" name.
+ */
+struct process_info {
+  char *pid_str;
+  char *comm;
+};
 
 /*
  * Defines a screen-local layer that can be drawn on. Each screen has one
@@ -173,6 +191,43 @@ union rand_int64 {
 /*********************/
 
 /*
+ * Allocates the requested amount of memory and returns a pointer to it. Kills
+ * the process if the allocation fails.
+ */
+static void *safe_calloc(size_t nmemb, size_t size);
+
+/*
+ * Reallocates the requested amount of memory and returns a pointer to it.
+ * Kills the process if the allocation fails.
+ */
+static void *safe_reallocarray(void *ptr, size_t nmemb, size_t size);
+
+/*
+ * Duplicates a string. Kills the process if allocation fails.
+ */
+static char *safe_strdup(const char *s);
+
+/*
+ * Opens a file. Kills the process if the open fails.
+ */
+static int safe_open(const char *pathname, int flags);
+
+/*
+ * Closes a file. Kills the process if the close fails.
+ */
+static void safe_close(int fd);
+
+/*
+ * Opens a directory. Kills the process if the open fails.
+ */
+static DIR *safe_opendir(const char *name, bool allow_enoent);
+
+/*
+ * Closes a directory. Kills the process if the close fails.
+ */
+static void safe_closedir(DIR *dirp);
+
+/*
  * Reads the specified number of random bytes from /dev/urandom into the
  * specified buffer. applayer_random_init must be called before this function
  * will behave as intended.
@@ -253,24 +308,65 @@ static void draw_block(uint32_t * pixbuf, int32_t offset, int32_t x, int32_t y,
   int32_t layer_width, int32_t layer_height, int32_t rad, bool crosshair);
 
 /*
- * Parse an option parameter as an unsigned integer.
- */
-static int32_t parse_uintarg(const char *arg_name, const char *val);
-
-/*
  */
 static void draw_block(uint32_t * pixbuf, int32_t offset, int32_t x, int32_t y,
   int32_t layer_width, int32_t layer_height, int32_t rad, bool crosshair);
 
 /*
- * Parse an option parameter as an unsigned integer.
+ * Parse an option parameter as an unsigned integer. Returns a signed integer
+ * between 0 and INT32_MAX.
  */
-static int32_t parse_uintarg(const char *arg_name, const char *val);
+static int32_t parse_uint31_arg(const char *arg_name, const char *val,
+  int base);
+
+/*
+ * Parse an option parameter as an unsigned integer. Returns an unsigned
+ * integer between 0 and UINT32_MAX.
+ */
+static uint32_t parse_uint32_arg(const char *arg_name, const char *val,
+  int base);
 
 /*
  * Sleeps for the specified number of milliseconds.
  */
 static int32_t sleep_ms(int64_t ms);
+
+/*
+ * Allocates a formatted string and returns a ointer to it. It is the caller's
+ * responsibility to free this when it is no longer in use.
+ */
+static char *sgenprintf(char *str, ...);
+
+/*
+ * Determines if a link points to a specific location or not.
+ */
+static bool linkcmp(char *link_path, char *expected_target);
+
+/*
+ * Appends a string to a string list. Either a copy of the string or the
+ * string itself can be appended.
+ */
+static void strlist_append(char *str, char ***strlist, size_t *list_len,
+  bool append_copy);
+
+/*
+ * Reads the contents of a file and dumps them to a NULL-terminated char *.
+ * Replaces the final newline (if any) with a NULL terminator. This is
+ * particularly well-suited to reading ASCII text and files consisting of
+ * NULL-terminated strings.
+ */
+static char *read_as_str(char *file_path, size_t *out_len);
+
+/*
+ * Compares wayland_socket_info structs to each other for qsort.
+ */
+static int cmpwlsock(const void *p1, const void *p2);
+
+/*
+ * Connects to the specified UNIX socket and returns the PID of the process
+ * listening on that socket.
+ */
+static char *query_sock_pid(char *sock_path);
 
 /********************/
 /* wayland handling */
@@ -395,6 +491,13 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
  * them.
  */
 static void release_scheduled_input_events(void);
+
+/*
+ * Sets the XDG_RUNTIME_DIR and WAYLAND_DISPLAY environment variables to point
+ * to the compositor on the currently running TTY. This allows
+ * libwayland-client to find and connect to the correct compositor.
+ */
+static void find_wl_compositor(void);
 
 /*
  * Prints usage information.

@@ -15,108 +15,6 @@
  *   that need to use the input devices at the same time, for instance to
  *   allow fully featured three-finger salute handling. Getting the keyboard
  *   free from kloak will also be essential to allow TTYs to be used.)
- * - kloak has to run as root, but it also has to know which compositor to
- *   connect to. This requires some transfer of environment variables from the
- *   "correct" user session to the kloak instance. How to define which session
- *   is "correct" is yet to be determined (assuming a single-seat system, it
- *   should be whichever session is physically active on the screen at the
- *   time, but how do we know which one that is, and what the Wayland socket
- *   corresponding to that session is?)
- *   - For solving this particular problem, we can determine what applications
- *     are running on a specific TTY (readlink on /proc/PID/fd/{1,2} is the
- *     key here). We can find the Wayland compositor we want here using name
- *     matching (which means we have to have a hardcoded list of compositors,
- *     which *stinks*, but oh well, maybe make this configurable?). One can
- *     access /proc/PID/environ and find XDG_RUNTIME_DIR from that to figure
- *     out where the wayland socket is. Finally, one can open each wayland-X
- *     socket under the appropriate XDG_RUNTIME_DIR and query it with
- *     getsockopt SO_PEERCRED to find the socket that matches the PID of the
- *     Wayland server. This sounds horrible, and in a way it is, but there
- *     doesn't seem to be an easy way to find the Wayland socket by digging in
- *     /proc/PID/fd (the actual socket itself isn't listed there). lsof is
- *     able to pull this off, but how is unclear. (There's a liblsof now,
- *     maybe it can be used? It seems to be undocumented...) Another solution
- *     might be to look at processes other than the Wayland compositor also
- *     running under the active TTY (because strangely enough multiple
- *     processes can have the same TTY open when Wayland is in use) and try to
- *     extract the WAYLAND_DISPLAY variable from one of them to get the right
- *     compositor socket.
- *   - Sample code for getting the PID behind a socket (not very robust):
- *
- *     #define _GNU_SOURCE
- *
- *     #include <stdio.h>
- *     #include <sys/socket.h>
- *     #include <sys/un.h>
- *     #include <stdlib.h>
- *
- *     int main(int argc, char **argv) {
- *       int len;
- *       struct ucred ucred;
- *       int sock;
- *
- *       if (argc < 2) {
- *         exit(1);
- *       }
- *       if (strlen(argv[1]) > 107) {
- *         exit(1);
- *       }
- *
- *       struct sockaddr_un sock_addr;
- *       sock_addr.sun_family = AF_UNIX;
- *       strcpy(sock_addr.sun_path, argv[1]);
- *       sock = socket(AF_UNIX, SOCK_STREAM, 0);
- *       if (connect(sock, &sock_addr, sizeof(struct sockaddr_un)) == -1) {
- *         exit(1);
- *       }
- *       if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &ucred, &len) == -1) {
- *         exit(1);
- *       }
- *       printf("PID: %d\n", ucred.pid);
- *     }
- *
- *   - Don't forget that readlink works weird when dealing with files in
- *     /proc/PID/fd.
- *
- *     <arraybolt3>  TIL using `lstat()` on a pseudo-symlink under /proc/self/fd
- *     always returns a stat.st_size of 64, regardless of the size of the actual path
- *     the link points to. This makes using `readlink` really tricky.
- *     <Habbie>  lstat, alloc, readlink? sounds like a race condition always
- *     <arraybolt3>  Habbie: well it's what readlink's manpage says to do...
- *     <arraybolt3>  and it has some info about how to detect if a race occurs so you
- *     can try to correct it
- *     <Habbie>  it also notes the race, i see
- *     <arraybolt3>  but those corrective measures work really really poorly when you
- *     keep being told a 67-character path is 64 characters
- *     <Habbie>  heh, yes
- *     <Habbie>  so you'll always hit the painful path
- *     <arraybolt3>  yep
- *     <Habbie>  the example that falls back to PATH_MAX on zero - how about doing
- *     that for 64 too
- *     <arraybolt3>  4096 isn'
- *     <arraybolt3>  isn't exactly foolproof
- *     <Habbie>  oh that's a lot. but why not?
- *     <arraybolt3>  people nest directories insanely deep sometimes, software has to
- *     be ready for anything
- *     <Habbie>  does linux even allow more than that?
- *     <arraybolt3>  and right now the consequence of a too-small st_size is a sudden
- *     infinite loop that consumes 100% of one CPU core
- *     <arraybolt3>  so I need to prevent that
- *     <arraybolt3>  Habbie: pretty sure yes
- *     <Habbie>  oof
- *     <arraybolt3>  ext4 permits inifinite path lengths, but you can't have a
- *     filename longer than 255 bytes
- *     <arraybolt3>  hmm, looks liek Bash at least won't go past 4096
- *     <arraybolt3>  so maybe PATH_MAX is enough
- *     <arraybolt3>  oh this is evil
- *     <arraybolt3>  I *can* make deeper directories
- *     <arraybolt3>  Bash just won't show them in the prompt
- *     <arraybolt3>  so yeah I'm now in a directory with a 5673-character pathname
- *     * arraybolt3 groans
- *     <arraybolt3>  hack; going to just use PATH_MAX anyway and if I get a longer
- *     path I'll just return the truncated value, it'll probably have enough data in
- *     it to be useful
- *
  * - We want systemd sandboxing almost certainly, but how to acheive this is
  *   not yet known. It might be possible to make a privleap exception for
  *   kloak, then use a systemd user unit to call privleap to call kloak, but
@@ -126,8 +24,6 @@
  *   location kloak can find, then uses a privleap exception to restart a
  *   system-level kloak service which then picks up and uses that data. That's
  *   probably best.
- * - Possibly allow configuring the crosshair color? Red might not work for
- *   everyone.
  * - XKB isn't quite working - Alt+Tab works but you sometimes have to tap Alt
  *   to get the window stack popup to go away, pressing and holding Alt while
  *   dragging the mouse makes Alt effectively stuck for all mouse click
@@ -144,6 +40,8 @@
  *   unsigned arithmetic wherever possible.
  * - Use an assert to check that a value is within bounds before every cast.
  */
+
+#define _GNU_SOURCE
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -164,6 +62,11 @@
 #include <getopt.h>
 #include <assert.h>
 #include <limits.h>
+#include <sys/ioctl.h>
+#include <linux/vt.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <ctype.h>
 
 #include <wayland-client.h>
 #include "xdg-output-protocol.h"
@@ -188,21 +91,122 @@ static double prev_cursor_x = 0;
 static double prev_cursor_y = 0;
 
 static struct disp_state state = { 0 };
-static struct libinput *li;
-static struct udev *udev_ctx;
+static struct libinput *li = NULL;
+static struct udev *udev_ctx = NULL;
 
-static struct pollfd *ev_fds;
+static struct pollfd *ev_fds = { 0 };
 
 static int64_t prev_release_time = 0;
-static int32_t max_delay = DEFAULT_MAX_DELAY_MS;
-static int32_t startup_delay = DEFAULT_STARTUP_TIMEOUT_MS;
 static TAILQ_HEAD(tailhead, input_packet) head;
 
-int randfd;
+static int32_t max_delay = DEFAULT_MAX_DELAY_MS;
+static int32_t startup_delay = DEFAULT_STARTUP_TIMEOUT_MS;
+static uint32_t cursor_color = 0xffff0000;
+static char **known_compositor_list = NULL;
+static size_t known_compositor_list_len = 0;
+
+int randfd = 0;
+
+const char *known_compositor_default_list[] = {
+  /* Mostly based on the list at https://wiki.gentoo.org/wiki/Wlroots. */
+  "labwc",
+  "sway",
+  "cage",
+  "cagebreak",
+  "dwl",
+  "kiwmi",
+  "river",
+  "waybox",
+  "wayfire",
+  "woodland",
+  NULL
+};
 
 /*********************/
 /* utility functions */
 /*********************/
+
+static void *safe_calloc(size_t nmemb, size_t size) {
+  void *out_ptr = calloc(nmemb, size);
+  if (out_ptr == NULL) {
+    fprintf(stderr,
+      "FATAL ERROR: Could not allocate memory: %s\n", strerror(errno));
+    exit(1);
+  }
+  return out_ptr;
+}
+
+static void *safe_reallocarray(void *ptr, size_t nmemb, size_t size) {
+  void *out_ptr = reallocarray(ptr, nmemb, size);
+  if (out_ptr == NULL) {
+    fprintf(stderr,
+      "FATAL ERROR: Could not allocate memory: %s\n", strerror(errno));
+    exit(1);
+  }
+  return out_ptr;
+}
+
+static char *safe_strdup(const char *s) {
+  char *out_ptr = strdup(s);
+  if (out_ptr == NULL) {
+    fprintf(stderr,
+      "FATAL ERROR: Could not allocate memory: %s\n", strerror(errno));
+    exit(1);
+  }
+  return out_ptr;
+}
+
+static int safe_open(const char *pathname, int flags) {
+  int out_int = open(pathname, flags);
+  if (out_int == -1) {
+    fprintf(stderr,
+      "FATAL ERROR: Could not open file '%s': %s\n", pathname,
+      strerror(errno));
+    exit(1);
+  }
+  return out_int;
+}
+
+static void safe_close(int fd) {
+  int rslt = close(fd);
+  if (rslt == -1) {
+    fprintf(stderr,
+      "FATAL ERROR: Could not close a file: %s\n", strerror(errno));
+    exit(1);
+  }
+}
+
+static DIR *safe_opendir(const char *name, bool allow_enoent) {
+  DIR *out_ptr = opendir(name);
+  if (out_ptr == NULL) {
+    if (!allow_enoent || errno != ENOENT) {
+      fprintf(stderr,
+        "FATAL ERROR: Could not open directory '%s': %s\n", name,
+        strerror(errno));
+      exit(1);
+    }
+  }
+  return out_ptr;
+}
+
+static void safe_closedir(DIR *dirp) {
+  int rslt = closedir(dirp);
+  if (rslt == -1) {
+    fprintf(stderr,
+      "FATAL ERROR: Could not close a directory: %s\n", strerror(errno));
+    exit(1);
+  }
+}
+
+/*static off_t safe_lseek(int fd, off_t offset, int whence) {
+  off_t rslt = lseek(fd, offset, whence);
+  if (rslt == -1) {
+    fprintf(stderr,
+      "FATAL ERROR: Could not seek within a file: %s\n", strerror(errno));
+    exit(1);
+  }
+  return rslt;
+}*/
 
 static void read_random(char *buf, ssize_t len) {
   assert(len >= 0);
@@ -633,9 +637,9 @@ static void draw_block(uint32_t *pixbuf, int32_t offset, int32_t x, int32_t y,
   for (int32_t work_y = start_y; work_y <= end_y; ++work_y) {
     for (int32_t work_x = start_x; work_x <= end_x; ++work_x) {
       if (crosshair && work_x == x) {
-        pixbuf[offset + (work_y * layer_width + work_x)] = 0xffff0000;
+        pixbuf[offset + (work_y * layer_width + work_x)] = cursor_color;
       } else if (crosshair && work_y == y) {
-        pixbuf[offset + (work_y * layer_width + work_x)] = 0xffff0000;
+        pixbuf[offset + (work_y * layer_width + work_x)] = cursor_color;
       } else {
         pixbuf[offset + (work_y * layer_width + work_x)] = 0x00000000;
       }
@@ -643,24 +647,46 @@ static void draw_block(uint32_t *pixbuf, int32_t offset, int32_t x, int32_t y,
   }
 }
 
-static int32_t parse_uintarg(const char *arg_name, const char *val) {
+static int32_t parse_uint31_arg(const char *arg_name, const char *val,
+  int base) {
   char *val_endchar;
   uint64_t val_int;
 
-  val_int = strtoul(val, &val_endchar, 10);
+  val_int = strtoul(val, &val_endchar, base);
   if (*val_endchar != '\0') {
-    goto parse_uintarg_error;
+    goto parse_uint31_arg_error;
   }
   if (val_int > INT32_MAX) {
-    goto parse_uintarg_error;
+    goto parse_uint31_arg_error;
   }
   return (int32_t)(val_int);
 
-parse_uintarg_error:
+parse_uint31_arg_error:
   fprintf(stderr,
-    "FATAL ERROR: Invalid value '%s' passed to parameter '%s'!", val, arg_name);
+    "FATAL ERROR: Invalid value '%s' passed to parameter '%s'!\n", val, arg_name);
   exit(1);
   return -1;
+}
+
+static uint32_t parse_uint32_arg(const char *arg_name, const char *val,
+  int base) {
+  char *val_endchar;
+  uint64_t val_int;
+
+  val_int = strtoul(val, &val_endchar, base);
+  if (*val_endchar != '\0') {
+    goto parse_uint31_arg_error;
+  }
+  if (val_int > UINT32_MAX) {
+    goto parse_uint31_arg_error;
+  }
+  return (uint32_t)(val_int);
+
+parse_uint31_arg_error:
+  fprintf(stderr,
+    "FATAL ERROR: Invalid value '%s' passed to parameter '%s'!\n", val, arg_name);
+  exit(1);
+  return 0;
 }
 
 static int32_t sleep_ms(int64_t ms) {
@@ -677,6 +703,178 @@ static int32_t sleep_ms(int64_t ms) {
     return -1;
   }
   return 0;
+}
+
+static char *sgenprintf(char *str, ...) {
+  char *rslt = NULL;
+  int rslt_len = 0;
+  int rslt_writelen = 0;
+
+  va_list extra_args;
+  va_start(extra_args, str);
+  rslt_len = vsnprintf(NULL, 0, str, extra_args) + 1;
+  va_end(extra_args);
+  if (rslt_len == -1) {
+    fprintf(stderr,
+      "FATAL ERROR: String processing issue: %s\n", strerror(errno));
+    exit(1);
+  }
+  rslt = safe_calloc(1, (size_t)(rslt_len));
+  va_start(extra_args, str);
+  rslt_writelen = vsnprintf(rslt, (size_t)(rslt_len), str, extra_args);
+  va_end(extra_args);
+
+  assert(rslt_writelen == rslt_len - 1);
+  return rslt;
+}
+
+static bool linkcmp(char *link_path, char *expected_target) {
+  char link_buf[PATH_MAX];
+  ssize_t readlink_len = 0;
+
+  if (access(link_path, F_OK) != 0) {
+    return false;
+  }
+  readlink_len = readlink(link_path, link_buf, PATH_MAX);
+  if (readlink_len == -1 || readlink_len == PATH_MAX) {
+    return false;
+  }
+  link_buf[readlink_len] = '\0';
+  if (strcmp(link_buf, expected_target) != 0) {
+    return false;
+  }
+
+  return true;
+}
+
+static void strlist_append(char *str, char ***strlist, size_t *list_len,
+  bool append_copy) {
+  char **internal_strlist = *strlist;
+  size_t internal_list_len = *list_len;
+
+  ++internal_list_len;
+  internal_strlist = safe_reallocarray(internal_strlist, internal_list_len,
+    sizeof(char *));
+  if (append_copy) {
+    internal_strlist[internal_list_len - 1] = safe_calloc(1,
+      strlen(str) + 1);
+    strcpy(internal_strlist[internal_list_len - 1], str);
+  } else {
+    internal_strlist[internal_list_len - 1] = str;
+  }
+
+  *strlist = internal_strlist;
+  *list_len = internal_list_len;
+}
+
+static char *read_as_str(char *file_path, size_t *out_len) {
+  int fd = -1;
+  off_t alloc_len = 0;
+  off_t file_pos = 0;
+  char *out_str = NULL;
+  bool err_hit = false;
+  ssize_t block_len = 0;
+
+  fd = safe_open(file_path, O_RDONLY);
+  while (true) {
+    if (file_pos == alloc_len) {
+      alloc_len += 4096;
+      out_str = safe_reallocarray(out_str, 1, (size_t)(alloc_len));
+    }
+    block_len = read(fd, out_str + (size_t)(file_pos),
+      (size_t)(alloc_len) - (size_t)(file_pos));
+    if (block_len == -1) {
+      fprintf(stderr, "FATAL ERROR: Could not read from file '%s': %s\n",
+        file_path, strerror(errno));
+      exit(1);
+    }
+    if (block_len == 0) {
+      break;
+    }
+
+    file_pos += block_len;
+  }
+
+  if (out_str[file_pos - 1] == '\n') {
+    out_str[file_pos - 1] = '\0';
+  } else if (out_str[file_pos - 1] != '\0') {
+    ++file_pos;
+    if (file_pos > alloc_len) {
+      ++alloc_len;
+      out_str = safe_reallocarray(out_str, 1, (size_t)(alloc_len));
+    }
+    out_str[file_pos - 1] = '\0';
+  }
+
+  safe_close(fd);
+  if (err_hit) {
+    if (out_str != NULL) {
+      free(out_str);
+      out_str = NULL;
+    }
+  }
+  if (out_str != NULL && out_len != NULL) {
+    *out_len = (size_t)(file_pos);
+  }
+  if (file_pos < alloc_len) {
+    out_str = safe_reallocarray(out_str, 1, (size_t)(file_pos));
+  }
+  return out_str;
+}
+
+static int cmpwlsock(const void *p1, const void *p2) {
+  struct wayland_socket_info *wsi1 = (struct wayland_socket_info *)(p1);
+  struct wayland_socket_info *wsi2 = (struct wayland_socket_info *)(p2);
+  printf("In callee: %lu\n", (uint64_t)(wsi1));
+  printf("In callee: %lu\n", (uint64_t)(wsi2));
+  char *wsi1_path = sgenprintf("%s/%s", wsi1->xdg_runtime_dir,
+    wsi1->wayland_socket);
+  char *wsi2_path = sgenprintf("%s/%s", wsi2->xdg_runtime_dir,
+    wsi2->wayland_socket);
+  int rslt = strcmp(wsi1_path, wsi2_path);
+  free(wsi1_path);
+  free(wsi2_path);
+  return rslt;
+}
+
+static char *query_sock_pid(char *sock_path) {
+  socklen_t ucred_struct_len = sizeof(struct ucred);
+  struct ucred ucred_struct = { 0 };
+  int sock_fd = 0;
+  struct sockaddr_un sock_addr = { 0 };
+  char *out_str = NULL;
+
+  if (strlen(sock_path) > UNIX_SOCK_PATH_MAX) {
+    return NULL;
+  }
+
+  sock_addr.sun_family = AF_UNIX;
+  strcpy(sock_addr.sun_path, sock_path);
+  sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+  if (sock_fd == -1) {
+    fprintf(stderr, "FATAL ERROR: Could not create UNIX socket: %s\n",
+      strerror(errno));
+    exit(1);
+  }
+
+  if (connect(sock_fd, &sock_addr, sizeof(struct sockaddr_un)) == -1) {
+    fprintf(stderr, "FATAL ERROR: Could not connect to socket '%s': %s\n",
+      sock_path, strerror(errno));
+    exit(1);
+  }
+
+  if (getsockopt(sock_fd, SOL_SOCKET, SO_PEERCRED, &ucred_struct,
+    &ucred_struct_len) == -1) {
+    fprintf(stderr,
+      "FATAL ERROR: Could not get peer information from socket '%s': %s\n",
+      sock_path, strerror(errno));
+    exit(1);
+  }
+
+  safe_close(sock_fd);
+
+  out_str = sgenprintf("%d", ucred_struct.pid);
+  return out_str;
 }
 
 /********************/
@@ -725,7 +923,7 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
           zxdg_output_v1_add_listener(state->xdg_outputs[i],
             &xdg_output_listener, state);
           wl_output_add_listener(state->outputs[i], &output_listener, state);
-          state->pending_output_geometries[i] = calloc(1,
+          state->pending_output_geometries[i] = safe_calloc(1,
             sizeof(struct output_geometry));
         }
         new_layer_allocated = true;
@@ -752,7 +950,7 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
         zxdg_output_v1_add_listener(state->xdg_outputs[i],
           &xdg_output_listener, state);
         wl_output_add_listener(state->outputs[i], &output_listener, state);
-        state->pending_output_geometries[i] = calloc(1,
+        state->pending_output_geometries[i] = safe_calloc(1,
           sizeof(struct output_geometry));
       }
     }
@@ -844,7 +1042,7 @@ static void kb_handle_keymap(void *data, struct wl_keyboard *kb,
     if (strcmp(state->old_kb_map_shm, kb_map_shm) == 0) {
       /* New and old maps are the same, cleanup and return. */
       munmap(kb_map_shm, size);
-      close(fd);
+      safe_close(fd);
       return;
     } else {
       assert(state->old_kb_map_shm_size >= 0);
@@ -864,7 +1062,7 @@ static void kb_handle_keymap(void *data, struct wl_keyboard *kb,
     fprintf(stderr, "FATAL ERROR: Could not compile xkb layout!\n");
     exit(1);
   }
-  close(fd);
+  safe_close(fd);
   if (state->xkb_state) {
     xkb_state_unref(state->xkb_state);
   }
@@ -1040,7 +1238,7 @@ static void layer_surface_configure(void *data,
   layer->pixbuf = mmap(NULL, (size_t)(layer->size * MAX_UNRELEASED_FRAMES), PROT_READ | PROT_WRITE,
     MAP_SHARED, shm_fd, 0);
   if (layer->pixbuf == MAP_FAILED) {
-    close(shm_fd);
+    safe_close(shm_fd);
     fprintf(stderr,
       "FATAL ERROR: Failed to map shared memory block for frame: %s\n",
       strerror(errno));
@@ -1065,7 +1263,7 @@ static void layer_surface_configure(void *data,
 /*********************/
 
 static int li_open_restricted(const char *path, int flags, void *user_data) {
-  int fd = open(path, flags);
+  int fd = safe_open(path, flags);
   int one = 1;
   if (ioctl(fd, EVIOCGRAB, &one) < 0) {
     fprintf(stderr, "FATAL ERROR: Could not grab evdev device '%s'!\n", path);
@@ -1075,7 +1273,7 @@ static int li_open_restricted(const char *path, int flags, void *user_data) {
 }
 
 static void li_close_restricted(int fd, void *user_data) {
-  close(fd);
+  safe_close(fd);
 }
 
 /************************/
@@ -1154,7 +1352,7 @@ static void draw_frame(struct drawable_layer *layer) {
 
 static struct drawable_layer *allocate_drawable_layer(struct disp_state *state,
   struct wl_output *output) {
-  struct drawable_layer *layer = calloc(1, sizeof(struct drawable_layer));
+  struct drawable_layer *layer = safe_calloc(1, sizeof(struct drawable_layer));
   layer->frame_pending = true;
   layer->last_drawn_cursor_x = -1;
   layer->last_drawn_cursor_y = -1;
@@ -1351,7 +1549,7 @@ static struct input_packet * update_virtual_cursor() {
     old_ev_packet->cursor_y = (int32_t)(cursor_y);
     return NULL;
   } else {
-    struct input_packet *ev_packet = calloc(1, sizeof(struct input_packet));
+    struct input_packet *ev_packet = safe_calloc(1, sizeof(struct input_packet));
     if (ev_packet == NULL) {
       fprintf(stderr,
         "FATAL ERROR: Could not allocate memory for libinput event packet!\n");
@@ -1545,7 +1743,7 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
     }
 
   } else {
-    ev_packet = calloc(1, sizeof(struct input_packet));
+    ev_packet = safe_calloc(1, sizeof(struct input_packet));
     if (ev_packet == NULL) {
       fprintf(stderr,
         "FATAL ERROR: Could not allocate memory for libinput event packet!\n");
@@ -1595,6 +1793,295 @@ static void release_scheduled_input_events(void) {
   }
 }
 
+static void find_wl_compositor(void) {
+  /*
+   * We use the following procedure to find the correct compositor:
+   *
+   * - Determine if XDG_RUNTIME_DIR and WAYLAND_DISPLAY are already set. If
+   *   they are, we have everything we need already set up, skip the rest of
+   *   the autodetect process. Otherwise, continue.
+   * - Determine the active VT.
+   * - Find all applications that are "running on" the TTY corresponding to
+   *   that VT (any application with stdout or stderr connected to a
+   *   particular /dev/tty device are considered to be "running on" that VT).
+   * - Determine which one of those applications is a Wayland compositor by
+   *   matching against their process name (comm). We tolerate multiple
+   *   matches so that things still work even if someone happens to have an
+   *   application named 'sway', 'labwc', or similar that isn't a Wayland
+   *   compositor.
+   * - Extract the XDG_RUNTIME_DIR variable from each matched process to
+   *   determine where it most likely has put its Wayland socket.
+   * - Look in all found XDG_RUNTIME_DIR directories for any UNIX sockets
+   *   named according to the pattern 'wayland-*'.
+   * - Attempt to connect to each of these sockets, starting from the earliest
+   *   and ending at the latest, quarying the PID of the process listening on
+   *   each socket as we go.
+   * - Once a socket is found that matches a PID found earlier, we have found
+   *   the Wayland socket for the current VT. Export XDG_RUNTIME_DIR and
+   *   WAYLAND_DISPLAY to point to that socket.
+   *
+   * This should work, as long as no one makes an application named after a
+   * popular Wayland compositor that also opens a Wayland socket in
+   * XDG_RUNTIME_DIR. Unfortunately, there doesn't appear to be any good way
+   * to determine the PID of the process that put the VT into graphics mode,
+   * so it seems like making an educated guess like this is the best that can
+   * be done.
+   *
+   * This method should be pretty hard to fool by accident - because we sort
+   * the list of Wayland sockets we find and commit to using the earliest one
+   * that works, even if the user is running a nested labwc instance, we will
+   * almost certainly end up connecting to the "master" instance (which will
+   * have an earlier wayland-* socket open than the nested instance). Of
+   * course, there are probably ways of fooling this mechanism maliciously,
+   * but if an attacker can do that, they probably already have enough access
+   * to the machine to do much worse things.
+   */
+
+  char *xdg_runtime_dir_var = getenv("XDG_RUNTIME_DIR");
+  char *wayland_display_var = getenv("WAYLAND_DISPLAY");
+  struct vt_stat vt_info = { 0 };
+  int console_fd = -1;
+  char *vt_path = NULL;
+  DIR *proc_dir = NULL;
+  struct dirent *proc_entry = NULL;
+  char *proc_fd1_path = NULL;
+  char *proc_fd2_path = NULL;
+  bool is_dirname_digits = false;
+  struct process_info *process_on_vt_list = NULL;
+  size_t process_on_vt_list_len = 0;
+  char *comm_contents = NULL;
+  char **wl_pid_str_list = NULL;
+  size_t wl_pid_str_list_len = 0;
+  char *current_process_comm_path = NULL;
+  char *current_process_environ_path = NULL;
+  char *current_process_environ_contents = NULL;
+  size_t current_process_environ_len = 0;
+  size_t current_process_environ_pos = 0;
+  char *current_process_xdg_runtime_dir = NULL;
+  char **xdg_runtime_dir_list = NULL;
+  size_t xdg_runtime_dir_list_len = 0;
+  DIR *xdg_runtime_dir = NULL;
+  struct dirent *xdg_runtime_dir_entry = NULL;
+  struct wayland_socket_info *wayland_socket_list = NULL;
+  size_t wayland_socket_list_len = 0;
+  char *sock_path = NULL;
+  char *sock_pid = NULL;
+
+  size_t i = 0;
+  size_t j = 0;
+
+  if (xdg_runtime_dir_var != NULL && wayland_display_var != NULL) {
+    return;
+  }
+  xdg_runtime_dir_var = NULL;
+  wayland_display_var = NULL;
+
+  console_fd = safe_open("/dev/console", O_RDONLY);
+  if (ioctl(console_fd, VT_GETSTATE, &vt_info) == -1) {
+    fprintf(stderr,
+      "FATAL ERROR: Could not get VT state: %s\n", strerror(errno));
+    exit(1);
+  }
+  safe_close(console_fd);
+
+  if (vt_info.v_active <= 0 || vt_info.v_active > MAX_NR_CONSOLES) {
+    fprintf(stderr,
+      "FATAL ERROR: Could not determine the active virtual terminal! Expected a VT between 1 and %d, got %d!",
+      MAX_NR_CONSOLES, vt_info.v_active);
+    exit(1);
+  }
+
+  vt_path = sgenprintf("/dev/tty%d", vt_info.v_active);
+
+  proc_dir = safe_opendir("/proc", false);
+
+  for(proc_entry = readdir(proc_dir); proc_entry != NULL;
+    proc_entry = readdir(proc_dir)) {
+    if (proc_entry->d_type != DT_DIR) {
+      continue;
+    }
+
+    is_dirname_digits = true;
+    for (i = 0; proc_entry->d_name[i] != '\0'; ++i) {
+      if (!isdigit(proc_entry->d_name[i])) {
+        is_dirname_digits = false;
+        break;
+      }
+    }
+    if (!is_dirname_digits) {
+      continue;
+    }
+
+    proc_fd1_path = sgenprintf("/proc/%s/fd/1", proc_entry->d_name);
+    proc_fd2_path = sgenprintf("/proc/%s/fd/2", proc_entry->d_name);
+    current_process_comm_path = sgenprintf("/proc/%s/comm",
+      proc_entry->d_name);
+
+    if (linkcmp(proc_fd1_path, vt_path) || linkcmp(proc_fd2_path, vt_path)) {
+      ++process_on_vt_list_len;
+      process_on_vt_list = safe_reallocarray(process_on_vt_list,
+        process_on_vt_list_len, sizeof(struct process_info));
+      process_on_vt_list[process_on_vt_list_len - 1].pid_str = safe_calloc(1,
+        strlen(proc_entry->d_name) + 1);
+      strcpy(process_on_vt_list[process_on_vt_list_len - 1].pid_str,
+        proc_entry->d_name);
+      comm_contents = read_as_str(current_process_comm_path, NULL);
+      process_on_vt_list[process_on_vt_list_len - 1].comm = comm_contents;
+    }
+    free(proc_fd1_path);
+    proc_fd1_path = NULL;
+    free(proc_fd2_path);
+    proc_fd2_path = NULL;
+    free(current_process_comm_path);
+    current_process_comm_path = NULL;
+  }
+
+  safe_closedir(proc_dir);
+
+  free(vt_path);
+  vt_path = NULL;
+
+  if (process_on_vt_list_len == 0) {
+    fprintf(stderr, "FATAL ERROR: No processes running on active VT!\n");
+    exit(1);
+  }
+
+  for (i = 0; i < process_on_vt_list_len; ++i) {
+    for (j = 0; j < known_compositor_list_len; ++j) {
+      if (strcmp(process_on_vt_list[i].comm, known_compositor_list[j]) != 0) {
+        continue;
+      }
+      strlist_append(process_on_vt_list[i].pid_str, &wl_pid_str_list,
+        &wl_pid_str_list_len, false);
+    }
+  }
+
+  if (wl_pid_str_list_len == 0) {
+    fprintf(stderr,
+      "FATAL ERROR: No Wayland compositors found on active VT!\n");
+    exit(1);
+  }
+
+  for (i = 0; i < wl_pid_str_list_len; ++i) {
+    current_process_environ_path = sgenprintf("/proc/%s/environ",
+      wl_pid_str_list[i]);
+    current_process_environ_contents = read_as_str(
+      current_process_environ_path, &current_process_environ_len);
+
+    while (true) {
+      if (strncmp(current_process_environ_contents
+        + current_process_environ_pos, "XDG_RUNTIME_DIR=",
+        strlen("XDG_RUNTIME_DIR=")) == 0) {
+        current_process_xdg_runtime_dir = strstr(
+          current_process_environ_contents + current_process_environ_pos,
+          "=") + 1;
+        if (strlen(current_process_xdg_runtime_dir) == 0) {
+          break;
+        }
+        strlist_append(current_process_xdg_runtime_dir, &xdg_runtime_dir_list,
+          &xdg_runtime_dir_list_len, true);
+        break;
+      }
+      current_process_environ_pos += strlen(
+        current_process_environ_contents + current_process_environ_pos) + 1;
+      if (current_process_environ_pos == current_process_environ_len) {
+        break;
+      }
+    }
+
+    free(current_process_environ_path);
+    current_process_environ_path = NULL;
+    free(current_process_environ_contents);
+    current_process_environ_contents = NULL;
+  }
+
+  for (i = 0; i < xdg_runtime_dir_list_len; ++i) {
+    xdg_runtime_dir = safe_opendir(xdg_runtime_dir_list[i], true);
+    if (xdg_runtime_dir == NULL) {
+      continue;
+    }
+    for(xdg_runtime_dir_entry = readdir(xdg_runtime_dir);
+      xdg_runtime_dir_entry != NULL;
+      xdg_runtime_dir_entry = readdir(xdg_runtime_dir)) {
+      if (xdg_runtime_dir_entry->d_type != DT_SOCK) {
+        continue;
+      }
+      if (strncmp(xdg_runtime_dir_entry->d_name, "wayland-",
+        strlen("wayland-")) != 0) {
+        continue;
+      }
+      ++wayland_socket_list_len;
+      wayland_socket_list = safe_reallocarray(wayland_socket_list,
+        wayland_socket_list_len, sizeof(struct wayland_socket_info));
+      wayland_socket_list[wayland_socket_list_len - 1].xdg_runtime_dir
+        = safe_calloc(1, strlen(xdg_runtime_dir_list[i]) + 1);
+      wayland_socket_list[wayland_socket_list_len - 1].wayland_socket
+        = safe_calloc(1, strlen(xdg_runtime_dir_entry->d_name) + 1);
+      strcpy(wayland_socket_list[wayland_socket_list_len - 1].xdg_runtime_dir,
+        xdg_runtime_dir_list[i]);
+      strcpy(wayland_socket_list[wayland_socket_list_len - 1].wayland_socket,
+        xdg_runtime_dir_entry->d_name);
+    }
+    safe_closedir(xdg_runtime_dir);
+  }
+
+  for (size_t w = 0; w < wayland_socket_list_len; ++w) {
+    printf("In caller: %lu\n", (uint64_t)(wayland_socket_list + w));
+  }
+  qsort(wayland_socket_list, wayland_socket_list_len,
+    sizeof(struct wayland_socket_info), cmpwlsock);
+
+  for (i = 0; i < wayland_socket_list_len; ++i) {
+    sock_path = sgenprintf("%s/%s", wayland_socket_list[i].xdg_runtime_dir,
+      wayland_socket_list[i].wayland_socket);
+    sock_pid = query_sock_pid(sock_path);
+    free(sock_path);
+    if (sock_pid == NULL) {
+      continue;
+    }
+
+    for (j = 0; j < wl_pid_str_list_len; ++j) {
+      if(strcmp(sock_pid, wl_pid_str_list[j]) == 0) {
+        xdg_runtime_dir_var = wayland_socket_list[i].xdg_runtime_dir;
+        wayland_display_var = wayland_socket_list[i].wayland_socket;
+        break;
+      }
+    }
+
+    free(sock_pid);
+
+    if (xdg_runtime_dir_var != NULL && wayland_display_var != NULL) {
+      break;
+    }
+  }
+
+  if (xdg_runtime_dir_var != NULL && wayland_display_var != NULL) {
+    setenv("XDG_RUNTIME_DIR", xdg_runtime_dir_var, 1);
+    setenv("WAYLAND_DISPLAY", wayland_display_var, 1);
+
+    for (i = 0; i < process_on_vt_list_len; ++i) {
+      free(process_on_vt_list[i].pid_str);
+      free(process_on_vt_list[i].comm);
+    }
+    free(process_on_vt_list);
+    free(wl_pid_str_list);
+    for (i = 0; i < xdg_runtime_dir_list_len; ++i) {
+      free(xdg_runtime_dir_list[i]);
+    }
+    free(xdg_runtime_dir_list);
+    for (i = 0; i < wayland_socket_list_len; ++i) {
+      free(wayland_socket_list[i].xdg_runtime_dir);
+      free(wayland_socket_list[i].wayland_socket);
+    }
+    free(wayland_socket_list);
+
+    return;
+  }
+
+  fprintf(stderr, "FATAL ERROR: Could not find Wayland compositor!\n");
+  exit(1);
+}
+
 static void print_usage(void) {
   fprintf(stderr,
     "Usage: kloak [options]\n");
@@ -1610,9 +2097,19 @@ static void print_usage(void) {
   fprintf(stderr,
     "  -d, --delay=milliseconds          maximum delay of released events.\n");
   fprintf(stderr,
-    "                                    Default 100.\n");
+    "                                    Default is 100.\n");
   fprintf(stderr,
-    "  -s, --start-delay=milliseconds    time to wait before startup. Default 500.\n");
+    "  -s, --start-delay=milliseconds    time to wait before startup. Default is 500.\n");
+  fprintf(stderr,
+    "  -c, --color=AARRGGBB              color to use for virtual mouse cursor.\n");
+  fprintf(stderr,
+    "                                    Default is ffff0000 (solid red).\n");
+  fprintf(stderr,
+    "  -w, --wayland-list=c1[,c2,...]    List of known Wayland compositors to try to\n");
+  fprintf(stderr,
+    "                                    connect to. Default includes most popular\n");
+  fprintf(stderr,
+    "                                    wlroots-based compositors.\n");
   fprintf(stderr,
     "  -h, --help                        print help\n");
 }
@@ -1622,12 +2119,7 @@ static void print_usage(void) {
 /****************************/
 
 static void applayer_random_init(void) {
-  randfd = open("/dev/urandom", O_RDONLY);
-  if (randfd < 0) {
-    fprintf(stderr, "FATAL ERROR: Could not open /dev/urandom: %s\n",
-      strerror(errno));
-    exit(1);
-  }
+  randfd = safe_open("/dev/urandom", O_RDONLY);
 }
 
 static void applayer_wayland_init(void) {
@@ -1635,6 +2127,7 @@ static void applayer_wayland_init(void) {
    * Technically we also initialize xkbcommon here, but it's only involved
    * because it's important for sending key events to Wayland.
    */
+  find_wl_compositor();
   state.display = wl_display_connect(NULL);
   if (!state.display) {
     fprintf(stderr, "FATAL ERROR: Could not get Wayland display!\n");
@@ -1699,7 +2192,7 @@ static void applayer_libinput_init(void) {
 }
 
 static void applayer_poll_init(void) {
-  ev_fds = calloc(2, sizeof(struct pollfd));
+  ev_fds = safe_calloc(2, sizeof(struct pollfd));
   ev_fds[0].fd = state.display_fd;
   ev_fds[0].events = POLLIN;
   ev_fds[1].fd = libinput_get_fd(li);
@@ -1712,9 +2205,16 @@ static void parse_cli_args(int argc, char **argv) {
     {"delay", required_argument, NULL, 'd'},
     {"start-delay", required_argument, NULL, 's'},
     {"help", no_argument, NULL, 'h'},
+    {"color", required_argument, NULL, 'c'},
+    {"wayland-list", required_argument, NULL, 'w'},
     {0, 0, 0, 0}
   };
-  int getopt_rslt;
+  int getopt_rslt = 0;
+  char *optarg_copy = NULL;
+  char *optarg_loc_ptr = NULL;
+  char *optarg_part = NULL;
+  char *default_dup_str = NULL;
+  size_t i = 0;
 
   while(true) {
     getopt_rslt = getopt_long(argc, argv, optstring, optarr, NULL);
@@ -1724,15 +2224,33 @@ static void parse_cli_args(int argc, char **argv) {
       print_usage();
       exit(1);
     } else if (getopt_rslt == 'd') {
-      max_delay = parse_uintarg("delay", optarg);
+      max_delay = parse_uint31_arg("delay", optarg, 10);
     } else if (getopt_rslt == 's') {
-      startup_delay = parse_uintarg("start-delay", optarg);
+      startup_delay = parse_uint31_arg("start-delay", optarg, 10);
+    } else if (getopt_rslt == 'c') {
+      cursor_color = parse_uint32_arg("color", optarg, 16);
+    } else if (getopt_rslt == 'w') {
+      optarg_copy = safe_strdup(optarg);
+      optarg_loc_ptr = optarg_copy;
+      while ((optarg_part = strsep(&optarg_loc_ptr, ",")) != NULL) {
+        strlist_append(optarg_part, &known_compositor_list,
+          &known_compositor_list_len, true);
+      }
+      free(optarg_copy);
     } else if (getopt_rslt == 'h') {
       print_usage();
       exit(0);
     } else {
       print_usage();
       exit(1);
+    }
+  }
+
+  if (known_compositor_list == NULL) {
+    for (i = 0; known_compositor_default_list[i] != NULL; ++i) {
+      default_dup_str = strdup(known_compositor_default_list[i]);
+      strlist_append(default_dup_str, &known_compositor_list,
+        &known_compositor_list_len, false);
     }
   }
 }
@@ -1748,6 +2266,13 @@ int main(int argc, char **argv) {
     fprintf(stderr, "FATAL ERROR: Must be run as root!\n");
     exit(1);
   }
+
+  /* Make sure that locales don't try to ruin our day */
+  if (setenv("LC_ALL", "C", 1) == -1) {
+    fprintf(stderr, "FATAL ERROR: Could not set LC_ALL=C!\n");
+    exit(1);
+  }
+
   parse_cli_args(argc, argv);
   if (sleep_ms(startup_delay) != 0) {
     fprintf(stderr,
