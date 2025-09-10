@@ -14,10 +14,6 @@
  *   location kloak can find, then uses a privleap exception to restart a
  *   system-level kloak service which then picks up and uses that data. That's
  *   probably best.
- * - XKB isn't quite working - Alt+Tab works but you sometimes have to tap Alt
- *   to get the window stack popup to go away, pressing and holding Alt while
- *   dragging the mouse makes Alt effectively stuck for all mouse click
- *   events.
  */
 
 /*
@@ -1822,6 +1818,13 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
       uint32_t key = libinput_event_keyboard_get_key(kb_event);
       enum libinput_key_state key_state
         = libinput_event_keyboard_get_key_state(kb_event);
+      if (key_state == LIBINPUT_KEY_STATE_PRESSED) {
+        /* XKB keycodes == evdev keycodes + 8. Why this design decision was
+         * made, I have no idea. */
+        xkb_state_update_key(state.xkb_state, key + 8, XKB_KEY_DOWN);
+      } else {
+        xkb_state_update_key(state.xkb_state, key + 8, XKB_KEY_UP);
+      }
       xkb_mod_mask_t depressed_mods = xkb_state_serialize_mods(
         state.xkb_state, XKB_STATE_MODS_DEPRESSED);
       xkb_mod_mask_t latched_mods = xkb_state_serialize_mods(
@@ -1834,13 +1837,6 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
         latched_mods, locked_mods, effective_group);
       zwp_virtual_keyboard_v1_key(state.virt_kb, ts_milliseconds, key,
         key_state);
-      if (key_state == LIBINPUT_KEY_STATE_PRESSED) {
-        /* XKB keycodes == evdev keycodes + 8. Why this design decision was
-         * made, I have no idea. */
-        xkb_state_update_key(state.xkb_state, key + 8, XKB_KEY_DOWN);
-      } else {
-        xkb_state_update_key(state.xkb_state, key + 8, XKB_KEY_UP);
-      }
     }
   }
 
@@ -2277,6 +2273,7 @@ static void find_wl_compositor(void) {
 
 static void parse_esc_key_str(const char *esc_key_str) {
   char *esc_key_str_copy = strdup(esc_key_str);
+  char *orig_key_str_copy = esc_key_str_copy;
   char *root_token = NULL;
   char *sub_token = NULL;
   size_t i = 0;
@@ -2296,7 +2293,9 @@ static void parse_esc_key_str(const char *esc_key_str) {
       esc_key_list_len, sizeof(size_t));
     active_esc_key_list = safe_reallocarray(active_esc_key_list,
       esc_key_list_len, sizeof(bool));
-    esc_key_sublist_len[esc_key_list_len - 1] = 0;
+    esc_key_list[i] = NULL;
+    esc_key_sublist_len[i] = 0;
+    active_esc_key_list[i] = false;
 
     for (j = 0; ((sub_token = strsep(&root_token, "|")) != NULL); j++)  {
       if (sub_token[0] == '\0') {
@@ -2316,6 +2315,8 @@ static void parse_esc_key_str(const char *esc_key_str) {
       }
     }
   }
+
+  free(orig_key_str_copy);
 }
 
 static void print_usage(void) {
@@ -2334,7 +2335,7 @@ static void print_usage(void) {
   fprintf(stderr, "  -w, --wayland-list=c1[,c2,...]\n");
   fprintf(stderr, "    List of known Wayland compositors to try to connect to. Will try most\n");
   fprintf(stderr, "    popular wlroots-based compositors by default.\n");
-  fprintf(stderr, "  -k, --esc-key-combo=KEY_1[,KEY_2|KEY_3...]\n");
+  fprintf(stderr, "  -k, --esc-key-combo=KEY_![,KEY_2|KEY_3...]\n");
   fprintf(stderr, "    Key combination to press to terminate kloak. Keys are separated by\n");
   fprintf(stderr, "    commas. Keys can be aliased to each other by separating them with a pipe\n");
   fprintf(stderr, "    character. Default is KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC.\n");
