@@ -53,6 +53,7 @@
 #include <sys/un.h>
 #include <ctype.h>
 #include <linux/input.h>
+#include <sys/inotify.h>
 
 #include <wayland-client.h>
 #include "xdg-output-protocol.h"
@@ -60,7 +61,6 @@
 #include "wlr-virtual-pointer.h"
 #include "virtual-keyboard.h"
 
-#include <libudev.h>
 #include <libinput.h>
 #include <libevdev/libevdev.h>
 #include <xkbcommon/xkbcommon.h>
@@ -78,12 +78,12 @@ static double prev_cursor_y = 0;
 
 static struct disp_state state = { 0 };
 static struct libinput *li = NULL;
-static struct udev *udev_ctx = NULL;
+static int inotify_fd = 0;
 
 static struct pollfd *ev_fds = { 0 };
 
 static int64_t prev_release_time = 0;
-static TAILQ_HEAD(tailhead, input_packet) head;
+static TAILQ_HEAD(tailhead_evq, input_packet) evq_head;
 
 static int32_t max_delay = DEFAULT_MAX_DELAY_MS;
 static int32_t startup_delay = DEFAULT_STARTUP_TIMEOUT_MS;
@@ -95,6 +95,8 @@ static uint32_t **esc_key_list = NULL;
 static size_t *esc_key_sublist_len = NULL;
 static bool *active_esc_key_list = NULL;
 static size_t esc_key_list_len = 0;
+
+static LIST_HEAD(listhead_ldi, li_device_info) ldi_head;
 
 int randfd = 0;
 
@@ -1014,7 +1016,7 @@ static char *query_sock_pid(char *sock_path) {
   return out_str;
 }
 
-uint32_t lookup_keycode(const char *name) {
+static uint32_t lookup_keycode(const char *name) {
   struct key_name_value *p;
   for (p = key_table; p->name != NULL; p++) {
     if (strcmp(p->name, name) == 0) {
@@ -1022,6 +1024,65 @@ uint32_t lookup_keycode(const char *name) {
     }
   }
   return 0;
+}
+
+static void attach_input_device(const char *dev_name) {
+  bool found_device = false;
+  struct libinput_device *new_device = NULL;
+  char *device_path = NULL;
+  struct li_device_info *ldi_node = NULL;
+
+  ldi_node = LIST_FIRST(&ldi_head);
+  while (ldi_node != NULL) {
+    if (strcmp(ldi_node->device_name, dev_name) == 0) {
+      found_device = true;
+      break;
+    }
+    ldi_node = LIST_NEXT(ldi_node, entries);
+  }
+
+  if (found_device) {
+    /*
+     * This may mean a device was quickly detached and then attached again,
+     * thus try removing and re-attaching it.
+     */
+    detach_input_device(dev_name);
+  }
+
+  device_path = sgenprintf("/dev/input/%s", dev_name);
+  new_device = libinput_path_add_device(li, device_path);
+  free(device_path);
+  if (new_device == NULL) {
+    return;
+  }
+
+  ldi_node = safe_calloc(1, sizeof(struct li_device_info));
+  ldi_node->device = new_device;
+  ldi_node->device_name = safe_strdup(dev_name);
+  LIST_INSERT_HEAD(&ldi_head, ldi_node, entries);
+}
+
+static void detach_input_device(const char *dev_name) {
+  struct li_device_info *ldi_node = NULL;
+  bool found_device = false;
+
+  ldi_node = LIST_FIRST(&ldi_head);
+  while (ldi_node != NULL) {
+    if (strcmp(ldi_node->device_name, dev_name) == 0) {
+      found_device = true;
+      break;
+    }
+    ldi_node = LIST_NEXT(ldi_node, entries);
+  }
+
+  if (!found_device) {
+    return;
+  }
+
+  libinput_path_remove_device(ldi_node->device);
+  free(ldi_node->device_name);
+  LIST_REMOVE(ldi_node, entries);
+  free(ldi_node);
 }
 
 /********************/
@@ -1690,7 +1751,7 @@ static struct input_packet * update_virtual_cursor() {
 
   struct input_packet *old_ev_packet;
   /* = rather than == is intentional here */
-  if ((old_ev_packet = TAILQ_LAST(&head, tailhead))
+  if ((old_ev_packet = TAILQ_LAST(&evq_head, tailhead_evq))
     && (!old_ev_packet->is_libinput)) {
     old_ev_packet->cursor_x = (int32_t)(cursor_x);
     old_ev_packet->cursor_y = (int32_t)(cursor_y);
@@ -1950,14 +2011,14 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
     max_delay);
   int64_t random_delay = random_between(lower_bound, max_delay);
   ev_packet->sched_time = current_time + random_delay;
-  TAILQ_INSERT_TAIL(&head, ev_packet, entries);
+  TAILQ_INSERT_TAIL(&evq_head, ev_packet, entries);
   prev_release_time = ev_packet->sched_time;
 }
 
 static void release_scheduled_input_events(void) {
   int64_t current_time = current_time_ms();
   struct input_packet *packet;
-  while ((packet = TAILQ_FIRST(&head))
+  while ((packet = TAILQ_FIRST(&evq_head))
     && (current_time >= packet->sched_time)) {
     if (packet->is_libinput) {
       assert(packet->sched_time >= 0);
@@ -1979,8 +2040,53 @@ static void release_scheduled_input_events(void) {
         (uint32_t)(state.global_space_height - state.pointer_space_y));
       zwlr_virtual_pointer_v1_frame(state.virt_pointer);
     }
-    TAILQ_REMOVE(&head, packet, entries);
+    TAILQ_REMOVE(&evq_head, packet, entries);
     free(packet);
+  }
+}
+
+static void handle_inotify_events(void) {
+  static char *read_buf = NULL;
+  ssize_t read_len = 0;
+  ssize_t rem_len = 0;
+  struct inotify_event *ie;
+
+  if (read_buf == NULL) {
+    read_buf = safe_calloc(INOTIFY_READ_BUF_LEN, sizeof(char));
+  }
+
+  while (true) {
+    read_len = read(inotify_fd, read_buf, INOTIFY_READ_BUF_LEN);
+    if (read_len == -1) {
+      if (errno == EINTR) {
+        continue;
+      }
+      fprintf(stderr,
+        "FATAL ERROR: Could not read from inotify file descriptor: %s\n",
+        strerror(errno));
+      exit(1);
+    }
+    break;
+  }
+
+  ie = (void *)(read_buf);
+  rem_len = read_len;
+  while (true) {
+    rem_len -= ((ssize_t)(sizeof(struct inotify_event)) + (ssize_t)(ie->len));
+
+    if (strncmp(ie->name, "event", strlen("event")) == 0) {
+      if (ie->mask & IN_CREATE) {
+        attach_input_device(ie->name);
+      } else {
+        detach_input_device(ie->name);
+      }
+    }
+
+    if (rem_len == 0) {
+      break;
+    }
+
+    ie += ((ssize_t)(ie->len) / (ssize_t)(sizeof(struct inotify_event))) + 1;
   }
 }
 
@@ -2271,7 +2377,7 @@ static void find_wl_compositor(void) {
 }
 
 static void parse_esc_key_str(const char *esc_key_str) {
-  char *esc_key_str_copy = strdup(esc_key_str);
+  char *esc_key_str_copy = safe_strdup(esc_key_str);
   char *orig_key_str_copy = esc_key_str_copy;
   char *root_token = NULL;
   char *sub_token = NULL;
@@ -2410,22 +2516,61 @@ static void applayer_wayland_init(void) {
 }
 
 static void applayer_libinput_init(void) {
-  udev_ctx = udev_new();
-  li = libinput_udev_create_context(&li_interface, NULL, udev_ctx);
-  /*
-   * TODO: Allow customizing the seat with a command line arg. Or, possibly,
-   * autodetect the proper seat from the compositor.
-   */
-  libinput_udev_assign_seat(li, "seat0");
-  TAILQ_INIT(&head);
+  DIR *input_dir = NULL;
+  struct dirent *input_dir_entry = NULL;
+
+  LIST_INIT(&ldi_head);
+
+  li = libinput_path_create_context(&li_interface, NULL);
+
+  input_dir = safe_opendir("/dev/input", false);
+  for (input_dir_entry = readdir(input_dir); input_dir_entry != NULL;
+    input_dir_entry = readdir(input_dir)) {
+    if (input_dir_entry->d_type != DT_CHR) {
+      continue;
+    }
+
+    if (strncmp(input_dir_entry->d_name, "event", strlen("event")) != 0) {
+      continue;
+    }
+
+    attach_input_device(input_dir_entry->d_name);
+  }
+  safe_closedir(input_dir);
+
+  TAILQ_INIT(&evq_head);
+}
+
+static void applayer_inotify_init(void) {
+  inotify_fd = inotify_init1(IN_CLOEXEC);
+  if (inotify_fd == -1) {
+    fprintf(stderr, "FATAL ERROR: Could not initialize inotify: %s\n",
+      strerror(errno));
+    exit(1);
+  }
+
+  if (inotify_add_watch(inotify_fd, "/dev/input", IN_CREATE | IN_DELETE)
+    == -1) {
+    fprintf(stderr,
+      "FATAL ERROR: Could not add inotify watch on /dev/input: %s\n",
+      strerror(errno));
+    exit(1);
+  }
 }
 
 static void applayer_poll_init(void) {
-  ev_fds = safe_calloc(2, sizeof(struct pollfd));
+  /*
+   * ev_fds[0] = Wayland server file descriptor
+   * ev_fds[1] = libinput file descriptor
+   * ev_fds[2] = inotify file descriptor for libinput hotplug
+   */
+  ev_fds = safe_calloc(POLL_FD_COUNT, sizeof(struct pollfd));
   ev_fds[0].fd = state.display_fd;
   ev_fds[0].events = POLLIN;
   ev_fds[1].fd = libinput_get_fd(li);
   ev_fds[1].events = POLLIN;
+  ev_fds[2].fd = inotify_fd;
+  ev_fds[2].events = POLLIN;
 }
 
 static void parse_cli_args(int argc, char **argv) {
@@ -2480,7 +2625,7 @@ static void parse_cli_args(int argc, char **argv) {
 
   if (known_compositor_list == NULL) {
     for (i = 0; known_compositor_default_list[i] != NULL; i++) {
-      default_dup_str = strdup(known_compositor_default_list[i]);
+      default_dup_str = safe_strdup(known_compositor_default_list[i]);
       strlist_append(default_dup_str, &known_compositor_list,
         &known_compositor_list_len, false);
     }
@@ -2519,6 +2664,7 @@ int main(int argc, char **argv) {
   applayer_random_init();
   applayer_wayland_init();
   applayer_libinput_init();
+  applayer_inotify_init();
   applayer_poll_init();
 
   while (true) {
@@ -2549,7 +2695,7 @@ int main(int argc, char **argv) {
     }
     wl_display_flush(state.display);
 
-    poll(ev_fds, 2, POLL_TIMEOUT_MS);
+    poll(ev_fds, POLL_FD_COUNT, POLL_TIMEOUT_MS);
 
     if (ev_fds[0].revents & POLLIN) {
       wl_display_read_events(state.display);
@@ -2563,6 +2709,11 @@ int main(int argc, char **argv) {
       libinput_dispatch(li);
     }
     ev_fds[1].revents = 0;
+
+    if (ev_fds[2].revents & POLLIN) {
+      handle_inotify_events();
+    }
+    ev_fds[2].revents = 0;
   }
 
   wl_display_disconnect(state.display);

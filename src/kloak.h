@@ -3,9 +3,10 @@
  * See the file COPYING for copying conditions.
  */
 
-#include <stdint.h>
-#include <wayland-client.h>
-#include <libinput.h>
+/*
+ * TODO: Move most of the includes from kloak.c to here; right now this is a
+ * very non-portable header file.
+ */
 
 /*********************************/
 /* static defines, do not change */
@@ -24,6 +25,8 @@
 #define DEFAULT_MAX_DELAY_MS 100
 #define DEFAULT_STARTUP_TIMEOUT_MS 500
 #define MAX_UNRELEASED_FRAMES 3
+#define POLL_FD_COUNT 3
+#define INOTIFY_READ_BUF_LEN 16384
 
 #ifndef min
 #define min(a, b) ( ((a) < (b)) ? (a) : (b) )
@@ -52,6 +55,16 @@ struct wayland_socket_info {
 struct process_info {
   char *pid_str;
   char *comm;
+};
+
+/*
+ * Defines a libinput device on the system by its device ointer and file name.
+ * Intended for use in a doubly-linked list.
+ */
+struct li_device_info {
+  struct libinput_device *device;
+  char *device_name;
+  LIST_ENTRY(li_device_info) entries;
 };
 
 /*
@@ -381,6 +394,16 @@ static char *query_sock_pid(char *sock_path);
  */
 static uint32_t lookup_keycode(const char *name);
 
+/*
+ * Attempts to add an input device to the current libinput context.
+ */
+static void attach_input_device(const char *dev_name);
+
+/*
+ * Attempts to remove an input device from the current libinput context.
+ */
+static void detach_input_device(const char *dev_name);
+
 /********************/
 /* wayland handling */
 /********************/
@@ -513,6 +536,12 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
 static void release_scheduled_input_events(void);
 
 /*
+ * Reads inotify events for /dev/input and attempts to add or remove libinput
+ * devices as appropriate.
+ */
+static void handle_inotify_events(void);
+
+/*
  * Sets the XDG_RUNTIME_DIR and WAYLAND_DISPLAY environment variables to point
  * to the compositor on the currently running TTY. This allows
  * libwayland-client to find and connect to the correct compositor.
@@ -546,10 +575,15 @@ static void applayer_random_init(void);
 static void applayer_wayland_init(void);
 
 /*
- * Opens all input devices on seat0 with libinput and prepares to process
+ * Opens all available input devices with libinput and prepares to process
  * events from them.
  */
 static void applayer_libinput_init(void);
+
+/*
+ * Watches /dev/input for device creation and deletion.
+ */
+static void applayer_inotify_init(void);
 
 /*
  * Initializes the fd poll mechanism.
