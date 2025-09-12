@@ -86,6 +86,8 @@ static LIST_HEAD(listhead_ldi, li_device_info) ldi_head;
 
 const char *default_esc_key_str = "KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC";
 
+int64_t start_time = 0;
+
 int randfd = 0;
 
 static struct key_name_value key_table[] = {
@@ -417,7 +419,11 @@ static int64_t current_time_ms(void) {
   clock_gettime(CLOCK_MONOTONIC, &spec);
   int64_t result = (spec.tv_sec * 1000) + (spec.tv_nsec / 1000000);
   assert(result >= 0);
-  return result;
+  if (start_time == 0) {
+    start_time = result;
+    return 0;
+  }
+  return result - start_time;
 }
 
 static int64_t random_between(int64_t lower, int64_t upper) {
@@ -1320,6 +1326,10 @@ static void draw_frame(struct drawable_layer *layer) {
 
   layer->frame_pending = false;
 
+  assert(layer->size >= 0);
+  assert(chosen_frame_idx >= 0);
+  assert((layer->size * chosen_frame_idx)
+    < (layer->size * MAX_UNRELEASED_FRAMES));
   struct wl_buffer *buffer = wl_shm_pool_create_buffer(layer->shm_pool,
     layer->size * chosen_frame_idx, layer->width, layer->height,
     layer->stride, WL_SHM_FORMAT_ARGB8888);
@@ -1836,10 +1846,20 @@ static void release_scheduled_input_events(void) {
     && (current_time >= packet->sched_time)) {
     if (packet->is_libinput) {
       assert(packet->sched_time >= 0);
+      if (packet->sched_time > UINT32_MAX) {
+        fprintf(stderr,
+          "packet->sched_time overflowed maximum value. This is not an error, but kloak must be restarted. Exiting.");
+        exit(0);
+      }
       handle_libinput_event(packet->li_event_type, packet->li_event,
         (uint32_t)(packet->sched_time));
     } else {
       assert(packet->sched_time >= 0);
+      if (packet->sched_time > UINT32_MAX) {
+        fprintf(stderr,
+          "packet->sched_time overflowed maximum value. This is not an error, but kloak must be restarted. Exiting.");
+        exit(0);
+      }
       assert(state.pointer_space_x >= 0);
       assert(state.pointer_space_y >= 0);
       assert(packet->cursor_x >= state.pointer_space_x);
@@ -1863,6 +1883,7 @@ static void handle_inotify_events(void) {
   static char *read_buf = NULL;
   ssize_t read_len = 0;
   ssize_t rem_len = 0;
+  ssize_t struct_len = 0;
   struct inotify_event *ie;
 
   if (read_buf == NULL) {
@@ -1886,7 +1907,10 @@ static void handle_inotify_events(void) {
   ie = (void *)(read_buf);
   rem_len = read_len;
   while (true) {
-    rem_len -= ((ssize_t)(sizeof(struct inotify_event)) + (ssize_t)(ie->len));
+    struct_len = ((ssize_t)(sizeof(struct inotify_event)) + (ssize_t)(ie->len));
+    assert(struct_len <= rem_len);
+    rem_len -= struct_len;
+    assert(rem_len >= 0);
 
     if (strncmp(ie->name, "event", strlen("event")) == 0) {
       if (ie->mask & IN_CREATE) {
@@ -1896,11 +1920,11 @@ static void handle_inotify_events(void) {
       }
     }
 
-    if (rem_len == 0) {
+    if (rem_len <= 0) {
       break;
     }
 
-    ie += ((ssize_t)(ie->len) / (ssize_t)(sizeof(struct inotify_event))) + 1;
+    ie = (struct inotify_event *)((char *)(ie) + struct_len);
   }
 }
 
@@ -2063,10 +2087,11 @@ static void applayer_wayland_init(void) {
    * keyboard if kloak is unauthorized to create a virtual keyboard. However,
    * the protocol treats this as an enum value, meaning... we have to compare
    * a pointer to an enum. This is horrible and the protocol really shouldn't
-   * require this, but it does, so...
+   * require this, but it does, see
+   * https://wayland.app/protocols/virtual-keyboard-unstable-v1#zwp_virtual_keyboard_manager_v1:request:create_virtual_keyboard
    */
-  if ((uint64_t)(state.virt_kb)
-    == ZWP_VIRTUAL_KEYBOARD_MANAGER_V1_ERROR_UNAUTHORIZED) {
+  if ((uintptr_t)(state.virt_kb)
+    == (uintptr_t)(ZWP_VIRTUAL_KEYBOARD_MANAGER_V1_ERROR_UNAUTHORIZED)) {
     fprintf(stderr,
       "Not authorized to create a virtual keyboard! Bailing out.\n");
     exit(1);
@@ -2193,6 +2218,23 @@ static void parse_cli_args(int argc, char **argv) {
 /**********/
 
 int main(int argc, char **argv) {
+  /*
+   * BIG FAT WARNING: Do not attempt to build kloak with NDEBUG defined. Many
+   * of the assertions in this code are essential for security, and building
+   * kloak with NDEBUG defined will turn all of them off. Systems running a
+   * build of kloak with NDEBUG defined should be treated as compromised if
+   * they process any form of untrusted data.
+   *
+   * To lower the risk of this situation occurring, the following check will
+   * render kloak non-functional if NDEBUG is defined. Think very carefully
+   * about what you are doing if you are considering patching this check out.
+   */
+#ifdef NDEBUG
+  fprintf(stderr,
+    "FATAL ERROR: Built with NDEBUG set. kloak does not support this, please rebuild with NDEBUG unset.\n");
+  exit(1);
+#endif
+
   if (getuid() != 0) {
     fprintf(stderr, "FATAL ERROR: Must be run as root!\n");
     exit(1);
