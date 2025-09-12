@@ -516,6 +516,11 @@ static void handle_inotify_events(void);
 static void parse_esc_key_str(const char *esc_key_str);
 
 /*
+ * Determines how long the core event loop's `poll` should sleep for.
+ */
+static int calc_poll_timeout(void);
+
+/*
  * Prints usage information.
  */
 static void print_usage(void);

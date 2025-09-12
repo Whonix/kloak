@@ -1841,7 +1841,7 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
 
 static void release_scheduled_input_events(void) {
   int64_t current_time = current_time_ms();
-  struct input_packet *packet;
+  struct input_packet *packet = NULL;
   while ((packet = TAILQ_FIRST(&evq_head))
     && (current_time >= packet->sched_time)) {
     if (packet->is_libinput) {
@@ -1974,6 +1974,25 @@ static void parse_esc_key_str(const char *esc_key_str) {
   }
 
   free(orig_key_str_copy);
+}
+
+static int calc_poll_timeout(void) {
+  struct input_packet *packet = NULL;
+  int64_t timeout_duration = 0;
+
+  packet = TAILQ_FIRST(&evq_head);
+  if (packet == NULL) {
+    return -1;
+  }
+
+  timeout_duration = packet->sched_time - current_time_ms();
+  if (timeout_duration < 0) {
+    return 0;
+  }
+  if (timeout_duration > INT_MAX) {
+    return INT_MAX;
+  }
+  return (int)(timeout_duration);
 }
 
 static void print_usage(void) {
@@ -2287,7 +2306,7 @@ int main(int argc, char **argv) {
     }
     wl_display_flush(state.display);
 
-    poll(ev_fds, POLL_FD_COUNT, POLL_TIMEOUT_MS);
+    poll(ev_fds, POLL_FD_COUNT, calc_poll_timeout());
 
     if (ev_fds[0].revents & POLLIN) {
       wl_display_read_events(state.display);
