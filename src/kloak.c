@@ -4,18 +4,6 @@
  */
 
 /*
- * FIXMEs:
- * - The Wayland autodetect mechanism is very useful but it's possibly
- *   dangerously complicated. Create a Python wrapper that autodetects the
- *   compositor and then either writes out the connection details to a
- *   temporary file (only accessible by root) or directly launches kloak with
- *   the needed environment variables set.
- * - Attempt to get rid of libudev. It requires opening up the sandbox
- *   significantly more than desirable. Autodetection of input devices can
- *   probably be done by using fanotify on /dev/input.
- */
-
-/*
  * NOTES FOR DEVELOPERS:
  * - Use signed arithmetic wherever possible. Any form of integer
  *   over/underflow is dangerous here, thus kloak has -ftrapv enabled and thus
@@ -377,8 +365,8 @@ static int create_shm_file(ssize_t size) {
 
   assert(size >= 0);
   /*
-   * TODO: Try to choose whether to compare against INT32_MAX or INT64_MAX
-   * at compile time if possible.
+   * In a perfect world, we'd do the sizeof check here at compile time, but
+   * unfortunately that isn't possible.
    */
   if (sizeof(off_t) == 4) {
     assert(size <= INT32_MAX);
@@ -482,10 +470,6 @@ static bool check_screen_touch(struct output_geometry scr1,
    * the X and Y position coordinates and then add two to the width and
    * height). Then any form of screen touching will be seen as an overlap,
    * including touching at the corners.
-   *
-   * TODO: Do we actually *want* to allow touching at the corners? kloak's
-   * current algorithm seems to deal with that particular edge case
-   * acceptably well...
    */
 
   if (scr1.x < 0 || scr1.y < 0 || scr1.width < 0 || scr1.height < 0
@@ -985,9 +969,9 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
     for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
       if ((state->outputs[i]) && (!state->xdg_outputs[i])) {
         /*
-	 * This is where we make xdg_outputs for any wl_outputs that were
+         * This is where we make xdg_outputs for any wl_outputs that were
          * sent too early.
-	 */
+         */
         state->xdg_outputs[i] = zxdg_output_manager_v1_get_xdg_output(
           state->xdg_output_manager, state->outputs[i]);
         zxdg_output_v1_add_listener(state->xdg_outputs[i],
@@ -1045,11 +1029,6 @@ static void registry_handle_global_remove(void *data,
       }
     }
   }
-
-  /*
-   * TODO: Should we start explicitly deinitializing all non-layer-specific
-   * bits of state here?
-   */
 }
 
 static void seat_handle_name(void *data, struct wl_seat *seat,
@@ -2024,12 +2003,58 @@ static void applayer_wayland_init(void) {
   wl_display_roundtrip(state.display);
 
   /*
-   * At this point, the shm, compositor, and wm_base objects will be
-   * allocated by registry global handler.
-   *
-   * TODO: Add feature checks here, if the compositor doesn't support all the
-   * features we need we should bail out.
+   * At this point, most of the Wayland state should be initialized and set
+   * up. Double-check it though, we don't know what Wayland compositor we're
+   * running on and we don't want to crash later because the compositor
+   * doesn't support a feature we need.
    */
+  if (state.shm == NULL) {
+    fprintf(stderr, "FATAL ERROR: No wl_shm object from compositor!\n");
+    exit(1);
+  }
+  if (state.compositor == NULL) {
+    fprintf(stderr,
+      "FATAL ERROR: No wl_compositor object from compositor!\n");
+    exit(1);
+  }
+  if (state.seat == NULL) {
+    fprintf(stderr, "FATAL ERROR: No wl_seat object from compositor!\n");
+    exit(1);
+  }
+  if (state.outputs[0] == NULL) {
+    fprintf(stderr, "FATAL ERROR: No wl_output objects from compositor!\n");
+    exit(1);
+  }
+  if (state.xdg_output_manager == NULL) {
+    fprintf(stderr,
+      "FATAL ERROR: No zxdg_output_manager_v1 object from compositor!\n");
+    exit(1);
+  }
+  if (state.xdg_outputs[0] == NULL) {
+    fprintf(stderr,
+      "FATAL ERROR: No zxdg_output_v1 objects from compositor!\n");
+    exit(1);
+  }
+  if (state.layer_shell == NULL) {
+    fprintf(stderr,
+      "FATAL ERROR: No zwlr_layer_shell_v1 object from compositor!\n");
+    exit(1);
+  }
+  if (state.virt_pointer_manager == NULL) {
+    fprintf(stderr,
+      "FATAL ERROR: No zwlr_virtual_pointer_manager_v1 object from compositor!\n");
+    exit(1);
+  }
+  if (state.virt_kb_manager == NULL) {
+    fprintf(stderr,
+      "FATAL ERROR: No zwp_virtual_keyboard_manager_v1 object from compositor!\n");
+    exit(1);
+  }
+  if (state.virt_pointer == NULL) {
+    fprintf(stderr,
+      "FATAL ERROR: No zwlr_virtual_pointer_v1 object from compositor!\n");
+    exit(1);
+  }
 
   state.virt_kb = zwp_virtual_keyboard_manager_v1_create_virtual_keyboard(
     state.virt_kb_manager, state.seat);
@@ -2056,8 +2081,10 @@ static void applayer_wayland_init(void) {
 
   /* Make sure any remaining allocations and similar have finished */
   wl_display_roundtrip(state.display);
-
-  /* TODO: Add more compositor feature checks here. */
+  if (state.kb == NULL) {
+    fprintf(stderr, "FATAL ERROR: No wl_keyboard object from compositor!\n");
+    exit(1);
+  }
 }
 
 static void applayer_libinput_init(void) {
