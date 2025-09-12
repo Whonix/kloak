@@ -25,7 +25,7 @@ Type=simple
 ## https://forums.whonix.org/t/current-state-of-kloak/5605/6
 
 ## find_wl_compositor.py generates /run/kloak_wl_compositor_data.
-ExecStartPre=+/usr/libexec/kloak/find_wl_compositor.py
+ExecStartPre=+/usr/libexec/kloak/find_wl_compositor
 EnvironmentFile=-/run/kloak_wl_compositor_data
 ExecStart=/usr/bin/kloak
 

@@ -1,0 +1,48 @@
+# Last Modified: Wed Sep 25 04:21:21 2024
+include <tunables/global>
+
+## Copyright (C) 2012 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+/usr/libexec/kloak/find_wl_compositor {
+  include <local/usr.libexec.kloak.find_wl_compositor>
+
+  network unix stream,
+
+  #capability dac_override,
+  capability sys_tty_config,
+  capability sys_ptrace,
+  capability dac_read_search,
+  capability dac_override,
+
+  ptrace (read),
+
+  /etc/ld.so.cache r,
+  /etc/ld.so.preload r,
+  /etc/python3.13/sitecustomize.py r,
+  /usr/bin/python3 mr,
+  /usr/lib/python3.13/sitecustomize.py r,
+  /usr/libexec/kloak/find_wl_compositor r,
+  /{,usr/}lib{,32,64}/** mr,
+  /usr/bin/fgconsole rix,
+
+  /proc/sys/vm/overcommit_memory r,
+  /usr/share/zoneinfo/** r,
+  /usr{,/local}/lib/python3.13/dist-packages/ r,
+  /usr{,/local}/lib/python3.13/dist-packages/** r,
+  /usr/libexec/kloak/ r,
+
+  /etc/locale.alias r,
+  /dev/pts/* rw,
+  /dev/tty* rw,
+  /dev/console rw,
+
+  /proc/ r,
+  /proc/*/stat r,
+  /proc/*/comm r,
+  /proc/*/environ r,
+
+  /run/user/*/ r,
+  /run/user/*/wayland-* r,
+  /run/kloak_wl_compositor_data rw,
+}
