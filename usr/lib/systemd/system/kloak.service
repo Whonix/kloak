@@ -24,6 +24,9 @@ Type=simple
 ## https://github.com/QubesOS/qubes-issues/issues/1850
 ## https://forums.whonix.org/t/current-state-of-kloak/5605/6
 
+## find_wl_compositor.py generates /run/kloak_wl_compositor_data.
+ExecStartPre=+/usr/libexec/kloak/find_wl_compositor.py
+EnvironmentFile=-/run/kloak_wl_compositor_data
 ExecStart=/usr/bin/kloak
 
 Restart=always
@@ -48,7 +51,7 @@ NoNewPrivileges=true
 RestrictRealtime=true
 RestrictNamespaces=true
 SystemCallArchitectures=native
-SystemCallFilter=brk open poll readlink close ioctl mmap munmap read access openat fstat pread64 prctl getdents64 socket connect getsockopt sendmsg recvmsg newfstatat readahead unlink ftruncate fcntl epoll_create1 timerfd_create epoll_ctl statx faccessat2 fstatfs rt_sigprocmask readlinkat setsockopt bind getsockname epoll_wait timerfd_settime
+SystemCallFilter=brk open poll close ioctl mmap munmap read pread64 getdents64 socket connect getsockopt epoll_create1 epoll_ctl rt_sigprocmask epoll_wait inotify_init1 access openat fstat prctl sendmsg recvmsg newfstatat unlink ftruncate fcntl timerfd_create statx readlinkat faccessat2 fstatfs inotify_add_watch timerfd_settime
 
 [Install]
 WantedBy=graphical.target

@@ -1,6 +1,6 @@
 .\" generated with Ronn-NG/v0.10.1
 .\" http://github.com/apjanke/ronn-ng/tree/0.10.1
-.TH "KLOAK" "8" "January 2020" "kloak" "kloak Manual"
+.TH "KLOAK" "8" "September 2025" "kloak" "kloak Manual"
 .SH "NAME"
 \fBkloak\fR \- anti keystroke deanonymization tool
 .SH "SYNOPSIS"
@@ -11,22 +11,32 @@
 Print usage message and exit\.
 .TP
 \fB\-d\fR, \fB\-\-delay\fR
-Configure the maximum delay of released events\. Default 100\.
+Configure the maximum delay of released events\. Default is 100\.
 .TP
 \fB\-s\fR, \fB\-\-start\-delay\fR
-Configure the time to wait before starting\. Default 500\.
+Configure the time to wait before starting\. Default is 500\.
+.TP
+\fB\-c\fR, \fB\-\-color\fR
+Configure the color to use for the virtual mouse cursor\. Expects a hexadecimal value in the format AARRGGBB (one byte for each of alpha, red, green, blue)\. Default is ffff0000 (solid red)\.
+.TP
+\fB\-k\fR, \fB\-\-esc\-key\-combo\fR
+Specify the key combination that will terminate kloak\. Keys are separated by commas\. Keys can be aliased to each other by separating them with a pipe (|) character\. Defaults is KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC\.
 .SH "DESCRIPTION"
 kloak is an event\-level online anonymization kernel for keyboards and mice\.
 .P
 kloak is a privacy tool that makes input biometrics less effective\. For keyboards, this is accomplished by obfuscating the time intervals between input events\. For mice, this is done by obfuscating the time intervals between between mouse input events, the number of mouse input events, and the exact path taken by the mouse pointer\. This data can be used for identification if not obfuscated\.
-.SH "EXAMPLES"
+.SH "USAGE"
 On startup, \fBkloak\fR will grab all evdev input devices with libinput, and will proxy the events from those devices to the running Wayland compositor via emulated input protocols\. There is no need to configure specific devices to be grabbed; \fBkloak\fR autodetects devices and displays, even when hotplugged\.
 .P
-\fBkloak\fR requires the ability to exclusively grab input devices under /dev/input, thus it usually needs to be run as root:
+\fBkloak\fR requires the ability to exclusively grab input devices under /dev/input, thus it usually needs to be run as root\. Additionally, it needs XDG_RUNTIME_DIR and WAYLAND_DISPLAY set in order to connect to the correct Wayland compositor:
 .P
-\fBsudo \./kloak\fR
+\fBsudo XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" WAYLAND_DISPLAY="$WAYLAND_DISPLAY" \./kloak\fR
 .P
-Optionally start \fBkloak\fR by specifying the event and startup delay\. A longer startup delay (configured with \fB\-s\fR) can be useful to avoid problems with startup, while a longer event delay (configured with \fB\-d\fR) will provide possibly better anonymity at the cost of reducing usability\.
+Optionally start \fBkloak\fR by specifying the event and startup delay\. A longer startup delay (configured with \fB\-s\fR) can be useful to avoid problems with startup, while a longer event delay (configured with \fB\-d\fR) will provide possibly better anonymity at the cost of reducing usability\. There is no need to configure \fBkloak\fR so it can find your Wayland compositor, even on a system with multiple graphically logged in users\. \fBkloak\fR will automatically detect the Wayland compositor running on the display and will connect to that compositor\.
+.P
+Once \fBkloak\fR is started, a small crosshair will appear in the upper\-left corner of the screen (red by default, but you may configure its color using \fB\-c\fR)\. This is the virtual mouse cursor\. When you move the mouse pointer, the virtual cursor will move first\. The real mouse cursor will then chase it in an erratic pattern\. Websites and most applications can only track the real mouse cursor, not the virtual one, thus this hides the rhythm of your actual mouse movements from applications\. Keystroke rhythms will be obfuscated as well by inserting random delays into the usual stream of key press and key release events\.
+.P
+Because \fBkloak\fR grabs all input devices for itself and only sends those events to a single compositor, keyboard and mouse input to anything other than that Wayland compositor will not work as long as \fBkloak\fR is running\. This will prevent use of TTYs and complicate switching between multiple graphically logged\-in users\. In order to prevent this from causing a lock\-out scenario, \fBkloak\fR monitors all keystrokes to determine if an "escape combo" has been pressed\. This escape combo is \fBKEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC\fR by default; you can configure it using the \fB\-k\fR option\. \fBkloak\fR will immediately exit when this combo is received\.
 .SH "WWW"
 https://github\.com/Whonix/kloak
 .SH "CREDITS"

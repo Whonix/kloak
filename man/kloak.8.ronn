@@ -27,9 +27,6 @@ kloak(8) -- anti keystroke deanonymization tool
     Configure the color to use for the virtual mouse cursor. Expects a
     hexadecimal value in the format AARRGGBB (one byte for each of alpha, red,
     green, blue). Default is ffff0000 (solid red).
-  * `-w`, `--wayland-list` :
-    Provide a comma-separated list of Wayland compositors to try to connect
-    to. Will try most popular wlroots-based compositors by default.
   * `-k`, `--esc-key-combo` :
     Specify the key combination that will terminate kloak. Keys are separated
     by commas. Keys can be aliased to each other by separating them with a
@@ -52,9 +49,11 @@ emulated input protocols. There is no need to configure specific devices to be
 grabbed; `kloak` autodetects devices and displays, even when hotplugged.
 
 `kloak` requires the ability to exclusively grab input devices under
-/dev/input, thus it usually needs to be run as root:
+/dev/input, thus it usually needs to be run as root. Additionally, it needs
+XDG_RUNTIME_DIR and WAYLAND_DISPLAY set in order to connect to the correct
+Wayland compositor:
 
-`sudo ./kloak`
+`sudo XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" WAYLAND_DISPLAY="$WAYLAND_DISPLAY" ./kloak`
 
 Optionally start `kloak` by specifying the event and startup delay. A longer
 startup delay (configured with `-s`) can be useful to avoid problems with

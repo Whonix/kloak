@@ -88,8 +88,6 @@ static TAILQ_HEAD(tailhead_evq, input_packet) evq_head;
 static int32_t max_delay = DEFAULT_MAX_DELAY_MS;
 static int32_t startup_delay = DEFAULT_STARTUP_TIMEOUT_MS;
 static uint32_t cursor_color = 0xffff0000;
-static char **known_compositor_list = NULL;
-static size_t known_compositor_list_len = 0;
 
 static uint32_t **esc_key_list = NULL;
 static size_t *esc_key_sublist_len = NULL;
@@ -98,23 +96,9 @@ static size_t esc_key_list_len = 0;
 
 static LIST_HEAD(listhead_ldi, li_device_info) ldi_head;
 
-int randfd = 0;
-
-const char *known_compositor_default_list[] = {
-  /* Mostly based on the list at https://wiki.gentoo.org/wiki/Wlroots. */
-  "labwc",
-  "sway",
-  "cage",
-  "cagebreak",
-  "dwl",
-  "kiwmi",
-  "river",
-  "waybox",
-  "wayfire",
-  "woodland",
-  NULL
-};
 const char *default_esc_key_str = "KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC";
+
+int randfd = 0;
 
 static struct key_name_value key_table[] = {
   {"KEY_ESC", KEY_ESC},
@@ -865,155 +849,6 @@ static char *sgenprintf(char *str, ...) {
 
   assert(rslt_writelen == rslt_len - 1);
   return rslt;
-}
-
-static bool linkcmp(char *link_path, char *expected_target) {
-  char link_buf[PATH_MAX];
-  ssize_t readlink_len = 0;
-
-  if (access(link_path, F_OK) != 0) {
-    return false;
-  }
-  readlink_len = readlink(link_path, link_buf, PATH_MAX);
-  if (readlink_len == -1 || readlink_len == PATH_MAX) {
-    return false;
-  }
-  link_buf[readlink_len] = '\0';
-  if (strcmp(link_buf, expected_target) != 0) {
-    return false;
-  }
-
-  return true;
-}
-
-static void strlist_append(char *str, char ***strlist, size_t *list_len,
-  bool append_copy) {
-  char **internal_strlist = *strlist;
-  size_t internal_list_len = *list_len;
-
-  internal_list_len++;
-  internal_strlist = safe_reallocarray(internal_strlist, internal_list_len,
-    sizeof(char *));
-  if (append_copy) {
-    internal_strlist[internal_list_len - 1] = safe_calloc(1,
-      strlen(str) + 1);
-    strcpy(internal_strlist[internal_list_len - 1], str);
-  } else {
-    internal_strlist[internal_list_len - 1] = str;
-  }
-
-  *strlist = internal_strlist;
-  *list_len = internal_list_len;
-}
-
-static char *read_as_str(char *file_path, size_t *out_len) {
-  int fd = -1;
-  off_t alloc_len = 0;
-  off_t file_pos = 0;
-  char *out_str = NULL;
-  bool err_hit = false;
-  ssize_t block_len = 0;
-
-  fd = safe_open(file_path, O_RDONLY);
-  while (true) {
-    if (file_pos == alloc_len) {
-      alloc_len += 4096;
-      out_str = safe_reallocarray(out_str, 1, (size_t)(alloc_len));
-    }
-    block_len = read(fd, out_str + (size_t)(file_pos),
-      (size_t)(alloc_len) - (size_t)(file_pos));
-    if (block_len == -1) {
-      fprintf(stderr, "FATAL ERROR: Could not read from file '%s': %s\n",
-        file_path, strerror(errno));
-      exit(1);
-    }
-    if (block_len == 0) {
-      break;
-    }
-
-    file_pos += block_len;
-  }
-
-  if (out_str[file_pos - 1] == '\n') {
-    out_str[file_pos - 1] = '\0';
-  } else if (out_str[file_pos - 1] != '\0') {
-    file_pos++;
-    if (file_pos > alloc_len) {
-      alloc_len++;
-      out_str = safe_reallocarray(out_str, 1, (size_t)(alloc_len));
-    }
-    out_str[file_pos - 1] = '\0';
-  }
-
-  safe_close(fd);
-  if (err_hit) {
-    if (out_str != NULL) {
-      free(out_str);
-      out_str = NULL;
-    }
-  }
-  if (out_str != NULL && out_len != NULL) {
-    *out_len = (size_t)(file_pos);
-  }
-  if (file_pos < alloc_len) {
-    out_str = safe_reallocarray(out_str, 1, (size_t)(file_pos));
-  }
-  return out_str;
-}
-
-static int cmpwlsock(const void *p1, const void *p2) {
-  struct wayland_socket_info *wsi1 = (struct wayland_socket_info *)(p1);
-  struct wayland_socket_info *wsi2 = (struct wayland_socket_info *)(p2);
-  printf("In callee: %lu\n", (uint64_t)(wsi1));
-  printf("In callee: %lu\n", (uint64_t)(wsi2));
-  char *wsi1_path = sgenprintf("%s/%s", wsi1->xdg_runtime_dir,
-    wsi1->wayland_socket);
-  char *wsi2_path = sgenprintf("%s/%s", wsi2->xdg_runtime_dir,
-    wsi2->wayland_socket);
-  int rslt = strcmp(wsi1_path, wsi2_path);
-  free(wsi1_path);
-  free(wsi2_path);
-  return rslt;
-}
-
-static char *query_sock_pid(char *sock_path) {
-  socklen_t ucred_struct_len = sizeof(struct ucred);
-  struct ucred ucred_struct = { 0 };
-  int sock_fd = 0;
-  struct sockaddr_un sock_addr = { 0 };
-  char *out_str = NULL;
-
-  if (strlen(sock_path) > UNIX_SOCK_PATH_MAX) {
-    return NULL;
-  }
-
-  sock_addr.sun_family = AF_UNIX;
-  strcpy(sock_addr.sun_path, sock_path);
-  sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-  if (sock_fd == -1) {
-    fprintf(stderr, "FATAL ERROR: Could not create UNIX socket: %s\n",
-      strerror(errno));
-    exit(1);
-  }
-
-  if (connect(sock_fd, &sock_addr, sizeof(struct sockaddr_un)) == -1) {
-    fprintf(stderr, "FATAL ERROR: Could not connect to socket '%s': %s\n",
-      sock_path, strerror(errno));
-    exit(1);
-  }
-
-  if (getsockopt(sock_fd, SOL_SOCKET, SO_PEERCRED, &ucred_struct,
-    &ucred_struct_len) == -1) {
-    fprintf(stderr,
-      "FATAL ERROR: Could not get peer information from socket '%s': %s\n",
-      sock_path, strerror(errno));
-    exit(1);
-  }
-
-  safe_close(sock_fd);
-
-  out_str = sgenprintf("%d", ucred_struct.pid);
-  return out_str;
 }
 
 static uint32_t lookup_keycode(const char *name) {
@@ -2090,292 +1925,6 @@ static void handle_inotify_events(void) {
   }
 }
 
-static void find_wl_compositor(void) {
-  /*
-   * We use the following procedure to find the correct compositor:
-   *
-   * - Determine if XDG_RUNTIME_DIR and WAYLAND_DISPLAY are already set. If
-   *   they are, we have everything we need already set up, skip the rest of
-   *   the autodetect process. Otherwise, continue.
-   * - Determine the active VT.
-   * - Find all applications that are "running on" the TTY corresponding to
-   *   that VT (any application with stdout or stderr connected to a
-   *   particular /dev/tty device are considered to be "running on" that VT).
-   * - Determine which one of those applications is a Wayland compositor by
-   *   matching against their process name (comm). We tolerate multiple
-   *   matches so that things still work even if someone happens to have an
-   *   application named 'sway', 'labwc', or similar that isn't a Wayland
-   *   compositor.
-   * - Extract the XDG_RUNTIME_DIR variable from each matched process to
-   *   determine where it most likely has put its Wayland socket.
-   * - Look in all found XDG_RUNTIME_DIR directories for any UNIX sockets
-   *   named according to the pattern 'wayland-*'.
-   * - Attempt to connect to each of these sockets, starting from the earliest
-   *   and ending at the latest, quarying the PID of the process listening on
-   *   each socket as we go.
-   * - Once a socket is found that matches a PID found earlier, we have found
-   *   the Wayland socket for the current VT. Export XDG_RUNTIME_DIR and
-   *   WAYLAND_DISPLAY to point to that socket.
-   *
-   * This should work, as long as no one makes an application named after a
-   * popular Wayland compositor that also opens a Wayland socket in
-   * XDG_RUNTIME_DIR. Unfortunately, there doesn't appear to be any good way
-   * to determine the PID of the process that put the VT into graphics mode,
-   * so it seems like making an educated guess like this is the best that can
-   * be done.
-   *
-   * This method should be pretty hard to fool by accident - because we sort
-   * the list of Wayland sockets we find and commit to using the earliest one
-   * that works, even if the user is running a nested labwc instance, we will
-   * almost certainly end up connecting to the "master" instance (which will
-   * have an earlier wayland-* socket open than the nested instance). Of
-   * course, there are probably ways of fooling this mechanism maliciously,
-   * but if an attacker can do that, they probably already have enough access
-   * to the machine to do much worse things.
-   */
-
-  char *xdg_runtime_dir_var = getenv("XDG_RUNTIME_DIR");
-  char *wayland_display_var = getenv("WAYLAND_DISPLAY");
-  struct vt_stat vt_info = { 0 };
-  int console_fd = -1;
-  char *vt_path = NULL;
-  DIR *proc_dir = NULL;
-  struct dirent *proc_entry = NULL;
-  char *proc_fd1_path = NULL;
-  char *proc_fd2_path = NULL;
-  bool is_dirname_digits = false;
-  struct process_info *process_on_vt_list = NULL;
-  size_t process_on_vt_list_len = 0;
-  char *comm_contents = NULL;
-  char **wl_pid_str_list = NULL;
-  size_t wl_pid_str_list_len = 0;
-  char *current_process_comm_path = NULL;
-  char *current_process_environ_path = NULL;
-  char *current_process_environ_contents = NULL;
-  size_t current_process_environ_len = 0;
-  size_t current_process_environ_pos = 0;
-  char *current_process_xdg_runtime_dir = NULL;
-  char **xdg_runtime_dir_list = NULL;
-  size_t xdg_runtime_dir_list_len = 0;
-  DIR *xdg_runtime_dir = NULL;
-  struct dirent *xdg_runtime_dir_entry = NULL;
-  struct wayland_socket_info *wayland_socket_list = NULL;
-  size_t wayland_socket_list_len = 0;
-  char *sock_path = NULL;
-  char *sock_pid = NULL;
-
-  size_t i = 0;
-  size_t j = 0;
-
-  if (xdg_runtime_dir_var != NULL && wayland_display_var != NULL) {
-    return;
-  }
-  xdg_runtime_dir_var = NULL;
-  wayland_display_var = NULL;
-
-  console_fd = safe_open("/dev/console", O_RDONLY);
-  if (ioctl(console_fd, VT_GETSTATE, &vt_info) == -1) {
-    fprintf(stderr,
-      "FATAL ERROR: Could not get VT state: %s\n", strerror(errno));
-    exit(1);
-  }
-  safe_close(console_fd);
-
-  if (vt_info.v_active <= 0 || vt_info.v_active > MAX_NR_CONSOLES) {
-    fprintf(stderr,
-      "FATAL ERROR: Could not determine the active virtual terminal! Expected a VT between 1 and %d, got %d!",
-      MAX_NR_CONSOLES, vt_info.v_active);
-    exit(1);
-  }
-
-  vt_path = sgenprintf("/dev/tty%d", vt_info.v_active);
-
-  proc_dir = safe_opendir("/proc", false);
-
-  for(proc_entry = readdir(proc_dir); proc_entry != NULL;
-    proc_entry = readdir(proc_dir)) {
-    if (proc_entry->d_type != DT_DIR) {
-      continue;
-    }
-
-    is_dirname_digits = true;
-    for (i = 0; proc_entry->d_name[i] != '\0'; i++) {
-      if (!isdigit(proc_entry->d_name[i])) {
-        is_dirname_digits = false;
-        break;
-      }
-    }
-    if (!is_dirname_digits) {
-      continue;
-    }
-
-    proc_fd1_path = sgenprintf("/proc/%s/fd/1", proc_entry->d_name);
-    proc_fd2_path = sgenprintf("/proc/%s/fd/2", proc_entry->d_name);
-    current_process_comm_path = sgenprintf("/proc/%s/comm",
-      proc_entry->d_name);
-
-    if (linkcmp(proc_fd1_path, vt_path) || linkcmp(proc_fd2_path, vt_path)) {
-      process_on_vt_list_len++;
-      process_on_vt_list = safe_reallocarray(process_on_vt_list,
-        process_on_vt_list_len, sizeof(struct process_info));
-      process_on_vt_list[process_on_vt_list_len - 1].pid_str = safe_calloc(1,
-        strlen(proc_entry->d_name) + 1);
-      strcpy(process_on_vt_list[process_on_vt_list_len - 1].pid_str,
-        proc_entry->d_name);
-      comm_contents = read_as_str(current_process_comm_path, NULL);
-      process_on_vt_list[process_on_vt_list_len - 1].comm = comm_contents;
-    }
-    free(proc_fd1_path);
-    proc_fd1_path = NULL;
-    free(proc_fd2_path);
-    proc_fd2_path = NULL;
-    free(current_process_comm_path);
-    current_process_comm_path = NULL;
-  }
-
-  safe_closedir(proc_dir);
-
-  free(vt_path);
-  vt_path = NULL;
-
-  if (process_on_vt_list_len == 0) {
-    fprintf(stderr, "FATAL ERROR: No processes running on active VT!\n");
-    exit(1);
-  }
-
-  for (i = 0; i < process_on_vt_list_len; i++) {
-    for (j = 0; j < known_compositor_list_len; j++) {
-      if (strcmp(process_on_vt_list[i].comm, known_compositor_list[j]) != 0) {
-        continue;
-      }
-      strlist_append(process_on_vt_list[i].pid_str, &wl_pid_str_list,
-        &wl_pid_str_list_len, false);
-    }
-  }
-
-  if (wl_pid_str_list_len == 0) {
-    fprintf(stderr,
-      "FATAL ERROR: No Wayland compositors found on active VT!\n");
-    exit(1);
-  }
-
-  for (i = 0; i < wl_pid_str_list_len; i++) {
-    current_process_environ_path = sgenprintf("/proc/%s/environ",
-      wl_pid_str_list[i]);
-    current_process_environ_contents = read_as_str(
-      current_process_environ_path, &current_process_environ_len);
-
-    while (true) {
-      if (strncmp(current_process_environ_contents
-        + current_process_environ_pos, "XDG_RUNTIME_DIR=",
-        strlen("XDG_RUNTIME_DIR=")) == 0) {
-        current_process_xdg_runtime_dir = strstr(
-          current_process_environ_contents + current_process_environ_pos,
-          "=") + 1;
-        if (strlen(current_process_xdg_runtime_dir) == 0) {
-          break;
-        }
-        strlist_append(current_process_xdg_runtime_dir, &xdg_runtime_dir_list,
-          &xdg_runtime_dir_list_len, true);
-        break;
-      }
-      current_process_environ_pos += strlen(
-        current_process_environ_contents + current_process_environ_pos) + 1;
-      if (current_process_environ_pos == current_process_environ_len) {
-        break;
-      }
-    }
-
-    free(current_process_environ_path);
-    current_process_environ_path = NULL;
-    free(current_process_environ_contents);
-    current_process_environ_contents = NULL;
-  }
-
-  for (i = 0; i < xdg_runtime_dir_list_len; i++) {
-    xdg_runtime_dir = safe_opendir(xdg_runtime_dir_list[i], true);
-    if (xdg_runtime_dir == NULL) {
-      continue;
-    }
-    for(xdg_runtime_dir_entry = readdir(xdg_runtime_dir);
-      xdg_runtime_dir_entry != NULL;
-      xdg_runtime_dir_entry = readdir(xdg_runtime_dir)) {
-      if (xdg_runtime_dir_entry->d_type != DT_SOCK) {
-        continue;
-      }
-      if (strncmp(xdg_runtime_dir_entry->d_name, "wayland-",
-        strlen("wayland-")) != 0) {
-        continue;
-      }
-      wayland_socket_list_len++;
-      wayland_socket_list = safe_reallocarray(wayland_socket_list,
-        wayland_socket_list_len, sizeof(struct wayland_socket_info));
-      wayland_socket_list[wayland_socket_list_len - 1].xdg_runtime_dir
-        = safe_calloc(1, strlen(xdg_runtime_dir_list[i]) + 1);
-      wayland_socket_list[wayland_socket_list_len - 1].wayland_socket
-        = safe_calloc(1, strlen(xdg_runtime_dir_entry->d_name) + 1);
-      strcpy(wayland_socket_list[wayland_socket_list_len - 1].xdg_runtime_dir,
-        xdg_runtime_dir_list[i]);
-      strcpy(wayland_socket_list[wayland_socket_list_len - 1].wayland_socket,
-        xdg_runtime_dir_entry->d_name);
-    }
-    safe_closedir(xdg_runtime_dir);
-  }
-
-  qsort(wayland_socket_list, wayland_socket_list_len,
-    sizeof(struct wayland_socket_info), cmpwlsock);
-
-  for (i = 0; i < wayland_socket_list_len; i++) {
-    sock_path = sgenprintf("%s/%s", wayland_socket_list[i].xdg_runtime_dir,
-      wayland_socket_list[i].wayland_socket);
-    sock_pid = query_sock_pid(sock_path);
-    free(sock_path);
-    if (sock_pid == NULL) {
-      continue;
-    }
-
-    for (j = 0; j < wl_pid_str_list_len; j++) {
-      if(strcmp(sock_pid, wl_pid_str_list[j]) == 0) {
-        xdg_runtime_dir_var = wayland_socket_list[i].xdg_runtime_dir;
-        wayland_display_var = wayland_socket_list[i].wayland_socket;
-        break;
-      }
-    }
-
-    free(sock_pid);
-
-    if (xdg_runtime_dir_var != NULL && wayland_display_var != NULL) {
-      break;
-    }
-  }
-
-  if (xdg_runtime_dir_var != NULL && wayland_display_var != NULL) {
-    setenv("XDG_RUNTIME_DIR", xdg_runtime_dir_var, 1);
-    setenv("WAYLAND_DISPLAY", wayland_display_var, 1);
-
-    for (i = 0; i < process_on_vt_list_len; i++) {
-      free(process_on_vt_list[i].pid_str);
-      free(process_on_vt_list[i].comm);
-    }
-    free(process_on_vt_list);
-    free(wl_pid_str_list);
-    for (i = 0; i < xdg_runtime_dir_list_len; i++) {
-      free(xdg_runtime_dir_list[i]);
-    }
-    free(xdg_runtime_dir_list);
-    for (i = 0; i < wayland_socket_list_len; i++) {
-      free(wayland_socket_list[i].xdg_runtime_dir);
-      free(wayland_socket_list[i].wayland_socket);
-    }
-    free(wayland_socket_list);
-
-    return;
-  }
-
-  fprintf(stderr, "FATAL ERROR: Could not find Wayland compositor!\n");
-  exit(1);
-}
-
 static void parse_esc_key_str(const char *esc_key_str) {
   char *esc_key_str_copy = safe_strdup(esc_key_str);
   char *orig_key_str_copy = esc_key_str_copy;
@@ -2440,9 +1989,6 @@ static void print_usage(void) {
   fprintf(stderr, "  -c, --color=AARRGGBB\n");
   fprintf(stderr, "    Configure the color to use for the virtual mouse cursor. Default is\n");
   fprintf(stderr, "    ffff0000 (solid red).\n");
-  fprintf(stderr, "  -w, --wayland-list=c1[,c2,...]\n");
-  fprintf(stderr, "    Provide a comma-separated list of Wayland compositors to try to connect\n");
-  fprintf(stderr, "    to. Will try most popular wlroots-based compositors by default.\n");
   fprintf(stderr, "  -k, --esc-key-combo=KEY_![,KEY_2|KEY_3...]\n");
   fprintf(stderr, "    Specify the key combination that will terminate kloak. Keys are separated\n");
   fprintf(stderr, "    by commas. Keys can be aliased to each other by separating them with a\n");
@@ -2462,7 +2008,6 @@ static void applayer_wayland_init(void) {
    * Technically we also initialize xkbcommon here, but it's only involved
    * because it's important for sending key events to Wayland.
    */
-  find_wl_compositor();
   state.display = wl_display_connect(NULL);
   if (!state.display) {
     fprintf(stderr, "FATAL ERROR: Could not get Wayland display!\n");
@@ -2580,16 +2125,10 @@ static void parse_cli_args(int argc, char **argv) {
     {"start-delay", required_argument, NULL, 's'},
     {"help", no_argument, NULL, 'h'},
     {"color", required_argument, NULL, 'c'},
-    {"wayland-list", required_argument, NULL, 'w'},
     {"esc-key-combo", required_argument, NULL, 'k'},
     {0, 0, 0, 0}
   };
   int getopt_rslt = 0;
-  char *optarg_copy = NULL;
-  char *optarg_loc_ptr = NULL;
-  char *optarg_part = NULL;
-  char *default_dup_str = NULL;
-  size_t i = 0;
 
   while(true) {
     getopt_rslt = getopt_long(argc, argv, optstring, optarr, NULL);
@@ -2604,14 +2143,6 @@ static void parse_cli_args(int argc, char **argv) {
       startup_delay = parse_uint31_arg("start-delay", optarg, 10);
     } else if (getopt_rslt == 'c') {
       cursor_color = parse_uint32_arg("color", optarg, 16);
-    } else if (getopt_rslt == 'w') {
-      optarg_copy = safe_strdup(optarg);
-      optarg_loc_ptr = optarg_copy;
-      while ((optarg_part = strsep(&optarg_loc_ptr, ",")) != NULL) {
-        strlist_append(optarg_part, &known_compositor_list,
-          &known_compositor_list_len, true);
-      }
-      free(optarg_copy);
     } else if (getopt_rslt == 'k') {
       parse_esc_key_str(optarg);
     } else if (getopt_rslt == 'h') {
@@ -2620,14 +2151,6 @@ static void parse_cli_args(int argc, char **argv) {
     } else {
       print_usage();
       exit(1);
-    }
-  }
-
-  if (known_compositor_list == NULL) {
-    for (i = 0; known_compositor_default_list[i] != NULL; i++) {
-      default_dup_str = safe_strdup(known_compositor_default_list[i]);
-      strlist_append(default_dup_str, &known_compositor_list,
-        &known_compositor_list_len, false);
     }
   }
 

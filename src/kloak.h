@@ -359,37 +359,6 @@ static int32_t sleep_ms(int64_t ms);
 static char *sgenprintf(char *str, ...);
 
 /*
- * Determines if a link points to a specific location or not.
- */
-static bool linkcmp(char *link_path, char *expected_target);
-
-/*
- * Appends a string to a string list. Either a copy of the string or the
- * string itself can be appended.
- */
-static void strlist_append(char *str, char ***strlist, size_t *list_len,
-  bool append_copy);
-
-/*
- * Reads the contents of a file and dumps them to a NULL-terminated char *.
- * Replaces the final newline (if any) with a NULL terminator. This is
- * particularly well-suited to reading ASCII text and files consisting of
- * NULL-terminated strings.
- */
-static char *read_as_str(char *file_path, size_t *out_len);
-
-/*
- * Compares wayland_socket_info structs to each other for qsort.
- */
-static int cmpwlsock(const void *p1, const void *p2);
-
-/*
- * Connects to the specified UNIX socket and returns the PID of the process
- * listening on that socket.
- */
-static char *query_sock_pid(char *sock_path);
-
-/*
  * Looks up a key code in the key table.
  */
 static uint32_t lookup_keycode(const char *name);
@@ -540,13 +509,6 @@ static void release_scheduled_input_events(void);
  * devices as appropriate.
  */
 static void handle_inotify_events(void);
-
-/*
- * Sets the XDG_RUNTIME_DIR and WAYLAND_DISPLAY environment variables to point
- * to the compositor on the currently running TTY. This allows
- * libwayland-client to find and connect to the correct compositor.
- */
-static void find_wl_compositor(void);
 
 /*
  * Parses an escape key specification into the escape key globals.
