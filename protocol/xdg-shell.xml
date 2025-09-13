@@ -2,7 +2,7 @@
 <protocol name="xdg_shell">
 
   <copyright>
-    Copyright (C) 2008-2013 Kristian Høgsberg
+    Copyright (C) 2008-2013 Kristian Hogsberg
     Copyright (C) 2013      Rafael Antognolli
     Copyright (C) 2013      Jasper St. Pierre
     Copyright (C) 2010-2013 Intel Corporation
