@@ -43,7 +43,7 @@ Files: protocol/virtual-keyboard-unstable-v1.xml
        protocol/wlr-virtual-pointer-unstable-v1.xml
        protocol/xdg-output-unstable-v1.xml
        protocol/xdg-shell.xml
-Copyright: 2008-2013 Kristian Høgsberg
+Copyright: 2008-2013 Kristian Hogsberg
            2010-2013 Intel Corporation
            2012-2013 Collabora, Ltd.
                 2018 Purism SPC
