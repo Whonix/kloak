@@ -2,12 +2,12 @@
 <protocol name="xdg_shell">
 
   <copyright>
-    Copyright © 2008-2013 Kristian Høgsberg
-    Copyright © 2013      Rafael Antognolli
-    Copyright © 2013      Jasper St. Pierre
-    Copyright © 2010-2013 Intel Corporation
-    Copyright © 2015-2017 Samsung Electronics Co., Ltd
-    Copyright © 2015-2017 Red Hat Inc.
+    Copyright (C) 2008-2013 Kristian Høgsberg
+    Copyright (C) 2013      Rafael Antognolli
+    Copyright (C) 2013      Jasper St. Pierre
+    Copyright (C) 2010-2013 Intel Corporation
+    Copyright (C) 2015-2017 Samsung Electronics Co., Ltd
+    Copyright (C) 2015-2017 Red Hat Inc.
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the "Software"),

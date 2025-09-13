@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <protocol name="wlr_virtual_pointer_unstable_v1">
   <copyright>
-    Copyright © 2019 Josef Gajdusek
+    Copyright (C) 2019 Josef Gajdusek
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the "Software"),
