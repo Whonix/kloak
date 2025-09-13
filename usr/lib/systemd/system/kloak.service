@@ -5,15 +5,10 @@
 Description=kloak anti keystroke deanonymization tool
 Documentation=https://github.com/vmonaco/kloak
 ConditionPathExists=!/run/qubes/this-is-templatevm
-Before=graphical.target
-Before=getty.target
+After=graphical.target
 
 [Service]
 Type=simple
-
-## -v for verbosity due to:
-## https://github.com/vmonaco/kloak/issues/13
-#ExecStart=/usr/sbin/kloak -v
 
 ## This cannot be trivially made work on Qubes!
 ##
@@ -29,17 +24,18 @@ Type=simple
 ## https://github.com/QubesOS/qubes-issues/issues/1850
 ## https://forums.whonix.org/t/current-state-of-kloak/5605/6
 
-ExecStart=/usr/sbin/kloak
+## find_wl_compositor.py generates /run/kloak_wl_compositor_data.
+ExecStartPre=+/usr/libexec/kloak/find_wl_compositor
+EnvironmentFile=-/run/kloak_wl_compositor_data
+ExecStart=/usr/bin/kloak
 
 Restart=always
+RestartSec=2s
 
-## Kloak doesn't require any capabilities. This is
-## likely because the things it needs are already
-## owned by the root user which it runs as.
-CapabilityBoundingSet=
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_NET_ADMIN CAP_SYS_ADMIN CAP_SYS_TTY_CONFIG CAP_SYS_PTRACE
 
 ProtectSystem=strict
-ProtectHome=true
+#ProtectHome=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
@@ -48,14 +44,14 @@ ProtectControlGroups=true
 ## * disable or comment out the 3 'Private' namespaces below
 ## $ systemctl edit --full kloak
 PrivateTmp=true
-PrivateUsers=true
+#PrivateUsers=true
 PrivateNetwork=true
 MemoryDenyWriteExecute=true
 NoNewPrivileges=true
 RestrictRealtime=true
 RestrictNamespaces=true
 SystemCallArchitectures=native
-SystemCallFilter=brk clock_nanosleep close execve faccessat getdents64 getpid getrandom getuid ioctl madvise mmap mprotect munmap newfstatat openat ppoll prlimit64 read readlinkat rseq rt_sigaction set_robust_list set_tid_address sigaltstack write rt_sigprocmask sysinfo uname getcwd access fstat pread64 poll readlink open
+SystemCallFilter=brk open poll close ioctl mmap munmap read pread64 getdents64 socket connect getsockopt epoll_create1 epoll_ctl rt_sigprocmask epoll_wait inotify_init1 access openat fstat prctl sendmsg recvmsg newfstatat unlink ftruncate fcntl timerfd_create statx readlinkat faccessat2 fstatfs inotify_add_watch timerfd_settime
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=graphical.target

@@ -1,10 +1,16 @@
 # anti keystroke deanonymization tool #
 
-A keystroke-level online anonymization kernel.
+An event-level online anonymization kernel for input devices
 
-A privacy tool that makes keystroke biometrics less effective. This
-is accomplished by obfuscating the time intervals between key press and
-release events, which are typically used for identification.
+A privacy tool that makes keystroke and mouse biometrics less effective. For
+keyboards, this is accomplished by obfuscating the time intervals between
+input events. For mice, this is done by obfuscating the time intervals between
+between mouse input events, the number of mouse input events, and the exact
+path taken by the mouse pointer. This data can be used for identification if
+not obfuscated.
+
+kloak is designed for use on Wayland only. The way it functions could work on
+X11 theoretically, but this is not implemented. Contributions welcome.
 
 ## How to install `kloak` using apt-get ##
 

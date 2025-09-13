@@ -7,17 +7,14 @@ RONN       ?= ronn
 
 CFLAGS     ?= -O2 -g
 
-# NOTE: The systemd unit and apparmor profile are hardcoded to use
-#       /usr/sbin/kloak. So if you change the default install paths,
-#       you will have to patch those files yourself.
+# NOTE: The apparmor profile is hardcoded to use /usr/bin/kloak. So if you
+#       change the default install paths, you will have to patch those files
+#       yourself.
 prefix         ?= /usr
-sbindir        ?= $(prefix)/sbin
+bindir         ?= $(prefix)/bin
 datadir        ?= $(prefix)/share
 mandir         ?= $(datadir)/man
-
-udev_rules_dir ?= /usr/lib/udev/rules.d
 apparmor_dir   ?= /etc/apparmor.d/
-systemd_dir    ?= /usr/lib/systemd/system
 
 TARGETARCH=$(shell $(CC) -dumpmachine)
 CC_VERSION=$(shell $(CC) --version)
@@ -32,6 +29,7 @@ CC_VERSION=$(shell $(CC) --version)
 #
 # Added the following flags:
 # -fsanitize=address,undefined # enable ASan/UBSan
+# -ftrapv                      # Crash on signed integer overflow/underflow
 WARN_CFLAGS := -Wall -Wformat -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 	-Werror=format-security -Werror=implicit -Werror=int-conversion \
 	-Werror=incompatible-pointer-types -fstrict-flex-arrays=3
@@ -42,7 +40,7 @@ endif
 
 FORTIFY_CFLAGS := -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fstack-clash-protection \
 	-fstack-protector-strong -fno-delete-null-pointer-checks \
-	-fno-strict-overflow -fno-strict-aliasing -fsanitize=undefined
+	-fno-strict-overflow -fno-strict-aliasing -fsanitize=undefined -ftrapv
 
 ifeq (yes,$(patsubst x86_64%-linux-gnu,yes,$(TARGETARCH)))
 FORTIFY_CFLAGS += -fcf-protection=full # only supported on x86_64
@@ -61,15 +59,42 @@ ifeq (, $(shell which $(PKG_CONFIG)))
 $(error pkg-config not installed!)
 endif
 
-all : kloak eventcap
+all : kloak
 
-kloak : src/main.c src/keycodes.c src/keycodes.h
-	$(CC) src/main.c src/keycodes.c -o kloak -lm $(shell $(PKG_CONFIG) --cflags --libs libevdev) $(shell $(PKG_CONFIG) --cflags --libs libsodium) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+kloak : src/kloak.c src/kloak.h src/xdg-shell-protocol.h src/xdg-shell-protocol.c src/xdg-output-protocol.h src/xdg-output-protocol.c src/wlr-layer-shell.c src/wlr-layer-shell.h src/wlr-virtual-pointer.c src/wlr-virtual-pointer.h src/virtual-keyboard.c src/virtual-keyboard.h
+	$(CC) -g src/kloak.c src/xdg-shell-protocol.c src/xdg-output-protocol.c src/wlr-layer-shell.c src/wlr-virtual-pointer.c src/virtual-keyboard.c -o kloak -lm -lrt $(shell $(PKG_CONFIG) --cflags --libs libinput) $(shell $(PKG_CONFIG) --cflags --libs libevdev) $(shell $(PKG_CONFIG) --cflags --libs wayland-client) $(shell $(PKG_CONFIG) --cflags --libs xkbcommon) $(CFLAGS) $(LDFLAGS)
 
-eventcap : src/eventcap.c
-	$(CC) src/eventcap.c -o eventcap $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+src/xdg-shell-protocol.h : protocol/xdg-shell.xml
+	wayland-scanner client-header < protocol/xdg-shell.xml > src/xdg-shell-protocol.h
 
-MANPAGES := auto-generated-man-pages/eventcap.8 auto-generated-man-pages/kloak.8
+src/xdg-shell-protocol.c : protocol/xdg-shell.xml
+	wayland-scanner private-code < protocol/xdg-shell.xml > src/xdg-shell-protocol.c
+
+src/xdg-output-protocol.h : protocol/xdg-output-unstable-v1.xml
+	wayland-scanner client-header < protocol/xdg-output-unstable-v1.xml > src/xdg-output-protocol.h
+
+src/xdg-output-protocol.c : protocol/xdg-output-unstable-v1.xml
+	wayland-scanner private-code < protocol/xdg-output-unstable-v1.xml > src/xdg-output-protocol.c
+
+src/wlr-layer-shell.h : protocol/wlr-layer-shell-unstable-v1.xml
+	wayland-scanner client-header < protocol/wlr-layer-shell-unstable-v1.xml > src/wlr-layer-shell.h
+
+src/wlr-layer-shell.c : protocol/wlr-layer-shell-unstable-v1.xml
+	wayland-scanner private-code < protocol/wlr-layer-shell-unstable-v1.xml > src/wlr-layer-shell.c
+
+src/wlr-virtual-pointer.h : protocol/wlr-virtual-pointer-unstable-v1.xml
+	wayland-scanner client-header < protocol/wlr-virtual-pointer-unstable-v1.xml > src/wlr-virtual-pointer.h
+
+src/wlr-virtual-pointer.c : protocol/wlr-virtual-pointer-unstable-v1.xml
+	wayland-scanner private-code < protocol/wlr-virtual-pointer-unstable-v1.xml > src/wlr-virtual-pointer.c
+
+src/virtual-keyboard.h : protocol/virtual-keyboard-unstable-v1.xml
+	wayland-scanner client-header < protocol/virtual-keyboard-unstable-v1.xml > src/virtual-keyboard.h
+
+src/virtual-keyboard.c : protocol/virtual-keyboard-unstable-v1.xml
+	wayland-scanner private-code < protocol/virtual-keyboard-unstable-v1.xml > src/virtual-keyboard.c
+
+MANPAGES := auto-generated-man-pages/kloak.8
 
 man : $(MANPAGES)
 
@@ -77,12 +102,11 @@ auto-generated-man-pages/% : man/%.ronn
 	ronn --manual="kloak Manual" --organization="kloak" <$< >$@
 
 clean :
-	rm -f kloak eventcap
+	rm -f kloak
+	rm -f src/xdg-shell-protocol.h src/xdg-shell-protocol.c src/xdg-output-protocol.h src/xdg-output-protocol.c src/wlr-layer-shell.h src/wlr-layer-shell.c src/wlr-virtual-pointer.h src/wlr-virtual-pointer.c src/virtual-keyboard.h src/virtual-keyboard.c
 
-install : all usr/lib/udev/rules.d/95-kloak.rules etc/apparmor.d/usr.sbin.kloak  usr/lib/systemd/system/kloak.service $(MANPAGES)
-	$(INSTALL) -d -m 755 $(addprefix $(DESTDIR), $(sbindir) $(mandir)/man8 $(udev_rules_dir) $(apparmor_dir) $(systemd_dir))
-	$(INSTALL) -m 755 kloak eventcap $(DESTDIR)$(sbindir)
+install : all etc/apparmor.d/usr.bin.kloak $(MANPAGES)
+	$(INSTALL) -d -m 755 $(addprefix $(DESTDIR), $(bindir) $(mandir)/man8 $(apparmor_dir))
+	$(INSTALL) -m 755 kloak $(DESTDIR)$(bindir)
 	$(INSTALL) -m 644 $(MANPAGES) $(DESTDIR)$(mandir)/man8
-	$(INSTALL) -m 644 usr/lib/udev/rules.d/95-kloak.rules $(DESTDIR)$(udev_rules_dir)
-	$(INSTALL) -m 644 etc/apparmor.d/usr.sbin.kloak $(DESTDIR)$(apparmor_dir)
-	$(INSTALL) -m 644 usr/lib/systemd/system/kloak.service $(DESTDIR)$(systemd_dir)
+	$(INSTALL) -m 644 etc/apparmor.d/usr.bin.kloak $(DESTDIR)$(apparmor_dir)

@@ -1,57 +1,35 @@
-.\" generated with Ronn-NG/v0.9.1
-.\" http://github.com/apjanke/ronn-ng/tree/0.9.1
+.\" generated with Ronn-NG/v0.10.1
+.\" http://github.com/apjanke/ronn-ng/tree/0.10.1
 .TH "KLOAK" "8" "January 2020" "kloak" "kloak Manual"
 .SH "NAME"
 \fBkloak\fR \- anti keystroke deanonymization tool
 .SH "SYNOPSIS"
 \fBkloak\fR \fIoptions\fR
 .SH "OPTIONS"
-.IP "\[ci]" 4
-\-h
-.IP
-print usage message and exit
-.IP "\[ci]" 4
-\-r
-.IP
-filename: device file to read events from
-.IP "\[ci]" 4
-\-w
-.IP
-filename: device file to write events to (should be uinput)
-.IP "\[ci]" 4
-\-d
-.IP
-delay: maximum delay (milliseconds) of released events\. Default 100\.
-.IP "\[ci]" 4
-\-s
-.IP
-startup_timeout: time to wait (milliseconds) before startup\. Default 100\.
-.IP "\[ci]" 4
-\-k
-.IP
-csv_string: csv list of rescue key names to exit kloak in case the keyboard becomes unresponsive\. Default is 'KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC'\.
-.IP "\[ci]" 4
-\-v
-.IP
-verbose mode
-.IP "" 0
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print usage message and exit\.
+.TP
+\fB\-d\fR, \fB\-\-delay\fR
+Configure the maximum delay of released events\. Default 100\.
+.TP
+\fB\-s\fR, \fB\-\-start\-delay\fR
+Configure the time to wait before starting\. Default 500\.
 .SH "DESCRIPTION"
-kloak is a Keystroke\-level online anonymization kernel\.
+kloak is an event\-level online anonymization kernel for keyboards and mice\.
 .P
-kloak is a privacy tool that makes keystroke biometrics less effective\. This is accomplished by obfuscating the time intervals between key press and release events, which are typically used for identification\.
+kloak is a privacy tool that makes input biometrics less effective\. For keyboards, this is accomplished by obfuscating the time intervals between input events\. For mice, this is done by obfuscating the time intervals between between mouse input events, the number of mouse input events, and the exact path taken by the mouse pointer\. This data can be used for identification if not obfuscated\.
 .SH "EXAMPLES"
-Use eventcap(8) (or some other event capture tool) and look for the device that generates events when keys are pressed\.
+On startup, \fBkloak\fR will grab all evdev input devices with libinput, and will proxy the events from those devices to the running Wayland compositor via emulated input protocols\. There is no need to configure specific devices to be grabbed; \fBkloak\fR autodetects devices and displays, even when hotplugged\.
 .P
-Starting \fBkloak\fR without any options will use sensible defaults and attempt to find the location of the keyboard device and uinput\. Note that since \fBkloak\fR requires reading from and writing to device files, it probably won't work without running as root:
+\fBkloak\fR requires the ability to exclusively grab input devices under /dev/input, thus it usually needs to be run as root:
 .P
 \fBsudo \./kloak\fR
 .P
-Optionally start \fBkloak\fR by specifying the input and output device files\. The output device should be the location of uinput\.
-.P
-\fBsudo \./kloak \-r /dev/input/event4 \-w /dev/uinput\fR
+Optionally start \fBkloak\fR by specifying the event and startup delay\. A longer startup delay (configured with \fB\-s\fR) can be useful to avoid problems with startup, while a longer event delay (configured with \fB\-d\fR) will provide possibly better anonymity at the cost of reducing usability\.
 .SH "WWW"
-https://github\.com/vmonaco/kloak
+https://github\.com/Whonix/kloak
 .SH "CREDITS"
-kloak was written by Vinnie Monaco\.
+kloak was originally written by Vinnie Monaco\. It was then rewritten by Aaron Rainbolt to work with Wayland and provide better mouse obfuscation\.
 .SH "AUTHOR"
 This man page has been written by Patrick Schleizer (adrelanos@whonix\.org)\.
