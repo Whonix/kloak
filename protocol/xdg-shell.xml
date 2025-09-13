@@ -111,7 +111,7 @@
 	Compositors can use this to determine if the client is still
 	alive. It's unspecified what will happen if the client doesn't
 	respond to the ping request, or in what timeframe. Clients should
-	try to respond in a reasonable amount of time. The “unresponsive”
+	try to respond in a reasonable amount of time. The 'unresponsive'
 	error is provided for compositors that wish to disconnect unresponsive
 	clients.
 
@@ -230,7 +230,7 @@
 	specified (e.g. 'bottom_right' or 'top_left'), then the child surface
 	will be placed towards the specified gravity; otherwise, the child
 	surface will be centered over the anchor point on any axis that had no
-	gravity specified. If the gravity is not in the ‘gravity' enum, an
+	gravity specified. If the gravity is not in the 'gravity' enum, an
 	invalid_input error is raised.
       </description>
       <arg name="gravity" type="uint" enum="gravity"
