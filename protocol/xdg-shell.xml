@@ -51,7 +51,7 @@
       <entry name="invalid_positioner" value="5"
 	     summary="the client provided an invalid positioner"/>
       <entry name="unresponsive" value="6"
-	     summary="the client didn’t respond to a ping event in time"/>
+	     summary="the client didn't respond to a ping event in time"/>
     </enum>
 
     <request name="destroy" type="destructor">
@@ -230,7 +230,7 @@
 	specified (e.g. 'bottom_right' or 'top_left'), then the child surface
 	will be placed towards the specified gravity; otherwise, the child
 	surface will be centered over the anchor point on any axis that had no
-	gravity specified. If the gravity is not in the ‘gravity’ enum, an
+	gravity specified. If the gravity is not in the ‘gravity' enum, an
 	invalid_input error is raised.
       </description>
       <arg name="gravity" type="uint" enum="gravity"
@@ -869,7 +869,7 @@
 	</description>
       </entry>
       <entry name="tiled_left" value="5" since="2">
-	<description summary="the surface’s left edge is tiled">
+	<description summary="the surface's left edge is tiled">
 	  The window is currently in a tiled layout and the left edge is
 	  considered to be adjacent to another part of the tiling grid.
 
@@ -878,7 +878,7 @@
 	</description>
       </entry>
       <entry name="tiled_right" value="6" since="2">
-	<description summary="the surface’s right edge is tiled">
+	<description summary="the surface's right edge is tiled">
 	  The window is currently in a tiled layout and the right edge is
 	  considered to be adjacent to another part of the tiling grid.
 
@@ -887,7 +887,7 @@
 	</description>
       </entry>
       <entry name="tiled_top" value="7" since="2">
-	<description summary="the surface’s top edge is tiled">
+	<description summary="the surface's top edge is tiled">
 	  The window is currently in a tiled layout and the top edge is
 	  considered to be adjacent to another part of the tiling grid.
 
@@ -896,7 +896,7 @@
 	</description>
       </entry>
       <entry name="tiled_bottom" value="8" since="2">
-	<description summary="the surface’s bottom edge is tiled">
+	<description summary="the surface's bottom edge is tiled">
 	  The window is currently in a tiled layout and the bottom edge is
 	  considered to be adjacent to another part of the tiling grid.
 
@@ -912,7 +912,7 @@
 	</description>
       </entry>
       <entry name="constrained_left" value="10" since="7">
-	<description summary="the surface’s left edge is constrained">
+	<description summary="the surface's left edge is constrained">
           The left edge of the window is currently constrained, meaning it
           shouldn't attempt to resize from that edge. It can for example mean
           it's tiled next to a monitor edge on the constrained side of the
@@ -920,7 +920,7 @@
 	</description>
       </entry>
       <entry name="constrained_right" value="11" since="7">
-	<description summary="the surface’s right edge is constrained">
+	<description summary="the surface's right edge is constrained">
           The right edge of the window is currently constrained, meaning it
           shouldn't attempt to resize from that edge. It can for example mean
           it's tiled next to a monitor edge on the constrained side of the
@@ -928,7 +928,7 @@
 	</description>
       </entry>
       <entry name="constrained_top" value="12" since="7">
-	<description summary="the surface’s top edge is constrained">
+	<description summary="the surface's top edge is constrained">
           The top edge of the window is currently constrained, meaning it
           shouldn't attempt to resize from that edge. It can for example mean
           it's tiled next to a monitor edge on the constrained side of the
@@ -936,7 +936,7 @@
 	</description>
       </entry>
       <entry name="constrained_bottom" value="13" since="7">
-	<description summary="the surface’s bottom edge is tiled">
+	<description summary="the surface's bottom edge is tiled">
           The bottom edge of the window is currently constrained, meaning it
           shouldn't attempt to resize from that edge. It can for example mean
           it's tiled next to a monitor edge on the constrained side of the
