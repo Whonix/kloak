@@ -1,3 +1,143 @@
+commit 443cf8d1f6ad5dcac3b2e901d26cf94dfbf23f0a
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Sep 13 06:24:50 2025 -0400
+
+    re-generate man pages (generated using "genmkfile manpages")
+
+commit 34cffc3b1c0a480c3d012a3fa8a9d065e0f74398
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Sep 13 05:34:00 2025 -0400
+
+    unicode
+
+commit b8255eb4101f063e80f1d98c7f22486ff55c3b61
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Sep 13 05:32:20 2025 -0400
+
+    unicode
+
+commit ac3e4d2a1f2b1c6511c794e2431349e8bdf7453b
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Sep 13 05:29:08 2025 -0400
+
+    unicode
+
+commit 93c419beaa5b0a2cb9c39251a9fbb0ab0019e02e
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Sep 13 05:28:22 2025 -0400
+
+    unicode
+
+commit 9f3c852f10acd1e4ab4227966f06cc2d1f7a516d
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Sep 13 05:25:18 2025 -0400
+
+    update from debian/copyright
+
+commit 82059c97bd9c27c835c6d1e3aca087eef7d61256
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Sep 13 05:24:35 2025 -0400
+
+    unicode
+
+commit a1f90a8feb00f2a8d1f83e84d44eb1360b3f84b9
+Merge: 466a9ef 5b83615
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Sep 13 05:23:29 2025 -0400
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit 5b836152ef9208b5aae10dd04d52f304601bfbed
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Fri Sep 12 16:09:32 2025 -0500
+
+    Reduce CPU usage during idle by avoiding constant rapid polling
+
+commit cba437148250ad32e93b69d0a675ce6a13c6fb81
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Fri Sep 12 15:43:42 2025 -0500
+
+    Code safety improvements after ChatGPT code review
+
+commit efa8336553961f89a1aa93b1945d201b4762b7d6
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Fri Sep 12 11:26:49 2025 -0500
+
+    Add compositor feature checks
+
+commit c1415e55883449c3ada61084612212f7512ac99c
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Fri Sep 12 10:44:37 2025 -0500
+
+    Sandbox find_wl_compositor script
+
+commit c87e1603f3bd3471ce84885c66acdc040cb4b154
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Thu Sep 11 23:21:16 2025 -0500
+
+    Split Wayland compositor autodetect into a Python script, tighten sandbox on core kloak binary and update documentation
+
+commit c68389a503730d61eaed7ed7b0f4708aff1fff8c
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Wed Sep 10 21:14:38 2025 -0500
+
+    Remove dependency on libudev, use inotify for input device hotplug instead
+
+commit 55c09174d8d3b12d2a5d6c867e68028fb014691a
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Wed Sep 10 00:24:28 2025 -0500
+
+    Documentation, hardening TODOs
+
+commit 9d578330f6f79a4255e1d07bb75131dcdd19f960
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Tue Sep 9 23:29:16 2025 -0500
+
+    Revise AppArmor sandbox, add systemd unit with sandboxing
+
+commit e3f33ebe1b8bb77712e1300866133360579bab1c
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Tue Sep 9 21:39:25 2025 -0500
+
+    Fix modifier key handling, fix memory management issues
+
+commit 7dc0a77fe9952563692dd0a7f09c5c479bb17cc5
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Tue Sep 9 21:05:08 2025 -0500
+
+    Add escape key feature, switch to post-increment operators everywhere for clarity
+
+commit 79f9cca93e264e4c802a5112baaab9afd78a5ce1
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Tue Sep 9 19:24:03 2025 -0500
+
+    Auto-detect Wayland compositors, allow customizing the color of the virtual cursor
+
+commit 25f090472d24d4843d5c0c99e2d976b3386d2b67
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Sun Sep 7 09:49:05 2025 -0500
+
+    Research in preparation for making a system-wide kloak service
+
+commit 7a19c763669792c42d79bc5dffc271ac46b46ff3
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Thu Sep 4 20:51:58 2025 -0500
+
+    Hardening, bugfixing and bug triage
+
+commit f11e1b17e96cd634aa9ed3212164d44c6b323408
+Merge: 0eb5cfb 466a9ef
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Wed Sep 3 17:15:04 2025 -0500
+
+    Merge branch 'arraybolt3/trixie' into arraybolt3/kloak-v2
+
+commit 466a9efbd29e465a15801b2bab0283446441245d
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Tue Sep 2 15:36:13 2025 +0000
+
+    bumped changelog version
+
 commit 9ef026b063b64a99b804423ed0a88bf69a095ab5
 Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Tue Sep 2 14:06:24 2025 +0000
@@ -10,6 +150,18 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Tue Sep 2 10:05:34 2025 -0400
 
     Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit 0eb5cfb6e775699112d23488fe51bb1406f53e47
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Sun Aug 31 19:53:43 2025 -0500
+
+    Add working AppArmor configuration, document bugs and other FIXMEs
+
+commit 27fae05d49d506242b633372c2dd3a253f8bdf57
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Sun Aug 31 17:12:30 2025 -0500
+
+    WIP switch to kloak v2
 
 commit f65570e23856227e38efcdce06b819d6ebcd6e5f
 Merge: 29d32d9 fb06782
