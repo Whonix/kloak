@@ -291,6 +291,7 @@ static void safe_close(int fd) {
 
 static DIR *safe_opendir(const char *name, bool allow_enoent) {
   DIR *out_ptr = opendir(name);
+  int dir_fd = 0;
   if (out_ptr == NULL) {
     if (!allow_enoent || errno != ENOENT) {
       fprintf(stderr,
@@ -298,6 +299,20 @@ static DIR *safe_opendir(const char *name, bool allow_enoent) {
         strerror(errno));
       exit(1);
     }
+  }
+
+  dir_fd = dirfd(out_ptr);
+  if (dir_fd == -1) {
+    fprintf(stderr,
+      "FATAL ERROR: Could not get file descriptor for directory '%s': %s\n",
+      name, strerror(errno));
+    exit(1);
+  }
+  if (fcntl(dir_fd, F_SETFD, FD_CLOEXEC) == -1) {
+    fprintf(stderr,
+      "FATAL ERROR: Could not set FD_CLOEXEC on file descriptor for directory '%s': %s\n",
+      name, strerror(errno));
+    exit(1);
   }
   return out_ptr;
 }
@@ -385,7 +400,7 @@ static int create_shm_file(ssize_t size) {
     /* 10 = length of 'XXXXXXXXXX', 11 = length + NULL terminator */
     randname(name + sizeof(name) - 11, 10);
     --retries;
-    fd = shm_open(name, O_RDWR | O_CREAT | O_EXCL, 0600);
+    fd = shm_open(name, O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
     if (fd >= 0) {
       shm_unlink(name);
       break;
@@ -2022,7 +2037,7 @@ static void print_usage(void) {
 /****************************/
 
 static void applayer_random_init(void) {
-  randfd = safe_open("/dev/urandom", O_RDONLY);
+  randfd = safe_open("/dev/urandom", O_RDONLY | O_CLOEXEC);
 }
 
 static void applayer_wayland_init(void) {

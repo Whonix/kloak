@@ -111,7 +111,9 @@ def query_sock_pid(sock_path: str) -> str | None:
     """
 
     try:
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+        with socket.socket(
+            socket.AF_UNIX, socket.SOCK_STREAM | socket.SOCK_CLOEXEC
+        ) as sock:
             sock.settimeout(0.5)
             sock.connect(sock_path)
             struct_fmt: str = "=iII"
@@ -274,7 +276,7 @@ def main() -> NoReturn:
         with os.fdopen(
             os.open(
                 "/run/kloak_wl_compositor_data",
-                os.O_RDWR | os.O_CREAT | os.O_TRUNC,
+                os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_CLOEXEC,
                 mode=0o600,
             ),
             "r+",
