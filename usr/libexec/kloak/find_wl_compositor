@@ -58,8 +58,14 @@ import subprocess
 import re
 import socket
 import struct
+import logging
 from pathlib import Path
 from typing import Pattern, Match, NoReturn
+
+logging.basicConfig(
+    format="%(funcName)s: %(levelname)s: %(message)s", level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
 known_compositor_list: list[str] = [
     "labwc",
@@ -118,12 +124,15 @@ def query_sock_pid(sock_path: str) -> str | None:
             sock.connect(sock_path)
             struct_fmt: str = "=iII"
             rslt_buf: bytes = sock.getsockopt(
-                socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize(struct_fmt)
+                socket.SOL_SOCKET,
+                socket.SO_PEERCRED,
+                struct.calcsize(struct_fmt),
             )
             pid: int
             pid, _, _ = struct.unpack(struct_fmt, rslt_buf)
             return str(pid)
     except Exception:
+        ## Logging not desirable here, socket may have been closed or deleted.
         return None
 
 
@@ -143,12 +152,12 @@ def main() -> NoReturn:
                 encoding="utf-8",
             ).stdout.strip()
         )
-    except Exception:
-        print("no_console")
+    except Exception as e:
+        logger.error("Unable to determine active VT!", exc_info=e)
         sys.exit(1)
 
     if active_vt == 0:
-        print("no_active_vt")
+        logger.error("Active VT appears to be 0, cannot continue!")
         sys.exit(1)
 
     process_on_vt_list: list[tuple[str, str]] = []
@@ -174,6 +183,10 @@ def main() -> NoReturn:
                     proc_control_tty_int & 0xFF00
                 ) >> 8
             except Exception:
+                ## No logging here, this will happen if we aren't able to read
+                ## the path in question, which could happen for any for any
+                ## number of reasons (for instance, the app we're inspecting
+                ## may have just terminated).
                 continue
 
             if (
@@ -188,23 +201,28 @@ def main() -> NoReturn:
                 if comm_str.endswith("\n"):
                     comm_str = comm_str[:-1]
             except Exception:
+                ## Logging not desirable here, process name may not be valid
+                ## ASCII.
                 continue
             process_on_vt_list.append((proc_entry.name, comm_str))
-    except Exception:
-        print("cannot_iter_proc")
+    except Exception as e:
+        logger.error(
+            "Unable to scan /proc for Wayland compositors!", exc_info=e
+        )
         sys.exit(1)
 
     if len(process_on_vt_list) == 0:
-        print("no_processes_on_vt")
+        logger.error("No processes found on active VT!")
         sys.exit(1)
 
     wl_pid_str_list: list[str] = [
-        pid_str for pid_str, comm_str in process_on_vt_list
+        pid_str
+        for pid_str, comm_str in process_on_vt_list
         if comm_str in known_compositor_list
     ]
 
     if len(wl_pid_str_list) == 0:
-        print("no_wl_compositors")
+        logger.error("No Wayland compositors found on active VT!")
         sys.exit(1)
 
     xdg_runtime_dir_set: set[str] = set()
@@ -214,6 +232,7 @@ def main() -> NoReturn:
                 Path(f"/proc/{pid_str}/environ").read_bytes().split(b"\0")
             )
         except Exception:
+            ## Logging not desirable here, process may have terminated.
             continue
         for current_process_env_var in current_process_environ:
             if not current_process_env_var.startswith(b"XDG_RUNTIME_DIR="):
@@ -226,6 +245,8 @@ def main() -> NoReturn:
                     encoding="utf-8"
                 )
             except Exception:
+                ## Logging not desirable here, process may have invalid text
+                ## in its environment file.
                 continue
             if current_process_env_str != "":
                 xdg_runtime_dir_set.add(current_process_env_str)
@@ -239,6 +260,9 @@ def main() -> NoReturn:
                     if not xdg_runtime_dir_entry.is_socket():
                         continue
                 except Exception:
+                    ## Logging not desirable here, this can error out if we
+                    ## attempt to determine the file type of a FUSE
+                    ## mountpoint.
                     continue
                 if not xdg_runtime_dir_entry.name.startswith("wayland-"):
                     continue
@@ -246,6 +270,9 @@ def main() -> NoReturn:
                     (str(xdg_runtime_dir), xdg_runtime_dir_entry.name)
                 )
         except Exception:
+            ## Logging not desirable here, it's possible the user we're trying
+            ## to read the XDG_RUNTIME_DIR of just logged out and the
+            ## directory has been deleted out from under us.
             continue
 
     wayland_socket_list.sort(key=wlsortmorph)
@@ -269,7 +296,7 @@ def main() -> NoReturn:
             break
 
     if xdg_runtime_dir_var is None or wayland_display_var is None:
-        print("no_wl_compositors")
+        logger.error("No Wayland compositors found on active VT!")
         sys.exit(1)
 
     try:
@@ -284,8 +311,12 @@ def main() -> NoReturn:
         ) as output_file:
             print(f"XDG_RUNTIME_DIR={xdg_runtime_dir_var}", file=output_file)
             print(f"WAYLAND_DISPLAY={wayland_display_var}", file=output_file)
-    except Exception:
-        print("cannot_write_output_file")
+    except Exception as e:
+        logger.error(
+            "Cannot write Wayland compositor information to '%s'!",
+            output_file,
+            exc_info=e,
+        )
         sys.exit(1)
 
     sys.exit(0)
