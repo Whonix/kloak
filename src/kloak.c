@@ -379,6 +379,7 @@ static int create_shm_file(ssize_t size) {
   int fd = -1;
   /* 18 = length of string '/kloak-XXXXXXXXXX' + NULL terminator */
   char name[18];
+  int snprintf_len = 0;
 
   assert(size >= 0);
   /*
@@ -396,7 +397,8 @@ static int create_shm_file(ssize_t size) {
   }
 
   do {
-    strcpy(name, "/kloak-XXXXXXXXXX");
+    snprintf_len = snprintf(name, sizeof(name), "%s", "/kloak-XXXXXXXXXX");
+    assert(snprintf_len > 0 && (size_t)(snprintf_len) == sizeof(name) - 1);
     /* 10 = length of 'XXXXXXXXXX', 11 = length + NULL terminator */
     randname(name + sizeof(name) - 11, 10);
     --retries;
@@ -1306,7 +1308,7 @@ static void layer_surface_configure(void *data,
 /*********************/
 
 static int li_open_restricted(const char *path, int flags, void *user_data) {
-  int fd = safe_open(path, flags);
+  int fd = safe_open(path, flags | O_CLOEXEC);
   int one = 1;
   if (ioctl(fd, EVIOCGRAB, &one) < 0) {
     fprintf(stderr, "FATAL ERROR: Could not grab evdev device '%s'!\n", path);
