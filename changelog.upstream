@@ -1,3 +1,34 @@
+commit 9927e7079e24a6c3c2433e08ee12de553c84f999
+Merge: d0ca972 5f473f0
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri Sep 19 14:08:24 2025 -0400
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit 5f473f08c1b736426590d4d7c4daee66aa84af88
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Wed Sep 17 20:21:52 2025 -0500
+
+    Improve error reporting in find_wl_compositor
+
+commit c330a5bccb9e4d946697fafa070456dd41a06564
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Wed Sep 17 19:59:32 2025 -0500
+
+    Add missing CLOEXEC flag, make shm file creation a bit safer
+
+commit c79f5de38111559689e9a9aceb36c1a57011644b
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Wed Sep 17 19:39:17 2025 -0500
+
+    Add CLOEXEC hardening to file descriptors
+
+commit d0ca972afefc0aefa5bc63c60306885653cc7d62
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Sep 13 10:34:44 2025 +0000
+
+    bumped changelog version
+
 commit 924545f7b427609fcde669d1a2c6b41535246191
 Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Sat Sep 13 06:34:32 2025 -0400
