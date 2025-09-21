@@ -68,7 +68,7 @@ static struct disp_state state = { 0 };
 static struct libinput *li = NULL;
 static int inotify_fd = 0;
 
-static struct pollfd *ev_fds = { 0 };
+static struct pollfd *ev_fds = NULL;
 
 static int64_t prev_release_time = 0;
 static TAILQ_HEAD(tailhead_evq, input_packet) evq_head;
@@ -84,11 +84,14 @@ static size_t esc_key_list_len = 0;
 
 static LIST_HEAD(listhead_ldi, li_device_info) ldi_head;
 
-const char *default_esc_key_str = "KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC";
+static const char *default_esc_key_str
+  = "KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC";
 
-int64_t start_time = 0;
+static int64_t start_time = 0;
 
-int randfd = 0;
+static int randfd = 0;
+
+static bool did_wayland_init = false;
 
 static struct key_name_value key_table[] = {
   {"KEY_ESC", KEY_ESC},
@@ -1310,9 +1313,11 @@ static void layer_surface_configure(void *data,
 static int li_open_restricted(const char *path, int flags, void *user_data) {
   int fd = safe_open(path, flags | O_CLOEXEC);
   int one = 1;
-  if (ioctl(fd, EVIOCGRAB, &one) < 0) {
-    fprintf(stderr, "FATAL ERROR: Could not grab evdev device '%s'!\n", path);
-    exit(1);
+  if (did_wayland_init) {
+    if (ioctl(fd, EVIOCGRAB, &one) < 0) {
+      fprintf(stderr, "FATAL ERROR: Could not grab evdev device '%s'!\n", path);
+      exit(1);
+    }
   }
   return fd < 0 ? -errno : fd;
 }
@@ -2049,8 +2054,17 @@ static void applayer_wayland_init(void) {
    */
   state.display = wl_display_connect(NULL);
   if (!state.display) {
-    fprintf(stderr, "FATAL ERROR: Could not get Wayland display!\n");
-    exit(1);
+    fprintf(stderr,
+      "WARNING: Could not get Wayland display, will await escape key combo to exit.\n");
+    /*
+     * If this happens, we didn't manage to connect to the Wayland compositor
+     * at all. If this happens, we want to wait for the user to press a key
+     * combo to exit kloak, rather than immediately exiting. This prevents
+     * spamming the journal, and allows systemd to restart kloak whenever the
+     * user requests. Simply return, don't exit; did_wayland_init will remain
+     * false, so that kloak will only do escape key scanning and nothing else.
+     */
+    return;
   }
   state.display_fd = wl_display_get_fd(state.display);
 
@@ -2146,6 +2160,8 @@ static void applayer_wayland_init(void) {
     fprintf(stderr, "FATAL ERROR: No wl_keyboard object from compositor!\n");
     exit(1);
   }
+
+  did_wayland_init = true;
 }
 
 static void applayer_libinput_init(void) {
@@ -2197,13 +2213,19 @@ static void applayer_poll_init(void) {
    * ev_fds[1] = libinput file descriptor
    * ev_fds[2] = inotify file descriptor for libinput hotplug
    */
-  ev_fds = safe_calloc(POLL_FD_COUNT, sizeof(struct pollfd));
-  ev_fds[0].fd = state.display_fd;
+  if (did_wayland_init) {
+    ev_fds = safe_calloc(POLL_FD_COUNT, sizeof(struct pollfd));
+  } else {
+    ev_fds = safe_calloc(POLL_FD_COUNT - 1, sizeof(struct pollfd));
+  }
+  ev_fds[0].fd = libinput_get_fd(li);
   ev_fds[0].events = POLLIN;
-  ev_fds[1].fd = libinput_get_fd(li);
+  ev_fds[1].fd = inotify_fd;
   ev_fds[1].events = POLLIN;
-  ev_fds[2].fd = inotify_fd;
-  ev_fds[2].events = POLLIN;
+  if (did_wayland_init) {
+    ev_fds[2].fd = state.display_fd;
+    ev_fds[2].events = POLLIN;
+  }
 }
 
 static void parse_cli_args(int argc, char **argv) {
@@ -2295,55 +2317,91 @@ int main(int argc, char **argv) {
   applayer_inotify_init();
   applayer_poll_init();
 
-  while (true) {
-    while (wl_display_prepare_read(state.display) != 0) {
-      wl_display_dispatch_pending(state.display);
-    }
-    wl_display_flush(state.display);
-
+  if (did_wayland_init) {
     while (true) {
-      enum libinput_event_type next_ev_type = libinput_next_event_type(li);
-      if (next_ev_type == LIBINPUT_EVENT_NONE)
-        break;
-      struct libinput_event *li_event = libinput_get_event(li);
-      register_esc_combo_event(next_ev_type, li_event);
-      queue_libinput_event_and_relocate_virtual_cursor(next_ev_type,
-        li_event);
-    }
-
-    release_scheduled_input_events();
-
-    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
-      if (!state.layers[i]) {
-        continue;
+      while (wl_display_prepare_read(state.display) != 0) {
+        wl_display_dispatch_pending(state.display);
       }
-      if (state.layers[i]->frame_pending) {
-        draw_frame(state.layers[i]);
+      wl_display_flush(state.display);
+
+      while (true) {
+        enum libinput_event_type next_ev_type = libinput_next_event_type(li);
+        if (next_ev_type == LIBINPUT_EVENT_NONE)
+          break;
+        struct libinput_event *li_event = libinput_get_event(li);
+        register_esc_combo_event(next_ev_type, li_event);
+        queue_libinput_event_and_relocate_virtual_cursor(next_ev_type,
+          li_event);
+        /* 
+         * We do NOT free the libinput event here.
+         * queue_libinput_event_and_relocate_virtual_cursor will destroy the
+         * event if appropriate, or queue it for future release and
+         * destruction otherwise.
+         */
       }
-    }
-    wl_display_flush(state.display);
 
-    poll(ev_fds, POLL_FD_COUNT, calc_poll_timeout());
+      release_scheduled_input_events();
 
-    if (ev_fds[0].revents & POLLIN) {
-      wl_display_read_events(state.display);
-      wl_display_dispatch_pending(state.display);
-    } else {
-      wl_display_cancel_read(state.display);
-    }
-    ev_fds[0].revents = 0;
+      for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+        if (!state.layers[i]) {
+          continue;
+        }
+        if (state.layers[i]->frame_pending) {
+          draw_frame(state.layers[i]);
+        }
+      }
+      wl_display_flush(state.display);
 
-    if (ev_fds[1].revents & POLLIN) {
-      libinput_dispatch(li);
-    }
-    ev_fds[1].revents = 0;
+      poll(ev_fds, POLL_FD_COUNT, calc_poll_timeout());
 
-    if (ev_fds[2].revents & POLLIN) {
-      handle_inotify_events();
+      if (ev_fds[2].revents & POLLIN) {
+        wl_display_read_events(state.display);
+        wl_display_dispatch_pending(state.display);
+      } else {
+        wl_display_cancel_read(state.display);
+      }
+      ev_fds[2].revents = 0;
+
+      if (ev_fds[0].revents & POLLIN) {
+        libinput_dispatch(li);
+      }
+      ev_fds[0].revents = 0;
+
+      if (ev_fds[1].revents & POLLIN) {
+        handle_inotify_events();
+      }
+      ev_fds[1].revents = 0;
     }
-    ev_fds[2].revents = 0;
+
+    wl_display_disconnect(state.display);
+  } else {
+    while(true) {
+      while (true) {
+        enum libinput_event_type next_ev_type = libinput_next_event_type(li);
+        if (next_ev_type == LIBINPUT_EVENT_NONE)
+          break;
+        struct libinput_event *li_event = libinput_get_event(li);
+        register_esc_combo_event(next_ev_type, li_event);
+        /* 
+         * We have to free the libinput event here ourselves since we don't
+         * call queue_libinput_event_and_relocate_virtual_cursor (which would
+         * either destroy it or queue it for later release and destruction).
+	 */
+        libinput_event_destroy(li_event);
+      }
+
+      poll(ev_fds, POLL_FD_COUNT - 1, -1);
+
+      if (ev_fds[0].revents & POLLIN) {
+        libinput_dispatch(li);
+      }
+      ev_fds[0].revents = 0;
+
+      if (ev_fds[1].revents & POLLIN) {
+        handle_inotify_events();
+      }
+      ev_fds[1].revents = 0;
+    }
   }
-
-  wl_display_disconnect(state.display);
   return 0;
 }

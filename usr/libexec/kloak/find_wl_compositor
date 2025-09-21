@@ -59,6 +59,7 @@ import re
 import socket
 import struct
 import logging
+import time
 from pathlib import Path
 from typing import Pattern, Match, NoReturn
 
@@ -79,6 +80,11 @@ known_compositor_list: list[str] = [
     "wayfire",
     "woodland",
 ]
+
+kloak_env_save_str: str = "/run/kloak_wl_compositor_data"
+kloak_wayland_flag_str: str = (
+    "/run/desktop_config_dist_wayland_session_started"
+)
 
 
 def wlsortmorph(obj: tuple[str, str]) -> str:
@@ -141,6 +147,15 @@ def main() -> NoReturn:
     """
     Main function.
     """
+
+    while not Path(kloak_wayland_flag_str).is_file():
+        time.sleep(1)
+
+    try:
+        Path(kloak_env_save_str).unlink(missing_ok=True)
+    except Exception:
+        logger.error("Could not force-unlink '%s'!", kloak_env_save_str)
+        sys.exit(1)
 
     try:
         active_vt: int = int(
@@ -302,7 +317,7 @@ def main() -> NoReturn:
     try:
         with os.fdopen(
             os.open(
-                "/run/kloak_wl_compositor_data",
+                kloak_env_save_str,
                 os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_CLOEXEC,
                 mode=0o600,
             ),
