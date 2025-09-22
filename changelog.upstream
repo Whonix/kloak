@@ -1,3 +1,28 @@
+commit 17c1c8fc28aecd0166dedb541518e50cf3b227d1
+Merge: 0997da8 d269452
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Mon Sep 22 13:10:32 2025 -0400
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit d2694525df040312fe8c015017227ff65529b806
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Sun Sep 21 23:53:51 2025 -0500
+
+    Add additional hardening and warning flags, start restructuring code to comply with new flags
+
+commit 33ea3f87763be9682b1276aceee04eba70184632
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Sat Sep 20 22:15:06 2025 -0500
+
+    Fix dubious syntax, improve startup timing, avoid spamming log when no compositor is found
+
+commit 0997da8baa4f66eef439946afdc2fdfa88ca9cd1
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri Sep 19 18:12:23 2025 +0000
+
+    bumped changelog version
+
 commit 9927e7079e24a6c3c2433e08ee12de553c84f999
 Merge: d0ca972 5f473f0
 Author: Patrick Schleizer <adrelanos@whonix.org>
