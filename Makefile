@@ -30,17 +30,38 @@ CC_VERSION=$(shell $(CC) --version)
 # Added the following flags:
 # -fsanitize=address,undefined # enable ASan/UBSan
 # -ftrapv                      # Crash on signed integer overflow/underflow
-WARN_CFLAGS := -Wall -Wformat -Wformat=2 -Wconversion -Wimplicit-fallthrough \
-	-Werror=format-security -Werror=implicit -Werror=int-conversion \
-	-Werror=incompatible-pointer-types -fstrict-flex-arrays=3
+# lots of additional warning flags and hardening
+WARN_CFLAGS := -Wall -Wextra -Wformat -Wformat=2 -Wconversion \
+	-Wimplicit-fallthrough -Werror=format-security -Werror=implicit \
+	-Werror=int-conversion -Werror=incompatible-pointer-types \
+	-Wformat-overflow -Wformat-signedness -Wformat-truncation \
+	-Wnull-dereference -Winit-self -Wmissing-include-dirs \
+	-Wshift-negative-value -Wshift-overflow -Wswitch-default \
+	-Wuninitialized -Walloca -Warray-bounds -Wfloat-equal -Wshadow \
+	-Wpointer-arith -Wundef -Wunused-macros -Wbad-function-cast -Wcast-qual \
+	-Wcast-align -Wwrite-strings -Wdate-time -Wstrict-prototypes \
+	-Wold-style-definition -Wredundant-decls -Winvalid-utf8 -Wvla \
+	-Wdisabled-optimization -Wstack-protector -Wdeclaration-after-statement
 
 ifeq (,$(findstring clang,$(CC_VERSION))) # if not clang
-WARN_CFLAGS += -Wtrampolines -Wbidi-chars=any  # clang as for 18.1.8 doesn't support this warnings
+# clang as for 19.1.0 doesn't support these warnings
+WARN_CFLAGS += -Wtrampolines -Wbidi-chars=any,ucn -Wformat-overflow=2 \
+	-Wformat-truncation=2 -Wshift-overflow=2 -Wtrivial-auto-var-init \
+	-Wstringop-overflow=3 -Wstrict-flex-arrays -Walloc-zero \
+	-Warray-bounds=2 -Wattribute-alias=2 \
+	-Wduplicated-branches -Wduplicated-cond	-Wcast-align=strict \
+	-Wjump-misses-init -Wlogical-op
 endif
 
-FORTIFY_CFLAGS := -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fstack-clash-protection \
-	-fstack-protector-strong -fno-delete-null-pointer-checks \
-	-fno-strict-overflow -fno-strict-aliasing -fsanitize=undefined -ftrapv
+#ifeq (,$(findstring clang,$(CC_VERSION))) # if clang
+#WARN_CFLAGS +=  #
+#endif
+
+FORTIFY_CFLAGS := -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
+	-fstack-clash-protection -fstack-protector-all \
+	-fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing \
+	-fsanitize=address,undefined -fno-sanitize-recover=all \
+	-fstrict-flex-arrays=3
 
 ifeq (yes,$(patsubst x86_64%-linux-gnu,yes,$(TARGETARCH)))
 FORTIFY_CFLAGS += -fcf-protection=full # only supported on x86_64

@@ -383,6 +383,7 @@ static int create_shm_file(ssize_t size) {
   /* 18 = length of string '/kloak-XXXXXXXXXX' + NULL terminator */
   char name[18];
   int snprintf_len = 0;
+  int32_t ret = 0;
 
   assert(size >= 0);
   /*
@@ -419,7 +420,6 @@ static int create_shm_file(ssize_t size) {
     exit(1);
   }
 
-  int32_t ret;
   do {
     ret = ftruncate(fd, (off_t)(size));
   } while (ret < 0 && errno == EINTR);
@@ -435,9 +435,11 @@ static int create_shm_file(ssize_t size) {
 }
 
 static int64_t current_time_ms(void) {
-  struct timespec spec;
+  struct timespec spec = { 0 };
+  int64_t result = 0;
+
   clock_gettime(CLOCK_MONOTONIC, &spec);
-  int64_t result = (spec.tv_sec * 1000) + (spec.tv_nsec / 1000000);
+  result = (spec.tv_sec * 1000) + (spec.tv_nsec / 1000000);
   assert(result >= 0);
   if (start_time == 0) {
     start_time = result;
@@ -447,11 +449,12 @@ static int64_t current_time_ms(void) {
 }
 
 static int64_t random_between(int64_t lower, int64_t upper) {
+  int64_t maxval = 0;
+  union rand_int64 randval;
+
   assert(lower >= 0);
   assert(upper >= 0);
 
-  int64_t maxval;
-  union rand_int64 randval;
   /* default to max if the interval is not valid */
   if (lower >= upper) {
     return upper;
@@ -540,18 +543,28 @@ static void recalc_global_space(struct disp_state * state) {
   int32_t ul_corner_y = INT32_MAX;
   int32_t br_corner_x = 0;
   int32_t br_corner_y = 0;
-
+  int32_t cur_geom_x = 0;
+  int32_t cur_geom_y = 0;
+  int32_t cur_geom_width = 0;
+  int32_t cur_geom_height = 0;
+  int32_t temp_br_x = 0;
+  int32_t temp_br_y = 0;
   struct output_geometry *screen_list[MAX_DRAWABLE_LAYERS];
   ssize_t screen_list_len = 0;
+  struct output_geometry *conn_screen_list[MAX_DRAWABLE_LAYERS];
+  ssize_t conn_screen_list_len = 0;
+  bool screen_in_conn_list = false;
+  struct output_geometry *conn_screen = NULL;
+  struct output_geometry *cur_screen = NULL;
 
   for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (!state->output_geometries[i]) {
       continue;
     }
-    int32_t cur_geom_x = state->output_geometries[i]->x;
-    int32_t cur_geom_y = state->output_geometries[i]->y;
-    int32_t cur_geom_width = state->output_geometries[i]->width;
-    int32_t cur_geom_height = state->output_geometries[i]->height;
+    cur_geom_x = state->output_geometries[i]->x;
+    cur_geom_y = state->output_geometries[i]->y;
+    cur_geom_width = state->output_geometries[i]->width;
+    cur_geom_height = state->output_geometries[i]->height;
     if (cur_geom_x < 0 || cur_geom_y < 0
       || cur_geom_width < 0 || cur_geom_height < 0) {
       continue;
@@ -564,8 +577,8 @@ static void recalc_global_space(struct disp_state * state) {
     if (cur_geom_y < ul_corner_y) {
       ul_corner_y = cur_geom_y;
     }
-    int32_t temp_br_x = cur_geom_x + cur_geom_width;
-    int32_t temp_br_y = cur_geom_y + cur_geom_height;
+    temp_br_x = cur_geom_x + cur_geom_width;
+    temp_br_y = cur_geom_y + cur_geom_height;
     if (temp_br_x > br_corner_x) {
       br_corner_x = temp_br_x;
     }
@@ -585,9 +598,8 @@ static void recalc_global_space(struct disp_state * state) {
     return;
   }
 
-  struct output_geometry *conn_screen_list[MAX_DRAWABLE_LAYERS];
   conn_screen_list[0] = screen_list[0];
-  ssize_t conn_screen_list_len = 1;
+  conn_screen_list_len = 1;
 
   /*
    * Check for gaps between the screens. We don't support running if gaps are
@@ -600,7 +612,7 @@ static void recalc_global_space(struct disp_state * state) {
    */
   for (ssize_t i = 0; i < conn_screen_list_len; i++) {
     for (ssize_t j = 0; j < screen_list_len; j++) {
-      bool screen_in_conn_list = false;
+      screen_in_conn_list = false;
       for (ssize_t k = 0; k < conn_screen_list_len; k++) {
         if (screen_list[j] == conn_screen_list[k]) {
           screen_in_conn_list = true;
@@ -610,8 +622,8 @@ static void recalc_global_space(struct disp_state * state) {
       if (screen_in_conn_list) {
         continue;
       }
-      struct output_geometry *conn_screen = conn_screen_list[i];
-      struct output_geometry *cur_screen = screen_list[j];
+      conn_screen = conn_screen_list[i];
+      cur_screen = screen_list[j];
       if (check_screen_touch(*conn_screen, *cur_screen)) {
         /* Found a touching screen! */
         conn_screen_list[conn_screen_list_len] = cur_screen;
@@ -635,19 +647,25 @@ static void recalc_global_space(struct disp_state * state) {
 static struct screen_local_coord abs_coord_to_screen_local_coord(int32_t x,
   int32_t y) {
   struct screen_local_coord out_data = { 0 };
+  int32_t cur_geom_x = 0;
+  int32_t cur_geom_y = 0;
+  int32_t cur_geom_width = 0;
+  int32_t cur_geom_height = 0;
+  int32_t i = 0;
+
   if (x < 0 || y < 0) {
     return out_data;
   }
 
-  for (int32_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+  for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (!state.output_geometries[i]) {
       continue;
     }
 
-    int32_t cur_geom_x = state.output_geometries[i]->x;
-    int32_t cur_geom_y = state.output_geometries[i]->y;
-    int32_t cur_geom_width = state.output_geometries[i]->width;
-    int32_t cur_geom_height = state.output_geometries[i]->height;
+    cur_geom_x = state.output_geometries[i]->x;
+    cur_geom_y = state.output_geometries[i]->y;
+    cur_geom_width = state.output_geometries[i]->width;
+    cur_geom_height = state.output_geometries[i]->height;
     if (cur_geom_x < 0 || cur_geom_y < 0 || cur_geom_width < 0
       || cur_geom_height < 0 ) {
       continue;
@@ -681,6 +699,10 @@ static struct screen_local_coord abs_coord_to_screen_local_coord(int32_t x,
 
 static struct coord screen_local_coord_to_abs_coord(int32_t x, int32_t y,
   int32_t output_idx) {
+  int32_t cur_geom_x = 0;
+  int32_t cur_geom_y = 0;
+  int32_t cur_geom_width = 0;
+  int32_t cur_geom_height = 0;
   struct coord out_val = {
     .x = -1,
     .y = -1,
@@ -694,10 +716,10 @@ static struct coord screen_local_coord_to_abs_coord(int32_t x, int32_t y,
   if (!state.layers[output_idx]) {
     return out_val;
   }
-  int32_t cur_geom_x = state.output_geometries[output_idx]->x;
-  int32_t cur_geom_y = state.output_geometries[output_idx]->y;
-  int32_t cur_geom_width = state.output_geometries[output_idx]->width;
-  int32_t cur_geom_height = state.output_geometries[output_idx]->height;
+  cur_geom_x = state.output_geometries[output_idx]->x;
+  cur_geom_y = state.output_geometries[output_idx]->y;
+  cur_geom_width = state.output_geometries[output_idx]->width;
+  cur_geom_height = state.output_geometries[output_idx]->height;
   if (cur_geom_x < 0 || cur_geom_y < 0 || cur_geom_width < 0
     || cur_geom_height < 0) {
     return out_val;
@@ -710,12 +732,18 @@ static struct coord screen_local_coord_to_abs_coord(int32_t x, int32_t y,
 
 struct coord traverse_line(struct coord start, struct coord end,
   int32_t pos) {
-  if (pos == 0) return start;
   struct coord out_val = { 0 };
+  double num = 0;
+  double denom = 0;
+  double slope = 0;
+  double steep = 0;
 
-  double num = ((double) end.y) - ((double) start.y);
-  double denom = ((double) start.x) - ((double) end.x);
-  if (denom == 0) {
+  num = ((double) end.y) - ((double) start.y);
+  denom = ((double) start.x) - ((double) end.x);
+
+  if (pos == 0) return start;
+
+  if ((int64_t)(denom) == 0) {
     /* vertical line */
     out_val.x = start.x;
     if (start.y < end.y) {
@@ -726,8 +754,8 @@ struct coord traverse_line(struct coord start, struct coord end,
     return out_val;
   }
 
-  double slope = num / denom;
-  double steep = fabs(slope);
+  slope = num / denom;
+  steep = fabs(slope);
 
   if (steep < 1) {
     if (start.x < end.x) {
@@ -758,17 +786,24 @@ struct coord traverse_line(struct coord start, struct coord end,
 
 static void draw_block(uint32_t *pixbuf, int32_t offset, int32_t x, int32_t y,
   int32_t layer_width, int32_t layer_height, int32_t rad, bool crosshair) {
-  int32_t start_x = x - rad;
+  int32_t start_x = 0;
+  int32_t start_y = 0;
+  int32_t end_x = 0;
+  int32_t end_y = 0;
+  int32_t work_x = 0;
+  int32_t work_y = 0;
+
+  start_x = x - rad;
   if (start_x < 0) start_x = 0;
-  int32_t start_y = y - rad;
+  start_y = y - rad;
   if (start_y < 0) start_y = 0;
-  int32_t end_x = x + rad;
+  end_x = x + rad;
   if (end_x >= layer_width) end_x = layer_width - 1;
-  int32_t end_y = y + rad;
+  end_y = y + rad;
   if (end_y >= layer_height) end_y = layer_height - 1;
 
-  for (int32_t work_y = start_y; work_y <= end_y; work_y++) {
-    for (int32_t work_x = start_x; work_x <= end_x; work_x++) {
+  for (work_y = start_y; work_y <= end_y; work_y++) {
+    for (work_x = start_x; work_x <= end_x; work_x++) {
       if (crosshair && work_x == x) {
         pixbuf[offset + (work_y * layer_width + work_x)] = cursor_color;
       } else if (crosshair && work_y == y) {
@@ -782,8 +817,8 @@ static void draw_block(uint32_t *pixbuf, int32_t offset, int32_t x, int32_t y,
 
 static int32_t parse_uint31_arg(const char *arg_name, const char *val,
   int base) {
-  char *val_endchar;
-  uint64_t val_int;
+  char *val_endchar = NULL;
+  uint64_t val_int = 0;
 
   val_int = strtoul(val, &val_endchar, base);
   if (*val_endchar != '\0') {
@@ -803,8 +838,8 @@ parse_uint31_arg_error:
 
 static uint32_t parse_uint32_arg(const char *arg_name, const char *val,
   int base) {
-  char *val_endchar;
-  uint64_t val_int;
+  char *val_endchar = NULL;
+  uint64_t val_int = 0;
 
   val_int = strtoul(val, &val_endchar, base);
   if (*val_endchar != '\0') {
@@ -823,11 +858,13 @@ parse_uint31_arg_error:
 }
 
 static int32_t sleep_ms(int64_t ms) {
+  struct timespec ts = { 0 };
+  int nanosleep_ret = 0;
+
   assert(ms >= 0);
-  struct timespec ts;
+
   ts.tv_sec = (time_t)(ms / 1000);
   ts.tv_nsec = (ms % 1000) * 1000000;
-  int nanosleep_ret;
   do {
     nanosleep_ret = nanosleep(&ts, &ts);
   } while (nanosleep_ret == -1 && errno == EINTR);
@@ -838,12 +875,12 @@ static int32_t sleep_ms(int64_t ms) {
   return 0;
 }
 
-static char *sgenprintf(char *str, ...) {
+static char *sgenprintf(const char *str, ...) {
   char *rslt = NULL;
   int rslt_len = 0;
   int rslt_writelen = 0;
-
   va_list extra_args;
+
   va_start(extra_args, str);
   rslt_len = vsnprintf(NULL, 0, str, extra_args) + 1;
   va_end(extra_args);
@@ -862,7 +899,8 @@ static char *sgenprintf(char *str, ...) {
 }
 
 static uint32_t lookup_keycode(const char *name) {
-  struct key_name_value *p;
+  struct key_name_value *p = NULL;
+
   for (p = key_table; p->name != NULL; p++) {
     if (strcmp(p->name, name) == 0) {
       return p->value;
@@ -937,6 +975,8 @@ static void detach_input_device(const char *dev_name) {
 static void registry_handle_global(void *data, struct wl_registry *registry,
   uint32_t name, const char *interface, uint32_t version) {
   struct disp_state *state = data;
+  ssize_t i = 0;
+
   if (strcmp(interface, wl_compositor_interface.name) == 0) {
     state->compositor = wl_registry_bind(registry, name,
       &wl_compositor_interface, 5);
@@ -952,7 +992,8 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
     state->shm = wl_registry_bind(registry, name, &wl_shm_interface, 2);
   } else if (strcmp(interface, wl_output_interface.name) == 0) {
     bool new_layer_allocated = false;
-    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+
+    for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
       if (!state->layers[i]) {
         state->outputs[i] = wl_registry_bind(registry, name,
           &wl_output_interface, 4);
@@ -992,7 +1033,7 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
   } else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
     state->xdg_output_manager = wl_registry_bind(registry, name,
       &zxdg_output_manager_v1_interface, 3);
-    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+    for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
       if ((state->outputs[i]) && (!state->xdg_outputs[i])) {
         /*
          * This is where we make xdg_outputs for any wl_outputs that were
@@ -1027,10 +1068,12 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
 static void registry_handle_global_remove(void *data,
   struct wl_registry *registry, uint32_t name) {
   struct disp_state *state = data;
+
   for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (state->layers[i]) {
       if (state->output_names[i] == name) {
         struct drawable_layer *layer = state->layers[i];
+
         zwlr_layer_surface_v1_destroy(layer->layer_surface);
         wl_output_release(state->outputs[i]);
         state->outputs[i] = NULL;
@@ -1060,12 +1103,14 @@ static void registry_handle_global_remove(void *data,
 static void seat_handle_name(void *data, struct wl_seat *seat,
   const char *name) {
   struct disp_state *state = data;
+
   state->seat_name = name;
 }
 
 static void seat_handle_capabilities(void *data, struct wl_seat *seat,
   uint32_t capabilities) {
   struct disp_state *state = data;
+
   state->seat_caps = capabilities;
   if (capabilities | WL_SEAT_CAPABILITY_KEYBOARD) {
     state->kb = wl_seat_get_keyboard(seat);
@@ -1079,9 +1124,12 @@ static void seat_handle_capabilities(void *data, struct wl_seat *seat,
 
 static void kb_handle_keymap(void *data, struct wl_keyboard *kb,
   uint32_t format, int32_t fd, uint32_t size) {
-  assert(size <= INT32_MAX);
   struct disp_state *state = data;
-  char *kb_map_shm = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
+  char *kb_map_shm = NULL;
+
+  assert(size <= INT32_MAX);
+
+  kb_map_shm = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
   if (kb_map_shm == MAP_FAILED) {
     fprintf(stderr, "FATAL ERROR: Could not mmap xkb layout!\n");
     exit(1);
@@ -1188,9 +1236,11 @@ static void wl_output_handle_mode(void *data, struct wl_output *output,
 
 static void wl_output_info_done(void *data, struct wl_output *output) {
   struct disp_state *state = data;
+
   for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (state->outputs[i] == output) {
       struct output_geometry *geometry = state->pending_output_geometries[i];
+
       if (geometry->x == 0 && geometry->y == 0 && geometry->width == 0
         && geometry->height == 0)
         return;
@@ -1219,7 +1269,9 @@ static void wl_output_handle_description(void *data, struct wl_output *output,
 static void xdg_output_handle_logical_position(void *data,
   struct zxdg_output_v1 *xdg_output, int32_t x, int32_t y) {
   struct disp_state *state = data;
-  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+  ssize_t i = 0;
+
+  for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (state->xdg_outputs[i] == xdg_output) {
       state->pending_output_geometries[i]->x = x;
       state->pending_output_geometries[i]->y = y;
@@ -1231,7 +1283,9 @@ static void xdg_output_handle_logical_position(void *data,
 static void xdg_output_handle_logical_size(void *data,
   struct zxdg_output_v1 *xdg_output, int32_t width, int32_t height) {
   struct disp_state *state = data;
-  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+  ssize_t i = 0;
+
+  for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (state->xdg_outputs[i] == xdg_output) {
       state->pending_output_geometries[i]->width = width;
       state->pending_output_geometries[i]->height = height;
@@ -1260,7 +1314,11 @@ static void layer_surface_configure(void *data,
   uint32_t height) {
   struct disp_state *state = data;
   struct drawable_layer *layer = NULL;
-  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+  ssize_t i = 0;
+  int shm_fd = 0;
+  struct wl_region *zeroed_region = NULL;
+
+  for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (state->layers[i]) {
       if (state->layers[i]->layer_surface == layer_surface) {
         layer = state->layers[i];
@@ -1276,7 +1334,7 @@ static void layer_surface_configure(void *data,
   layer->stride = (int32_t)(width * 4);
   layer->size = layer->stride * layer->height;
   assert(layer->size >= 0);
-  int shm_fd = create_shm_file(layer->size * MAX_UNRELEASED_FRAMES);
+  shm_fd = create_shm_file(layer->size * MAX_UNRELEASED_FRAMES);
   if (shm_fd == -1) {
     fprintf(stderr,
       "FATAL ERROR: Cannot allocate shared memory block for frame: %s\n",
@@ -1295,8 +1353,7 @@ static void layer_surface_configure(void *data,
   layer->shm_pool = wl_shm_create_pool(state->shm, shm_fd,
     layer->size * MAX_UNRELEASED_FRAMES);
 
-  struct wl_region *zeroed_region = wl_compositor_create_region(
-    state->compositor);
+  zeroed_region = wl_compositor_create_region(state->compositor);
   wl_region_add(zeroed_region, 0, 0, 0, 0);
   wl_surface_set_input_region(layer->surface, zeroed_region);
 
@@ -1313,6 +1370,7 @@ static void layer_surface_configure(void *data,
 static int li_open_restricted(const char *path, int flags, void *user_data) {
   int fd = safe_open(path, flags | O_CLOEXEC);
   int one = 1;
+
   if (did_wayland_init) {
     if (ioctl(fd, EVIOCGRAB, &one) < 0) {
       fprintf(stderr, "FATAL ERROR: Could not grab evdev device '%s'!\n", path);
@@ -1332,13 +1390,18 @@ static void li_close_restricted(int fd, void *user_data) {
 
 static void draw_frame(struct drawable_layer *layer) {
   int32_t chosen_frame_idx = -1;
+  int32_t frame_idx = 0;
+  struct wl_buffer *buffer = NULL;
+  struct screen_local_coord scr_coord = { 0 };
+  bool cursor_is_on_layer = false;
+  ssize_t layer_idx = 0;
 
   if (!layer->layer_surface_configured)
     return;
 
-  for (int32_t i = 0; i < MAX_UNRELEASED_FRAMES; i++) {
-    if (!layer->frame_in_use[i]) {
-      chosen_frame_idx = i;
+  for (frame_idx = 0; frame_idx < MAX_UNRELEASED_FRAMES; frame_idx++) {
+    if (!layer->frame_in_use[frame_idx]) {
+      chosen_frame_idx = frame_idx;
       break;
     }
   }
@@ -1352,19 +1415,20 @@ static void draw_frame(struct drawable_layer *layer) {
   assert(chosen_frame_idx >= 0);
   assert((layer->size * chosen_frame_idx)
     < (layer->size * MAX_UNRELEASED_FRAMES));
-  struct wl_buffer *buffer = wl_shm_pool_create_buffer(layer->shm_pool,
+  buffer = wl_shm_pool_create_buffer(layer->shm_pool,
     layer->size * chosen_frame_idx, layer->width, layer->height,
     layer->stride, WL_SHM_FORMAT_ARGB8888);
 
   assert(cursor_x < INT32_MAX && cursor_x >= 0);
   assert(cursor_y < INT32_MAX && cursor_y >= 0);
-  struct screen_local_coord scr_coord = abs_coord_to_screen_local_coord(
-    (int32_t)(cursor_x), (int32_t)(cursor_y));
+  scr_coord = abs_coord_to_screen_local_coord((int32_t)(cursor_x),
+    (int32_t)(cursor_y));
 
-  bool cursor_is_on_layer = false;
+  cursor_is_on_layer = false;
   if (scr_coord.valid) {
-    for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
-      if ((state.layers[i] == layer) && (i == scr_coord.output_idx)) {
+    for (layer_idx = 0; layer_idx < MAX_DRAWABLE_LAYERS; layer_idx++) {
+      if ((state.layers[layer_idx] == layer)
+        && (layer_idx == scr_coord.output_idx)) {
         cursor_is_on_layer = true;
       }
     }
@@ -1407,10 +1471,12 @@ static void draw_frame(struct drawable_layer *layer) {
 static struct drawable_layer *allocate_drawable_layer(struct disp_state *state,
   struct wl_output *output) {
   struct drawable_layer *layer = safe_calloc(1, sizeof(struct drawable_layer));
+  ssize_t i = 0;
+
   layer->frame_pending = true;
   layer->last_drawn_cursor_x = -1;
   layer->last_drawn_cursor_y = -1;
-  for (ssize_t i = 0; i < MAX_UNRELEASED_FRAMES; i++) {
+  for (i = 0; i < MAX_UNRELEASED_FRAMES; i++) {
     layer->cursor_x_pos_list[i] = -1;
     layer->cursor_y_pos_list[i] = -1;
   }
@@ -1449,20 +1515,35 @@ static void damage_surface_enh(struct wl_surface *surface, int32_t x,
   wl_surface_damage_buffer(surface, x, y, width, height);
 }
 
-static struct input_packet * update_virtual_cursor() {
+static struct input_packet * update_virtual_cursor(void) {
+  struct screen_local_coord prev_scr_coord = { 0 };
+  int32_t i = 0;
+  struct coord start = { 0 };
+  struct coord end = { 0 };
+  struct coord prev_trav_coord = { 0 };
+  bool end_x_hit = false;
+  bool end_y_hit = false;
+  struct coord trav_coord = { 0 };
+  struct screen_local_coord trav_scr_coord = { 0 };
+  struct screen_local_coord scr_coord = { 0 };
+  struct input_packet *old_ev_packet;
+  struct input_packet *ev_packet = NULL;
+
   assert(prev_cursor_x < INT32_MAX && prev_cursor_x >= 0);
   assert(prev_cursor_y < INT32_MAX && prev_cursor_y >= 0);
-  struct screen_local_coord prev_scr_coord = abs_coord_to_screen_local_coord(
-    (int32_t)(prev_cursor_x), (int32_t)(prev_cursor_y));
+
+  prev_scr_coord = abs_coord_to_screen_local_coord((int32_t)(prev_cursor_x),
+    (int32_t)(prev_cursor_y));
 
   if (!prev_scr_coord.valid || !state.layers[prev_scr_coord.output_idx]) {
     /* We've somehow gotten into a spot where the previous coordinate data
      * either is invalid or points at an area where there is no screen. Reset
      * everything in the hopes of recovering sanity. */
     printf("Resetting!\n");
-    for (int32_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+    for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
       if (state.layers[i]) {
         struct coord sane_location = screen_local_coord_to_abs_coord(0, 0, i);
+
         prev_cursor_x = sane_location.x;
         prev_cursor_y = sane_location.y;
         cursor_x = sane_location.x;
@@ -1507,23 +1588,17 @@ static struct input_packet * update_virtual_cursor() {
 
   assert(cursor_x < INT32_MAX && cursor_x >= 0);
   assert(cursor_y < INT32_MAX && cursor_y >= 0);
-  struct coord start = {
-    .x = (int32_t)(prev_cursor_x),
-    .y = (int32_t)(prev_cursor_y),
-  };
-  struct coord end = {
-    .x = (int32_t)(cursor_x),
-    .y = (int32_t)(cursor_y),
-  };
-  struct coord prev_trav_coord = start;
-  bool end_x_hit = false;
-  bool end_y_hit = false;
-  for (int32_t i = 0; ; i++) {
-    struct coord trav_coord = traverse_line(start, end, i);
+  start.x = (int32_t)(prev_cursor_x);
+  start.y = (int32_t)(prev_cursor_y);
+  end.x = (int32_t)(cursor_x);
+  end.y = (int32_t)(cursor_y);
+  prev_trav_coord = start;
+  for (i = 0; ; i++) {
+    trav_coord = traverse_line(start, end, i);
     if (trav_coord.x == end.x) end_x_hit = true;
     if (trav_coord.y == end.y) end_y_hit = true;
-    struct screen_local_coord trav_scr_coord
-      = abs_coord_to_screen_local_coord(trav_coord.x, trav_coord.y);
+    trav_scr_coord = abs_coord_to_screen_local_coord(trav_coord.x,
+      trav_coord.y);
     if (!trav_scr_coord.valid) {
       /*
        * Figure out what direction we moved when we went off screen, and move
@@ -1589,13 +1664,12 @@ static struct input_packet * update_virtual_cursor() {
   }
   assert(cursor_x < INT32_MAX && cursor_x >= 0);
   assert(cursor_y < INT32_MAX && cursor_y >= 0);
-  struct screen_local_coord scr_coord = abs_coord_to_screen_local_coord(
-    (int32_t)(cursor_x), (int32_t)(cursor_y));
+  scr_coord = abs_coord_to_screen_local_coord((int32_t)(cursor_x),
+    (int32_t)(cursor_y));
 
   state.layers[prev_scr_coord.output_idx]->frame_pending = true;
   state.layers[scr_coord.output_idx]->frame_pending = true;
 
-  struct input_packet *old_ev_packet;
   /* = rather than == is intentional here */
   if ((old_ev_packet = TAILQ_LAST(&evq_head, tailhead_evq))
     && (!old_ev_packet->is_libinput)) {
@@ -1603,7 +1677,7 @@ static struct input_packet * update_virtual_cursor() {
     old_ev_packet->cursor_y = (int32_t)(cursor_y);
     return NULL;
   } else {
-    struct input_packet *ev_packet = safe_calloc(1, sizeof(struct input_packet));
+    ev_packet = safe_calloc(1, sizeof(struct input_packet));
     if (ev_packet == NULL) {
       fprintf(stderr,
         "FATAL ERROR: Could not allocate memory for libinput event packet!\n");
@@ -1623,6 +1697,7 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
   if (ev_type == LIBINPUT_EVENT_DEVICE_ADDED) {
     struct libinput_device *new_dev = libinput_event_get_device(li_event);
     int can_tap = libinput_device_config_tap_get_finger_count(new_dev);
+
     if (can_tap) {
       libinput_device_config_tap_set_enabled(new_dev,
         LIBINPUT_CONFIG_TAP_ENABLED);
@@ -1635,6 +1710,7 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
     uint32_t button_code = libinput_event_pointer_get_button(pointer_event);
     enum libinput_button_state button_state
       = libinput_event_pointer_get_button_state(pointer_event);
+
     if (button_state == LIBINPUT_BUTTON_STATE_PRESSED) {
       /* Both libinput and zwlr_virtual_pointer_v1 use evdev event codes to
        * identify the button pressed, so we can just pass the data from
@@ -1651,7 +1727,6 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
   } else if (ev_type == LIBINPUT_EVENT_POINTER_SCROLL_WHEEL
     || ev_type == LIBINPUT_EVENT_POINTER_SCROLL_FINGER
     || ev_type == LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS) {
-    mouse_event_handled = true;
     struct libinput_event_pointer *pointer_event
       = libinput_event_get_pointer_event(li_event);
     int vert_scroll_present = libinput_event_pointer_has_axis(pointer_event,
@@ -1659,10 +1734,13 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
     int horiz_scroll_present = libinput_event_pointer_has_axis(pointer_event,
       LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
 
+    mouse_event_handled = true;
+
     if (vert_scroll_present) {
       double vert_scroll_value = libinput_event_pointer_get_scroll_value(
         pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
-      if (vert_scroll_value == 0) {
+
+      if ((int64_t)(vert_scroll_value) == 0) {
         zwlr_virtual_pointer_v1_axis_stop(state.virt_pointer,
           ts_milliseconds, WL_POINTER_AXIS_VERTICAL_SCROLL);
       } else {
@@ -1691,7 +1769,8 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
     if (horiz_scroll_present) {
       double horiz_scroll_value = libinput_event_pointer_get_scroll_value(
         pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
-      if (horiz_scroll_value == 0) {
+
+      if ((int64_t)(horiz_scroll_value) == 0) {
         zwlr_virtual_pointer_v1_axis_stop(state.virt_pointer,
           ts_milliseconds, WL_POINTER_AXIS_HORIZONTAL_SCROLL);
       } else {
@@ -1724,6 +1803,7 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
       uint32_t key = libinput_event_keyboard_get_key(kb_event);
       enum libinput_key_state key_state
         = libinput_event_keyboard_get_key_state(kb_event);
+
       if (key_state == LIBINPUT_KEY_STATE_PRESSED) {
         /* XKB keycodes == evdev keycodes + 8. Why this design decision was
          * made, I have no idea. */
@@ -1798,16 +1878,23 @@ static void register_esc_combo_event(
 
 static void queue_libinput_event_and_relocate_virtual_cursor(
   enum libinput_event_type li_event_type, struct libinput_event *li_event) {
-  struct input_packet *ev_packet;
+  struct input_packet *ev_packet = NULL;
+  struct libinput_event_pointer *pointer_event = NULL;
+  double abs_x = 0;
+  double abs_y = 0;
+  double rel_x = 0;
+  double rel_y = 0;
+  int64_t current_time = 0;
+  int64_t lower_bound = 0;
+  int64_t random_delay = 0;
 
   if (li_event_type == LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE) {
-    struct libinput_event_pointer *pointer_event
-      = libinput_event_get_pointer_event(li_event);
+    pointer_event = libinput_event_get_pointer_event(li_event);
     assert(state.global_space_width >= 0);
     assert(state.global_space_height >= 0);
-    double abs_x = libinput_event_pointer_get_absolute_x_transformed(
+    abs_x = libinput_event_pointer_get_absolute_x_transformed(
       pointer_event, (uint32_t)(state.global_space_width));
-    double abs_y = libinput_event_pointer_get_absolute_y_transformed(
+    abs_y = libinput_event_pointer_get_absolute_y_transformed(
       pointer_event, (uint32_t)(state.global_space_height));
     prev_cursor_x = cursor_x;
     prev_cursor_y = cursor_y;
@@ -1820,10 +1907,9 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
     }
 
   } else if (li_event_type == LIBINPUT_EVENT_POINTER_MOTION) {
-    struct libinput_event_pointer *pointer_event
-      = libinput_event_get_pointer_event(li_event);
-    double rel_x = libinput_event_pointer_get_dx(pointer_event);
-    double rel_y = libinput_event_pointer_get_dy(pointer_event);
+    pointer_event = libinput_event_get_pointer_event(li_event);
+    rel_x = libinput_event_pointer_get_dx(pointer_event);
+    rel_y = libinput_event_pointer_get_dy(pointer_event);
     prev_cursor_x = cursor_x;
     prev_cursor_y = cursor_y;
     cursor_x += rel_x;
@@ -1852,10 +1938,9 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
     ev_packet->li_event_type = li_event_type;
   }
 
-  int64_t current_time = current_time_ms();
-  int64_t lower_bound = min(max(prev_release_time - current_time, 0),
-    max_delay);
-  int64_t random_delay = random_between(lower_bound, max_delay);
+  current_time = current_time_ms();
+  lower_bound = min(max(prev_release_time - current_time, 0), max_delay);
+  random_delay = random_between(lower_bound, max_delay);
   ev_packet->sched_time = current_time + random_delay;
   TAILQ_INSERT_TAIL(&evq_head, ev_packet, entries);
   prev_release_time = ev_packet->sched_time;
@@ -1864,6 +1949,7 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
 static void release_scheduled_input_events(void) {
   int64_t current_time = current_time_ms();
   struct input_packet *packet = NULL;
+
   while ((packet = TAILQ_FIRST(&evq_head))
     && (current_time >= packet->sched_time)) {
     if (packet->is_libinput) {
@@ -1946,7 +2032,18 @@ static void handle_inotify_events(void) {
       break;
     }
 
+    /*
+     * We can safely disable cast alignment checks here because the kernel
+     * should only provide us properly aligned events. Quoting the manpage:
+     *
+     *     ...This filename is null-terminated, and may include further null
+     *     bytes ('\0') to align subsequent reads to a suitable address
+     *     boundary.
+     */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-align"
     ie = (struct inotify_event *)((char *)(ie) + struct_len);
+#pragma GCC diagnostic pop
   }
 }
 
@@ -2276,6 +2373,8 @@ static void parse_cli_args(int argc, char **argv) {
 /**********/
 
 int main(int argc, char **argv) {
+  ssize_t i = 0;
+
   /*
    * BIG FAT WARNING: Do not attempt to build kloak with NDEBUG defined. Many
    * of the assertions in this code are essential for security, and building
@@ -2326,13 +2425,16 @@ int main(int argc, char **argv) {
 
       while (true) {
         enum libinput_event_type next_ev_type = libinput_next_event_type(li);
+        struct libinput_event *li_event = NULL;
+
         if (next_ev_type == LIBINPUT_EVENT_NONE)
           break;
-        struct libinput_event *li_event = libinput_get_event(li);
+
+        li_event = libinput_get_event(li);
         register_esc_combo_event(next_ev_type, li_event);
         queue_libinput_event_and_relocate_virtual_cursor(next_ev_type,
           li_event);
-        /* 
+        /*
          * We do NOT free the libinput event here.
          * queue_libinput_event_and_relocate_virtual_cursor will destroy the
          * event if appropriate, or queue it for future release and
@@ -2342,7 +2444,7 @@ int main(int argc, char **argv) {
 
       release_scheduled_input_events();
 
-      for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+      for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
         if (!state.layers[i]) {
           continue;
         }
@@ -2378,15 +2480,18 @@ int main(int argc, char **argv) {
     while(true) {
       while (true) {
         enum libinput_event_type next_ev_type = libinput_next_event_type(li);
+        struct libinput_event *li_event = NULL;
+
         if (next_ev_type == LIBINPUT_EVENT_NONE)
           break;
-        struct libinput_event *li_event = libinput_get_event(li);
+
+        li_event = libinput_get_event(li);
         register_esc_combo_event(next_ev_type, li_event);
-        /* 
+        /*
          * We have to free the libinput event here ourselves since we don't
          * call queue_libinput_event_and_relocate_virtual_cursor (which would
          * either destroy it or queue it for later release and destruction).
-	 */
+         */
         libinput_event_destroy(li_event);
       }
 
