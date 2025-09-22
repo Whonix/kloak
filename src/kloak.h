@@ -329,11 +329,6 @@ static void draw_block(uint32_t * pixbuf, int32_t offset, int32_t x, int32_t y,
   int32_t layer_width, int32_t layer_height, int32_t rad, bool crosshair);
 
 /*
- */
-static void draw_block(uint32_t * pixbuf, int32_t offset, int32_t x, int32_t y,
-  int32_t layer_width, int32_t layer_height, int32_t rad, bool crosshair);
-
-/*
  * Parse an option parameter as an unsigned integer. Returns a signed integer
  * between 0 and INT32_MAX.
  */
@@ -356,7 +351,7 @@ static int32_t sleep_ms(int64_t ms);
  * Allocates a formatted string and returns a ointer to it. It is the caller's
  * responsibility to free this when it is no longer in use.
  */
-static char *sgenprintf(char *str, ...);
+static char *sgenprintf(const char *str, ...);
 
 /*
  * Looks up a key code in the key table.
@@ -475,7 +470,7 @@ static void damage_surface_enh(struct wl_surface *surface, int32_t x,
  * isn't one already queued, and update a queued mouse movement event to
  * reflect the current virtual cursor position otherwise.
  */
-static struct input_packet * update_virtual_cursor();
+static struct input_packet * update_virtual_cursor(void);
 
 /*
  * Processes a libinput event, sending emulated input to the compositor as
