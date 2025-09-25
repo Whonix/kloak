@@ -538,7 +538,7 @@ static bool check_screen_touch(struct output_geometry scr1,
   return false;
 }
 
-static void recalc_global_space(struct disp_state * state) {
+static void recalc_global_space(struct disp_state *param_state) {
   int32_t ul_corner_x = INT32_MAX;
   int32_t ul_corner_y = INT32_MAX;
   int32_t br_corner_x = 0;
@@ -558,18 +558,18 @@ static void recalc_global_space(struct disp_state * state) {
   struct output_geometry *cur_screen = NULL;
 
   for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
-    if (!state->output_geometries[i]) {
+    if (!param_state->output_geometries[i]) {
       continue;
     }
-    cur_geom_x = state->output_geometries[i]->x;
-    cur_geom_y = state->output_geometries[i]->y;
-    cur_geom_width = state->output_geometries[i]->width;
-    cur_geom_height = state->output_geometries[i]->height;
+    cur_geom_x = param_state->output_geometries[i]->x;
+    cur_geom_y = param_state->output_geometries[i]->y;
+    cur_geom_width = param_state->output_geometries[i]->width;
+    cur_geom_height = param_state->output_geometries[i]->height;
     if (cur_geom_x < 0 || cur_geom_y < 0
       || cur_geom_width < 0 || cur_geom_height < 0) {
       continue;
     }
-    screen_list[screen_list_len] = state->output_geometries[i];
+    screen_list[screen_list_len] = param_state->output_geometries[i];
     screen_list_len++;
     if (cur_geom_x < ul_corner_x) {
       ul_corner_x = cur_geom_x;
@@ -638,10 +638,10 @@ static void recalc_global_space(struct disp_state * state) {
     exit(1);
   }
 
-  state->global_space_width = br_corner_x;
-  state->global_space_height = br_corner_y;
-  state->pointer_space_x = ul_corner_x;
-  state->pointer_space_y = ul_corner_y;
+  param_state->global_space_width = br_corner_x;
+  param_state->global_space_height = br_corner_y;
+  param_state->pointer_space_x = ul_corner_x;
+  param_state->pointer_space_y = ul_corner_y;
 }
 
 static struct screen_local_coord abs_coord_to_screen_local_coord(int32_t x,
@@ -973,33 +973,34 @@ static void detach_input_device(const char *dev_name) {
 /********************/
 
 static void registry_handle_global(void *data, struct wl_registry *registry,
-  uint32_t name, const char *interface, uint32_t version) {
-  struct disp_state *state = data;
+  uint32_t name, const char *interface,
+  __attribute__((unused)) uint32_t version) {
+  struct disp_state *param_state = data;
   ssize_t i = 0;
 
   if (strcmp(interface, wl_compositor_interface.name) == 0) {
-    state->compositor = wl_registry_bind(registry, name,
+    param_state->compositor = wl_registry_bind(registry, name,
       &wl_compositor_interface, 5);
   } else if (strcmp(interface, wl_seat_interface.name) == 0) {
-    if (!state->seat_set) {
-      state->seat = wl_registry_bind(registry, name, &wl_seat_interface, 9);
-      state->seat_set = true;
+    if (!param_state->seat_set) {
+      param_state->seat = wl_registry_bind(registry, name, &wl_seat_interface, 9);
+      param_state->seat_set = true;
     } else {
       fprintf(stderr,
         "WARNING: Multiple seats detected, all but first will be ignored.\n");
     }
   } else if (strcmp(interface, wl_shm_interface.name) == 0) {
-    state->shm = wl_registry_bind(registry, name, &wl_shm_interface, 2);
+    param_state->shm = wl_registry_bind(registry, name, &wl_shm_interface, 2);
   } else if (strcmp(interface, wl_output_interface.name) == 0) {
     bool new_layer_allocated = false;
 
     for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
-      if (!state->layers[i]) {
-        state->outputs[i] = wl_registry_bind(registry, name,
+      if (!param_state->layers[i]) {
+        param_state->outputs[i] = wl_registry_bind(registry, name,
           &wl_output_interface, 4);
-        state->output_names[i] = name;
-        state->layers[i] = allocate_drawable_layer(state, state->outputs[i]);
-        if (state->xdg_output_manager) {
+        param_state->output_names[i] = name;
+        param_state->layers[i] = allocate_drawable_layer(param_state, param_state->outputs[i]);
+        if (param_state->xdg_output_manager) {
           /*
            * We can only create xdg_outputs for wl_outputs if we've received
            * the zxdg_output_manager_v1 object from the server, thus the 'if'
@@ -1012,12 +1013,12 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
            * wl_output_done signals before an xdg_output is created for a
            * wl_output.
            */
-          state->xdg_outputs[i] = zxdg_output_manager_v1_get_xdg_output(
-            state->xdg_output_manager, state->outputs[i]);
-          zxdg_output_v1_add_listener(state->xdg_outputs[i],
-            &xdg_output_listener, state);
-          wl_output_add_listener(state->outputs[i], &output_listener, state);
-          state->pending_output_geometries[i] = safe_calloc(1,
+          param_state->xdg_outputs[i] = zxdg_output_manager_v1_get_xdg_output(
+            param_state->xdg_output_manager, param_state->outputs[i]);
+          zxdg_output_v1_add_listener(param_state->xdg_outputs[i],
+            &xdg_output_listener, param_state);
+          wl_output_add_listener(param_state->outputs[i], &output_listener, param_state);
+          param_state->pending_output_geometries[i] = safe_calloc(1,
             sizeof(struct output_geometry));
         }
         new_layer_allocated = true;
@@ -1031,58 +1032,59 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
       exit(1);
     }
   } else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
-    state->xdg_output_manager = wl_registry_bind(registry, name,
+    param_state->xdg_output_manager = wl_registry_bind(registry, name,
       &zxdg_output_manager_v1_interface, 3);
     for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
-      if ((state->outputs[i]) && (!state->xdg_outputs[i])) {
+      if ((param_state->outputs[i]) && (!param_state->xdg_outputs[i])) {
         /*
          * This is where we make xdg_outputs for any wl_outputs that were
          * sent too early.
          */
-        state->xdg_outputs[i] = zxdg_output_manager_v1_get_xdg_output(
-          state->xdg_output_manager, state->outputs[i]);
-        zxdg_output_v1_add_listener(state->xdg_outputs[i],
-          &xdg_output_listener, state);
-        wl_output_add_listener(state->outputs[i], &output_listener, state);
-        state->pending_output_geometries[i] = safe_calloc(1,
+        param_state->xdg_outputs[i] = zxdg_output_manager_v1_get_xdg_output(
+          param_state->xdg_output_manager, param_state->outputs[i]);
+        zxdg_output_v1_add_listener(param_state->xdg_outputs[i],
+          &xdg_output_listener, param_state);
+        wl_output_add_listener(param_state->outputs[i], &output_listener, param_state);
+        param_state->pending_output_geometries[i] = safe_calloc(1,
           sizeof(struct output_geometry));
       }
     }
   } else if (strcmp(interface, zwlr_layer_shell_v1_interface.name) == 0) {
-    state->layer_shell = wl_registry_bind(registry, name,
+    param_state->layer_shell = wl_registry_bind(registry, name,
       &zwlr_layer_shell_v1_interface, 4);
   } else if (
     strcmp(interface, zwlr_virtual_pointer_manager_v1_interface.name) == 0) {
-    state->virt_pointer_manager = wl_registry_bind(registry, name,
+    param_state->virt_pointer_manager = wl_registry_bind(registry, name,
       &zwlr_virtual_pointer_manager_v1_interface, 2);
-    state->virt_pointer
+    param_state->virt_pointer
       = zwlr_virtual_pointer_manager_v1_create_virtual_pointer(
-      state->virt_pointer_manager, NULL);
+      param_state->virt_pointer_manager, NULL);
   } else if (
     strcmp(interface, zwp_virtual_keyboard_manager_v1_interface.name) == 0) {
-    state->virt_kb_manager = wl_registry_bind(registry, name,
+    param_state->virt_kb_manager = wl_registry_bind(registry, name,
       &zwp_virtual_keyboard_manager_v1_interface, 1);
   }
 }
 
 static void registry_handle_global_remove(void *data,
-  struct wl_registry *registry, uint32_t name) {
-  struct disp_state *state = data;
+   __attribute__((unused)) struct wl_registry *registry,
+  uint32_t name) {
+  struct disp_state *param_state = data;
 
   for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
-    if (state->layers[i]) {
-      if (state->output_names[i] == name) {
-        struct drawable_layer *layer = state->layers[i];
+    if (param_state->layers[i]) {
+      if (param_state->output_names[i] == name) {
+        struct drawable_layer *layer = param_state->layers[i];
 
         zwlr_layer_surface_v1_destroy(layer->layer_surface);
-        wl_output_release(state->outputs[i]);
-        state->outputs[i] = NULL;
-        state->output_names[i] = 0;
-        zxdg_output_v1_destroy(state->xdg_outputs[i]);
-        state->xdg_outputs[i] = NULL;
-        free(state->pending_output_geometries[i]);
-        state->pending_output_geometries[i] = NULL;
-        state->output_geometries[i] = NULL;
+        wl_output_release(param_state->outputs[i]);
+        param_state->outputs[i] = NULL;
+        param_state->output_names[i] = 0;
+        zxdg_output_v1_destroy(param_state->xdg_outputs[i]);
+        param_state->xdg_outputs[i] = NULL;
+        free(param_state->pending_output_geometries[i]);
+        param_state->pending_output_geometries[i] = NULL;
+        param_state->output_geometries[i] = NULL;
         wl_surface_destroy(layer->surface);
         if (layer->pixbuf != NULL) {
           assert(layer->size >= 0);
@@ -1092,29 +1094,29 @@ static void registry_handle_global_remove(void *data,
           wl_shm_pool_destroy(layer->shm_pool);
         }
         free(layer);
-        state->layers[i] = NULL;
-        recalc_global_space(state);
+        param_state->layers[i] = NULL;
+        recalc_global_space(param_state);
         break;
       }
     }
   }
 }
 
-static void seat_handle_name(void *data, struct wl_seat *seat,
-  const char *name) {
-  struct disp_state *state = data;
+static void seat_handle_name(void *data,
+  __attribute__((unused)) struct wl_seat *seat, const char *name) {
+  struct disp_state *param_state = data;
 
-  state->seat_name = name;
+  param_state->seat_name = name;
 }
 
 static void seat_handle_capabilities(void *data, struct wl_seat *seat,
   uint32_t capabilities) {
-  struct disp_state *state = data;
+  struct disp_state *param_state = data;
 
-  state->seat_caps = capabilities;
+  param_state->seat_caps = capabilities;
   if (capabilities | WL_SEAT_CAPABILITY_KEYBOARD) {
-    state->kb = wl_seat_get_keyboard(seat);
-    wl_keyboard_add_listener(state->kb, &kb_listener, state);
+    param_state->kb = wl_seat_get_keyboard(seat);
+    wl_keyboard_add_listener(param_state->kb, &kb_listener, param_state);
   } else {
     fprintf(stderr,
       "FATAL ERROR: No keyboard capability for seat, cannot continue.\n");
@@ -1122,9 +1124,10 @@ static void seat_handle_capabilities(void *data, struct wl_seat *seat,
   }
 }
 
-static void kb_handle_keymap(void *data, struct wl_keyboard *kb,
+static void kb_handle_keymap(void *data,
+  __attribute__((unused)) struct wl_keyboard *kb,
   uint32_t format, int32_t fd, uint32_t size) {
-  struct disp_state *state = data;
+  struct disp_state *param_state = data;
   char *kb_map_shm = NULL;
 
   assert(size <= INT32_MAX);
@@ -1134,69 +1137,84 @@ static void kb_handle_keymap(void *data, struct wl_keyboard *kb,
     fprintf(stderr, "FATAL ERROR: Could not mmap xkb layout!\n");
     exit(1);
   }
-  if (state->old_kb_map_shm) {
-    if (strcmp(state->old_kb_map_shm, kb_map_shm) == 0) {
+  if (param_state->old_kb_map_shm) {
+    if (strcmp(param_state->old_kb_map_shm, kb_map_shm) == 0) {
       /* New and old maps are the same, cleanup and return. */
       munmap(kb_map_shm, size);
       safe_close(fd);
       return;
     } else {
-      assert(state->old_kb_map_shm_size >= 0);
-      munmap(state->old_kb_map_shm, (size_t)(state->old_kb_map_shm_size));
+      assert(param_state->old_kb_map_shm_size >= 0);
+      munmap(param_state->old_kb_map_shm, (size_t)(param_state->old_kb_map_shm_size));
     }
   }
-  zwp_virtual_keyboard_v1_keymap(state->virt_kb, format, fd, size);
-  state->old_kb_map_shm = kb_map_shm;
-  state->old_kb_map_shm_size = (int32_t)(size);
-  if (state->xkb_keymap) {
-    xkb_keymap_unref(state->xkb_keymap);
+  zwp_virtual_keyboard_v1_keymap(param_state->virt_kb, format, fd, size);
+  param_state->old_kb_map_shm = kb_map_shm;
+  param_state->old_kb_map_shm_size = (int32_t)(size);
+  if (param_state->xkb_keymap) {
+    xkb_keymap_unref(param_state->xkb_keymap);
   }
-  state->xkb_keymap = xkb_keymap_new_from_string(
-    state->xkb_ctx, kb_map_shm, XKB_KEYMAP_FORMAT_TEXT_V1,
+  param_state->xkb_keymap = xkb_keymap_new_from_string(
+    param_state->xkb_ctx, kb_map_shm, XKB_KEYMAP_FORMAT_TEXT_V1,
     XKB_KEYMAP_COMPILE_NO_FLAGS);
-  if (!state->xkb_keymap) {
+  if (!param_state->xkb_keymap) {
     fprintf(stderr, "FATAL ERROR: Could not compile xkb layout!\n");
     exit(1);
   }
   safe_close(fd);
-  if (state->xkb_state) {
-    xkb_state_unref(state->xkb_state);
+  if (param_state->xkb_state) {
+    xkb_state_unref(param_state->xkb_state);
   }
-  state->xkb_state = xkb_state_new(state->xkb_keymap);
-  if (!state->xkb_state) {
+  param_state->xkb_state = xkb_state_new(param_state->xkb_keymap);
+  if (!param_state->xkb_state) {
     fprintf(stderr, "FATAL ERROR: Could not create xkb state!\n");
     exit(1);
   }
-  state->virt_kb_keymap_set = true;
+  param_state->virt_kb_keymap_set = true;
 }
 
-static void kb_handle_enter(void *data, struct wl_keyboard *kb,
-  uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
+static void kb_handle_enter(__attribute__((unused)) void *data,
+  __attribute__((unused)) struct wl_keyboard *kb,
+  __attribute__((unused)) uint32_t serial,
+  __attribute__((unused)) struct wl_surface *surface, struct wl_array *keys) {
   wl_array_release(keys);
 }
 
-static void kb_handle_leave(void *data, struct wl_keyboard *kb,
-  uint32_t serial, struct wl_surface *surface) {
+static void kb_handle_leave(__attribute__((unused)) void *data,
+  __attribute__((unused)) struct wl_keyboard *kb,
+  __attribute__((unused)) uint32_t serial,
+  __attribute__((unused)) struct wl_surface *surface) {
   ;
 }
 
-static void kb_handle_key(void *data, struct wl_keyboard *kb,
-  uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
+static void kb_handle_key(__attribute__((unused)) void *data,
+  __attribute__((unused)) struct wl_keyboard *kb,
+  __attribute__((unused)) uint32_t serial,
+  __attribute__((unused)) uint32_t time,
+  __attribute__((unused)) uint32_t key,
+  __attribute__((unused)) uint32_t param_state) {
   ;
 }
 
-static void kb_handle_modifiers(void *data, struct wl_keyboard *kb,
-  uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched,
-  uint32_t mods_locked, uint32_t group) {
+static void kb_handle_modifiers(__attribute__((unused)) void *data,
+  __attribute__((unused)) struct wl_keyboard *kb,
+  __attribute__((unused)) uint32_t serial,
+  __attribute__((unused)) uint32_t mods_depressed,
+  __attribute__((unused)) uint32_t mods_latched,
+  __attribute__((unused)) uint32_t mods_locked,
+  __attribute__((unused)) uint32_t group) {
   ;
 }
 
-static void kb_handle_repeat_info(void *data, struct wl_keyboard *kb,
-  int32_t rate, int32_t delay) {
+static void kb_handle_repeat_info(__attribute__((unused)) void *data,
+  __attribute__((unused)) struct wl_keyboard *kb,
+  __attribute__((unused)) int32_t rate,
+  __attribute__((unused)) int32_t delay) {
   ;
 }
 
-static void wl_buffer_release(void *data, struct wl_buffer *buffer) {
+static void wl_buffer_release(__attribute__((unused)) void *data,
+  struct wl_buffer *buffer) {
   for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
     if (!state.layers[i]) {
       continue;
@@ -1223,58 +1241,71 @@ static void wl_buffer_release(void *data, struct wl_buffer *buffer) {
   wl_buffer_destroy(buffer);
 }
 
-static void wl_output_handle_geometry(void *data, struct wl_output *output,
-  int32_t x, int32_t y, int32_t physical_width, int32_t physical_height,
-  int32_t subpixel, const char *make, const char *model, int32_t transform) {
+static void wl_output_handle_geometry(__attribute__((unused)) void *data,
+  __attribute__((unused)) struct wl_output *output,
+  __attribute__((unused)) int32_t x, __attribute__((unused)) int32_t y,
+  __attribute__((unused)) int32_t physical_width,
+  __attribute__((unused)) int32_t physical_height,
+  __attribute__((unused)) int32_t subpixel,
+  __attribute__((unused)) const char *make,
+  __attribute__((unused)) const char *model,
+  __attribute__((unused)) int32_t transform) {
   ;
 }
 
-static void wl_output_handle_mode(void *data, struct wl_output *output,
-  uint32_t flags, int32_t width, int32_t height, int32_t refresh) {
+static void wl_output_handle_mode(__attribute__((unused)) void *data,
+  __attribute__((unused)) struct wl_output *output,
+  __attribute__((unused)) uint32_t flags,
+  __attribute__((unused)) int32_t width,
+  __attribute__((unused)) int32_t height,
+  __attribute__((unused)) int32_t refresh) {
   ;
 }
 
 static void wl_output_info_done(void *data, struct wl_output *output) {
-  struct disp_state *state = data;
+  struct disp_state *param_state = data;
 
   for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
-    if (state->outputs[i] == output) {
-      struct output_geometry *geometry = state->pending_output_geometries[i];
+    if (param_state->outputs[i] == output) {
+      struct output_geometry *geometry = param_state->pending_output_geometries[i];
 
       if (geometry->x == 0 && geometry->y == 0 && geometry->width == 0
         && geometry->height == 0)
         return;
-      state->output_geometries[i] = geometry;
-      recalc_global_space(state);
+      param_state->output_geometries[i] = geometry;
+      recalc_global_space(param_state);
       break;
     }
   }
 }
 
-static void wl_output_handle_scale(void *data, struct wl_output *output,
-  int32_t factor) {
+static void wl_output_handle_scale(__attribute__((unused)) void *data,
+  __attribute__((unused)) struct wl_output *output,
+  __attribute__((unused)) int32_t factor) {
   ;
 }
 
-static void wl_output_handle_name(void *data, struct wl_output *output,
-  const char *name) {
+static void wl_output_handle_name(__attribute__((unused)) void *data,
+  __attribute__((unused)) struct wl_output *output,
+  __attribute__((unused)) const char *name) {
   ;
 }
 
-static void wl_output_handle_description(void *data, struct wl_output *output,
-  const char *description) {
+static void wl_output_handle_description(__attribute__((unused)) void *data,
+  __attribute__((unused)) struct wl_output *output,
+  __attribute__((unused)) const char *description) {
   ;
 }
 
 static void xdg_output_handle_logical_position(void *data,
   struct zxdg_output_v1 *xdg_output, int32_t x, int32_t y) {
-  struct disp_state *state = data;
+  struct disp_state *param_state = data;
   ssize_t i = 0;
 
   for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
-    if (state->xdg_outputs[i] == xdg_output) {
-      state->pending_output_geometries[i]->x = x;
-      state->pending_output_geometries[i]->y = y;
+    if (param_state->xdg_outputs[i] == xdg_output) {
+      param_state->pending_output_geometries[i]->x = x;
+      param_state->pending_output_geometries[i]->y = y;
       break;
     }
   }
@@ -1282,46 +1313,48 @@ static void xdg_output_handle_logical_position(void *data,
 
 static void xdg_output_handle_logical_size(void *data,
   struct zxdg_output_v1 *xdg_output, int32_t width, int32_t height) {
-  struct disp_state *state = data;
+  struct disp_state *param_state = data;
   ssize_t i = 0;
 
   for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
-    if (state->xdg_outputs[i] == xdg_output) {
-      state->pending_output_geometries[i]->width = width;
-      state->pending_output_geometries[i]->height = height;
+    if (param_state->xdg_outputs[i] == xdg_output) {
+      param_state->pending_output_geometries[i]->width = width;
+      param_state->pending_output_geometries[i]->height = height;
       break;
     }
   }
 }
 
-static void xdg_output_info_done(void *data,
-  struct zxdg_output_v1 *xdg_output) {
+static void xdg_output_info_done(__attribute__((unused)) void *data,
+  __attribute__((unused)) struct zxdg_output_v1 *xdg_output) {
   ;
 }
 
-static void xdg_output_handle_name(void *data,
-  struct zxdg_output_v1 *xdg_output, const char *name) {
+static void xdg_output_handle_name(__attribute__((unused)) void *data,
+  __attribute__((unused)) struct zxdg_output_v1 *xdg_output,
+  __attribute__((unused)) const char *name) {
   ;
 }
 
-static void xdg_output_handle_description(void *data,
-  struct zxdg_output_v1 *xdg_output, const char *description) {
+static void xdg_output_handle_description(__attribute__((unused)) void *data,
+  __attribute__((unused)) struct zxdg_output_v1 *xdg_output,
+  __attribute__((unused)) const char *description) {
   ;
 }
 
 static void layer_surface_configure(void *data,
   struct zwlr_layer_surface_v1 *layer_surface, uint32_t serial, uint32_t width,
   uint32_t height) {
-  struct disp_state *state = data;
+  struct disp_state *param_state = data;
   struct drawable_layer *layer = NULL;
   ssize_t i = 0;
   int shm_fd = 0;
   struct wl_region *zeroed_region = NULL;
 
   for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
-    if (state->layers[i]) {
-      if (state->layers[i]->layer_surface == layer_surface) {
-        layer = state->layers[i];
+    if (param_state->layers[i]) {
+      if (param_state->layers[i]->layer_surface == layer_surface) {
+        layer = param_state->layers[i];
         break;
       }
     }
@@ -1350,10 +1383,10 @@ static void layer_surface_configure(void *data,
       strerror(errno));
     exit(1);
   }
-  layer->shm_pool = wl_shm_create_pool(state->shm, shm_fd,
+  layer->shm_pool = wl_shm_create_pool(param_state->shm, shm_fd,
     layer->size * MAX_UNRELEASED_FRAMES);
 
-  zeroed_region = wl_compositor_create_region(state->compositor);
+  zeroed_region = wl_compositor_create_region(param_state->compositor);
   wl_region_add(zeroed_region, 0, 0, 0, 0);
   wl_surface_set_input_region(layer->surface, zeroed_region);
 
@@ -1367,7 +1400,8 @@ static void layer_surface_configure(void *data,
 /* libinput handling */
 /*********************/
 
-static int li_open_restricted(const char *path, int flags, void *user_data) {
+static int li_open_restricted(const char *path, int flags,
+  __attribute__((unused)) void *user_data) {
   int fd = safe_open(path, flags | O_CLOEXEC);
   int one = 1;
 
@@ -1380,7 +1414,8 @@ static int li_open_restricted(const char *path, int flags, void *user_data) {
   return fd < 0 ? -errno : fd;
 }
 
-static void li_close_restricted(int fd, void *user_data) {
+static void li_close_restricted(int fd,
+  __attribute__((unused)) void *user_data) {
   safe_close(fd);
 }
 
@@ -1468,7 +1503,7 @@ static void draw_frame(struct drawable_layer *layer) {
   layer->frame_in_use[chosen_frame_idx] = true;
 }
 
-static struct drawable_layer *allocate_drawable_layer(struct disp_state *state,
+static struct drawable_layer *allocate_drawable_layer(struct disp_state *param_state,
   struct wl_output *output) {
   struct drawable_layer *layer = safe_calloc(1, sizeof(struct drawable_layer));
   ssize_t i = 0;
@@ -1481,16 +1516,16 @@ static struct drawable_layer *allocate_drawable_layer(struct disp_state *state,
     layer->cursor_y_pos_list[i] = -1;
   }
   layer->output = output;
-  layer->surface = wl_compositor_create_surface(state->compositor);
+  layer->surface = wl_compositor_create_surface(param_state->compositor);
   if (!layer->surface) {
     fprintf(stderr, "FATAL ERROR: Could not create Wayland surface!\n");
     exit(1);
   }
   layer->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
-    state->layer_shell, layer->surface, layer->output,
+    param_state->layer_shell, layer->surface, layer->output,
     ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "com.kicksecure.kloak");
   zwlr_layer_surface_v1_add_listener(layer->layer_surface,
-    &layer_surface_listener, state);
+    &layer_surface_listener, param_state);
 
   zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
     ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP);
@@ -1704,12 +1739,13 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
     }
 
   } else if (ev_type == LIBINPUT_EVENT_POINTER_BUTTON) {
-    mouse_event_handled = true;
     struct libinput_event_pointer *pointer_event
       = libinput_event_get_pointer_event(li_event);
     uint32_t button_code = libinput_event_pointer_get_button(pointer_event);
     enum libinput_button_state button_state
       = libinput_event_pointer_get_button_state(pointer_event);
+    
+    mouse_event_handled = true;
 
     if (button_state == LIBINPUT_BUTTON_STATE_PRESSED) {
       /* Both libinput and zwlr_virtual_pointer_v1 use evdev event codes to
@@ -1803,6 +1839,10 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
       uint32_t key = libinput_event_keyboard_get_key(kb_event);
       enum libinput_key_state key_state
         = libinput_event_keyboard_get_key_state(kb_event);
+      xkb_mod_mask_t depressed_mods;
+      xkb_mod_mask_t latched_mods;
+      xkb_mod_mask_t locked_mods;
+      xkb_layout_index_t effective_group;
 
       if (key_state == LIBINPUT_KEY_STATE_PRESSED) {
         /* XKB keycodes == evdev keycodes + 8. Why this design decision was
@@ -1811,13 +1851,13 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
       } else {
         xkb_state_update_key(state.xkb_state, key + 8, XKB_KEY_UP);
       }
-      xkb_mod_mask_t depressed_mods = xkb_state_serialize_mods(
+      depressed_mods = xkb_state_serialize_mods(
         state.xkb_state, XKB_STATE_MODS_DEPRESSED);
-      xkb_mod_mask_t latched_mods = xkb_state_serialize_mods(
+      latched_mods = xkb_state_serialize_mods(
         state.xkb_state, XKB_STATE_MODS_LATCHED);
-      xkb_mod_mask_t locked_mods = xkb_state_serialize_mods(
+      locked_mods = xkb_state_serialize_mods(
         state.xkb_state, XKB_STATE_MODS_LOCKED);
-      xkb_layout_index_t effective_group = xkb_state_serialize_layout(
+      effective_group = xkb_state_serialize_layout(
         state.xkb_state, XKB_STATE_LAYOUT_EFFECTIVE);
       zwp_virtual_keyboard_v1_modifiers(state.virt_kb, depressed_mods,
         latched_mods, locked_mods, effective_group);
@@ -2051,7 +2091,7 @@ static void parse_esc_key_str(const char *esc_key_str) {
   char *esc_key_str_copy = safe_strdup(esc_key_str);
   char *orig_key_str_copy = esc_key_str_copy;
   char *root_token = NULL;
-  char *sub_token = NULL;
+  const char *sub_token = NULL;
   size_t i = 0;
   size_t j = 0;
 

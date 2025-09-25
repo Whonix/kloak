@@ -41,23 +41,6 @@
 /*******************/
 
 /*
- * Defines an XDG runtime dir and Wayland socket. The two can be concatenated
- * together with a slash between to form the full path to the socket.
- */
-struct wayland_socket_info {
-  char *xdg_runtime_dir;
-  char *wayland_socket;
-};
-
-/*
- * Defines a process on the system by its PID and "comm" name.
- */
-struct process_info {
-  char *pid_str;
-  char *comm;
-};
-
-/*
  * Defines a libinput device on the system by its device ointer and file name.
  * Intended for use in a doubly-linked list.
  */
@@ -253,7 +236,7 @@ static void safe_closedir(DIR *dirp);
  * specified buffer. applayer_random_init must be called before this function
  * will behave as intended.
  */
-static void read_random(char * buf, ssize_t len);
+static void read_random(char *buf, ssize_t len);
 
 /*
  * Populates a string with a number of random characters in the set [a-zA-Z].
@@ -295,7 +278,7 @@ static bool check_screen_touch(struct output_geometry scr1,
  * the active displays. The function detects if there are gaps between the
  * displays and aborts the program if so.
  */
-static void recalc_global_space(struct disp_state * state);
+static void recalc_global_space(struct disp_state *param_state);
 
 /*
  * Converts a set of coordinates in global compositor space to a set of
@@ -453,7 +436,7 @@ static void draw_frame(struct drawable_layer *layer);
  * it with the compositor.
  */
 static struct drawable_layer *allocate_drawable_layer(
-  struct disp_state *state, struct wl_output *output);
+  struct disp_state *param_state, struct wl_output *output);
 
 /*
  * Damages the specified region of the specified surface. Takes the same

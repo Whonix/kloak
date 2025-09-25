@@ -31,6 +31,9 @@ include <tunables/global>
   /run/user/*/ r,
   /run/user/*/wayland-* r,
 
+  /proc/* r,
+  /proc/** r,
+
   /usr/share/libinput/ r,
   /usr/share/libinput/* r,
 }
