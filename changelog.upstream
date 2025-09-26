@@ -1,3 +1,28 @@
+commit 66ea62b2cc4d0632726aa8eb806231d6bff740c2
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri Sep 26 04:36:11 2025 -0400
+
+    remove trailing space
+
+commit f8b4ea8c34cbc5579f46f89be5047faa75ee0b71
+Merge: 140e34c 3510885
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri Sep 26 04:34:07 2025 -0400
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit 3510885cd50b7fd29ac195dc1c377d03b1037f0c
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Thu Sep 25 00:03:46 2025 -0500
+
+    Finish hardening and warning mitigation
+
+commit 140e34c2361107f9ca638741f0e069a1df23f7ad
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Mon Sep 22 17:31:59 2025 +0000
+
+    bumped changelog version
+
 commit 17c1c8fc28aecd0166dedb541518e50cf3b227d1
 Merge: 0997da8 d269452
 Author: Patrick Schleizer <adrelanos@whonix.org>
