@@ -1744,7 +1744,7 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
     uint32_t button_code = libinput_event_pointer_get_button(pointer_event);
     enum libinput_button_state button_state
       = libinput_event_pointer_get_button_state(pointer_event);
-    
+
     mouse_event_handled = true;
 
     if (button_state == LIBINPUT_BUTTON_STATE_PRESSED) {
