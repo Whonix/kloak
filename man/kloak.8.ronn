@@ -30,7 +30,7 @@ kloak(8) -- anti keystroke deanonymization tool
   * `-k`, `--esc-key-combo` :
     Specify the key combination that will terminate kloak. Keys are separated
     by commas. Keys can be aliased to each other by separating them with a
-    pipe (|) character. Defaults is KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC.
+    pipe (|) character. Defaults is KEY_RIGHTSHIFT,KEY_ESC.
 
 ## DESCRIPTION
 kloak is an event-level online anonymization kernel for keyboards and mice.
@@ -80,9 +80,9 @@ Wayland compositor will not work as long as `kloak` is running. This will
 prevent use of TTYs and complicate switching between multiple graphically
 logged-in users. In order to prevent this from causing a lock-out scenario,
 `kloak` monitors all keystrokes to determine if an "escape combo" has been
-pressed. This escape combo is `KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC` by
-default; you can configure it using the `-k` option. `kloak` will immediately
-exit when this combo is received.
+pressed. This escape combo is `KEY_RIGHTSHIFT,KEY_ESC` by default; default; you
+can configure it using the `-k` option. `kloak` will immediately exit when this
+combo is received.
 
 ## WWW
 https://github.com/Whonix/kloak

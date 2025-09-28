@@ -85,7 +85,7 @@ static size_t esc_key_list_len = 0;
 static LIST_HEAD(listhead_ldi, li_device_info) ldi_head;
 
 static const char *default_esc_key_str
-  = "KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC";
+  = "KEY_RIGHTSHIFT,KEY_ESC";
 
 static int64_t start_time = 0;
 
@@ -2173,7 +2173,7 @@ static void print_usage(void) {
   fprintf(stderr, "  -k, --esc-key-combo=KEY_![,KEY_2|KEY_3...]\n");
   fprintf(stderr, "    Specify the key combination that will terminate kloak. Keys are separated\n");
   fprintf(stderr, "    by commas. Keys can be aliased to each other by separating them with a\n");
-  fprintf(stderr, "    pipe (|) character. Default is KEY_LEFTSHIFT,KEY_RIGHTSHIFT,KEY_ESC.\n");
+  fprintf(stderr, "    pipe (|) character. Default is KEY_RIGHTSHIFT,KEY_ESC.\n");
 }
 
 /****************************/
