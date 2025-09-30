@@ -3,7 +3,8 @@
 
 [Unit]
 Description=kloak anti keystroke deanonymization tool
-Documentation=https://github.com/vmonaco/kloak
+Documentation=https://github.com/whonix/kloak
+Documentation=man:kloak(8)
 ConditionPathExists=!/run/qubes/this-is-templatevm
 After=graphical.target
 After=sysmaint-boot.target
