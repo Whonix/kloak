@@ -27,6 +27,9 @@ kloak(8) -- anti keystroke deanonymization tool
     Configure the color to use for the virtual mouse cursor. Expects a
     hexadecimal value in the format AARRGGBB (one byte for each of alpha, red,
     green, blue). Default is ffff0000 (solid red).
+  * `-n`, `--natural-scrolling` :
+    Enable reversed ("natural") scroling. Expects the string 'true' or
+    'false'. Default is 'false'.
   * `-k`, `--esc-key-combo` :
     Specify the key combination that will terminate kloak. Keys are separated
     by commas. Keys can be aliased to each other by separating them with a
@@ -83,6 +86,12 @@ logged-in users. In order to prevent this from causing a lock-out scenario,
 pressed. This escape combo is `KEY_RIGHTSHIFT,KEY_ESC` by default; default; you
 can configure it using the `-k` option. `kloak` will immediately exit when this
 combo is received.
+
+`kloak` interacts directly with all input devices, thus input device settings
+that would usually be configured by the Wayland compositor need to be
+configured in `kloak` instead. Currently the only special feature `kloak`
+supports is reversed (a.k.a. "natural") scrolling, which can be enabled by
+specifying `--natural-scrolling=true`.
 
 ## WWW
 https://github.com/Whonix/kloak

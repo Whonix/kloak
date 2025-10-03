@@ -76,6 +76,7 @@ static TAILQ_HEAD(tailhead_evq, input_packet) evq_head;
 static int32_t max_delay = DEFAULT_MAX_DELAY_MS;
 static int32_t startup_delay = DEFAULT_STARTUP_TIMEOUT_MS;
 static uint32_t cursor_color = 0xffff0000;
+static bool enable_natural_scrolling = false;
 
 static uint32_t **esc_key_list = NULL;
 static size_t *esc_key_sublist_len = NULL;
@@ -935,6 +936,13 @@ static void attach_input_device(const char *dev_name) {
   device_path = sgenprintf("/dev/input/%s", dev_name);
   new_device = libinput_path_add_device(li, device_path);
   free(device_path);
+
+  /* Set any "special" input device settings. */
+  if (enable_natural_scrolling == true
+    && libinput_device_config_scroll_has_natural_scroll(new_device) != 0) {
+    libinput_device_config_scroll_set_natural_scroll_enabled(new_device, 1);
+  }
+
   if (new_device == NULL) {
     return;
   }
@@ -2170,6 +2178,9 @@ static void print_usage(void) {
   fprintf(stderr, "  -c, --color=AARRGGBB\n");
   fprintf(stderr, "    Configure the color to use for the virtual mouse cursor. Default is\n");
   fprintf(stderr, "    ffff0000 (solid red).\n");
+  fprintf(stderr, "  -n, --natural-scrolling=(true|false)\n");
+  fprintf(stderr, "    Enable or disable natural scrolling on supported pointing devices. Default\n");
+  fprintf(stderr, "    is false.\n");
   fprintf(stderr, "  -k, --esc-key-combo=KEY_![,KEY_2|KEY_3...]\n");
   fprintf(stderr, "    Specify the key combination that will terminate kloak. Keys are separated\n");
   fprintf(stderr, "    by commas. Keys can be aliased to each other by separating them with a\n");
@@ -2373,6 +2384,7 @@ static void parse_cli_args(int argc, char **argv) {
     {"help", no_argument, NULL, 'h'},
     {"color", required_argument, NULL, 'c'},
     {"esc-key-combo", required_argument, NULL, 'k'},
+    {"natural-scrolling", required_argument, NULL, 'n'},
     {0, 0, 0, 0}
   };
   int getopt_rslt = 0;
@@ -2390,6 +2402,12 @@ static void parse_cli_args(int argc, char **argv) {
       startup_delay = parse_uint31_arg("start-delay", optarg, 10);
     } else if (getopt_rslt == 'c') {
       cursor_color = parse_uint32_arg("color", optarg, 16);
+    } else if (getopt_rslt == 'n') {
+      if (strcmp(optarg, "true") == 0) {
+        enable_natural_scrolling = true;
+      } else {
+        enable_natural_scrolling = false;
+      }
     } else if (getopt_rslt == 'k') {
       parse_esc_key_str(optarg);
     } else if (getopt_rslt == 'h') {

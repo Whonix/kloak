@@ -19,6 +19,9 @@ Configure the time to wait before starting\. Default is 500\.
 \fB\-c\fR, \fB\-\-color\fR
 Configure the color to use for the virtual mouse cursor\. Expects a hexadecimal value in the format AARRGGBB (one byte for each of alpha, red, green, blue)\. Default is ffff0000 (solid red)\.
 .TP
+\fB\-n\fR, \fB\-\-natural\-scrolling\fR
+Enable reversed ("natural") scroling\. Expects the string 'true' or 'false'\. Default is 'false'\.
+.TP
 \fB\-k\fR, \fB\-\-esc\-key\-combo\fR
 Specify the key combination that will terminate kloak\. Keys are separated by commas\. Keys can be aliased to each other by separating them with a pipe (|) character\. Defaults is KEY_RIGHTSHIFT,KEY_ESC\.
 .SH "DESCRIPTION"
@@ -37,6 +40,8 @@ Optionally start \fBkloak\fR by specifying the event and startup delay\. A longe
 Once \fBkloak\fR is started, a small crosshair will appear in the upper\-left corner of the screen (red by default, but you may configure its color using \fB\-c\fR)\. This is the virtual mouse cursor\. When you move the mouse pointer, the virtual cursor will move first\. The real mouse cursor will then chase it in an erratic pattern\. Websites and most applications can only track the real mouse cursor, not the virtual one, thus this hides the rhythm of your actual mouse movements from applications\. Keystroke rhythms will be obfuscated as well by inserting random delays into the usual stream of key press and key release events\.
 .P
 Because \fBkloak\fR grabs all input devices for itself and only sends those events to a single compositor, keyboard and mouse input to anything other than that Wayland compositor will not work as long as \fBkloak\fR is running\. This will prevent use of TTYs and complicate switching between multiple graphically logged\-in users\. In order to prevent this from causing a lock\-out scenario, \fBkloak\fR monitors all keystrokes to determine if an "escape combo" has been pressed\. This escape combo is \fBKEY_RIGHTSHIFT,KEY_ESC\fR by default; default; you can configure it using the \fB\-k\fR option\. \fBkloak\fR will immediately exit when this combo is received\.
+.P
+\fBkloak\fR interacts directly with all input devices, thus input device settings that would usually be configured by the Wayland compositor need to be configured in \fBkloak\fR instead\. Currently the only special feature \fBkloak\fR supports is reversed (a\.k\.a\. "natural") scrolling, which can be enabled by specifying \fB\-\-natural\-scrolling=true\fR\.
 .SH "WWW"
 https://github\.com/Whonix/kloak
 .SH "CREDITS"
