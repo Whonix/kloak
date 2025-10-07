@@ -1,9 +1,9 @@
 Name:           kloak
-Version:        0.5.2
+Version:        0.5.4
 Release:        1%{?dist}
 Summary:        Keystroke-level online anonymization kernel
 
-License:        BSD-3-Clause
+License:        AGPL-3.0-or-later AND BSD-3-Clause AND HPND-sell-variant AND MIT
 # vmonaco no longer maintains kloak, Whonix Project now actively maintains a fork.
 # URL:            https://github.com/vmonaco/%%{name}
 URL:            https://github.com/Whonix/%{name}
@@ -57,6 +57,13 @@ events, which are typically used for identification.
 %{_mandir}/man8/%{name}.8*
 
 %changelog
+* Tue Oct 7 2025 Jonathon Hyde <siliconwaffle@trilbyproject.org> - 0.5.4-1
+- New upstream version
+
+* Mon Oct 6 2025 Jonathon Hyde <siliconwaffle@trilbyproject.org> - 0.5.3-1
+- Fixed license tag
+- New upstream version
+
 * Tue Sep 30 2025 Jonathon Hyde <siliconwaffle@trilbyproject.org> - 0.5.2-1
 - Added changelog.upstream
 - New upstream version
