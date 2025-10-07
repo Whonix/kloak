@@ -28,7 +28,6 @@ CC_VERSION=$(shell $(CC) --version)
 # -fhardened             # superfluous when building an apt package
 #
 # Added the following flags:
-# -fsanitize=address,undefined # enable ASan/UBSan
 # -ftrapv                      # Crash on signed integer overflow/underflow
 # lots of additional warning flags and hardening
 WARN_CFLAGS := -Wall -Wextra -Wformat -Wformat=2 -Wconversion \
@@ -60,8 +59,7 @@ endif
 FORTIFY_CFLAGS := -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 	-fstack-clash-protection -fstack-protector-all \
 	-fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing \
-	-fsanitize=address,undefined -fno-sanitize-recover=all \
-	-fstrict-flex-arrays=3
+	-fstrict-flex-arrays=3 -ftrapv
 
 ifeq (yes,$(patsubst x86_64%-linux-gnu,yes,$(TARGETARCH)))
 FORTIFY_CFLAGS += -fcf-protection=full # only supported on x86_64
