@@ -1,3 +1,22 @@
+commit 3e10f3781fe3b0d243c360e1bece321cde090edd
+Merge: ac7106a f2d7457
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Tue Oct 7 04:35:08 2025 -0400
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit f2d74571c9a73310c2d23a5c285555b5e843211f
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Mon Oct 6 15:03:02 2025 -0500
+
+    Remove unsafe sanitizer compiler flags from kloak, add back -ftrapv to prevent undefined behavior on signed overflow
+
+commit ac7106a43c8deb80ac8b4a950e466082ed30df67
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri Oct 3 14:02:53 2025 +0000
+
+    bumped changelog version
+
 commit 82f6b74712ca53f7fa641cf5a09c238a89481db5
 Merge: 64a089b c881c66
 Author: Patrick Schleizer <adrelanos@whonix.org>
