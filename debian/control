@@ -44,3 +44,5 @@ Description: anti keystroke deanonymization tool
  A privacy tool that makes keystroke biometrics less effective. This
  is accomplished by obfuscating the time intervals between key press and
  release events, which are typically used for identification.
+ .
+ https://www.whonix.org/wiki/Keystroke_and_Mouse_Deanonymization#Kloak

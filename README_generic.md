@@ -9,8 +9,9 @@ between mouse input events, the number of mouse input events, and the exact
 path taken by the mouse pointer. This data can be used for identification if
 not obfuscated.
 
-kloak is designed for use on Wayland only. The way it functions could work on
-X11 theoretically, but this is not implemented. Contributions welcome.
+kloak is designed for use on Wayland only.
+
+https://www.whonix.org/wiki/Keystroke_and_Mouse_Deanonymization#Kloak
 
 ## How to install `kloak` using apt-get ##
 
