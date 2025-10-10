@@ -3,7 +3,7 @@
 
 [Unit]
 Description=kloak anti keystroke deanonymization tool
-Documentation=https://github.com/whonix/kloak
+Documentation=https://github.com/Whonix/kloak
 Documentation=man:kloak(8)
 ConditionPathExists=!/run/qubes/this-is-templatevm
 After=graphical.target
