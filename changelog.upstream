@@ -1,3 +1,56 @@
+commit eae580cebc5704690a69d14634a4589e733fa478
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri Oct 10 05:52:15 2025 -0400
+
+    comment
+
+commit 35b0012b5038a8ea28cdf65dcbb1cf8d2d757ff2
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri Oct 10 05:49:45 2025 -0400
+
+    description
+
+commit 44428d8cd8696601e4d4a123aaa9151230d3336a
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri Oct 10 05:46:15 2025 -0400
+
+    update link
+
+commit a6234b85415a4301ed3c3c19ab94ace034ece735
+Merge: 3e97e04 05e2dbe
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri Oct 10 05:45:53 2025 -0400
+
+    Merge remote-tracking branch 'github-whonix/master'
+
+commit 05e2dbe5c6b5a0dfbed62d863a08d20264b74719
+Merge: 3e97e04 30c9183
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri Oct 10 05:44:35 2025 -0400
+
+    Merge pull request #9 from siliconwaffle/master
+    
+    Update spec file to latest version and update systemd service Documentation tag.
+
+commit 30c9183ceb6c76aee6bfefa228dfe0382bd19eaf
+Author: siliconwaffle <157927978+siliconwaffle@users.noreply.github.com>
+Date:   Tue Oct 7 16:26:44 2025 +0000
+
+    Update kloak.spec
+
+commit 52edac295395011924b6118de3b1f6a5cc107c0a
+Merge: 11f3272 3e97e04
+Author: siliconwaffle <157927978+siliconwaffle@users.noreply.github.com>
+Date:   Tue Oct 7 16:25:14 2025 +0000
+
+    Merge branch 'Whonix:master' into master
+
+commit 3e97e04a4e26d36ef8f7c0c07eb49ab51d3afe7d
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Tue Oct 7 08:41:27 2025 +0000
+
+    bumped changelog version
+
 commit 3e10f3781fe3b0d243c360e1bece321cde090edd
 Merge: ac7106a f2d7457
 Author: Patrick Schleizer <adrelanos@whonix.org>
@@ -29,6 +82,20 @@ Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
 Date:   Thu Oct 2 22:34:31 2025 -0500
 
     Add natural scrolling support
+
+commit 11f3272b74106b722fa51f2f4fc2dc227a32202e
+Author: siliconwaffle <157927978+siliconwaffle@users.noreply.github.com>
+Date:   Tue Sep 30 18:27:50 2025 +0000
+
+    Update kloak.service
+    
+    Updated Documentation tag to include the manpage and switched from vmonaco/kloak to whonix/kloak.
+
+commit c4221145ce83a9f19684a88f80fec2b5309c5aaa
+Author: siliconwaffle <157927978+siliconwaffle@users.noreply.github.com>
+Date:   Tue Sep 30 18:23:34 2025 +0000
+
+    Update kloak.spec
 
 commit 64a089bf8bd0aa34f9bb5921b8e8068ada3e7411
 Author: Patrick Schleizer <adrelanos@whonix.org>
