@@ -5,7 +5,7 @@ kloak: *Event-level online anonymization kernel for input devices*
 A privacy tool that makes keystroke and mouse biometrics less effective. For
 keyboards, this is accomplished by obfuscating the time intervals between
 input events. For mice, this is done by obfuscating the time intervals between
-between mouse input events, the number of mouse input events, and the exact
+mouse input events, the number of mouse input events, and the exact
 path taken by the mouse pointer. This data can be used for identification if
 not obfuscated.
 
@@ -32,7 +32,7 @@ Fedora:
 
 Unknown currently. Refer to Debian dependency list and install equivalent packages on Fedora.
 
-To compile `kloak`, imply run:
+To compile `kloak`, simply run:
 
     $ make all
 
@@ -105,9 +105,9 @@ If `kloak` is installed as a service, you should see the red `+` mouse cursor up
 
 `kloak` works by introducing a random delay to each input event (key press, key release, mouse move, etc). This requires temporarily buffering the event before it reaches the application (e.g., a text editor).
 
-The maximum delay is specified with the -d option. This is the maximum delay (in milliseconds) that can occur between the physical input events and sending input events to the Wayland compositor. The default is 100 ms, which was shown to achieve about a 20-30% reduction in identification accuracy and doesn't create too much lag between the user and the application (see the paper below). As the maximum delay increases, the ability to obfuscate typing behavior also increases and the responsiveness of the application decreases. This reflects a tradeoff between usability and privacy.
+The maximum delay is specified with the -d option. This is the maximum delay (in milliseconds) that can occur between the physical input events and sending input events to the Wayland compositor. The default is 100 ms, which was shown to achieve about a 20-30% reduction in identification accuracy and doesn't create too much lag between the user and the application (see the paper below). As the maximum delay increases, the ability to obfuscate typing behavior also increases, and the responsiveness of the application decreases. This reflects a tradeoff between usability and privacy.
 
-If you're a fast typist and it seems like there is a long lag between pressing a key and seeing the character on screen, try lowering the maximum delay. Alternately, if you're a slower typist, you might be able to increase the maximum delay without noticing much difference. Automatically determining the best lag for each typing speed is an item for future work.
+If you're a fast typist and it seems like there is a long lag between pressing a key and seeing the character on screen, try lowering the maximum delay. Alternatively, if you're a slower typist, you might be able to increase the maximum delay without noticing much difference. Automatically determining the best lag for each typing speed is an item for future work.
 
 ## Options
 
@@ -147,7 +147,7 @@ For more info, see the paper [Obfuscating Keystroke Time Intervals to Avoid Iden
 
 The time between key press and release events are typically used to identify users by their typing behavior. The pattern of mouse movements and clicks can be used in a similar fashion. `kloak` obfuscates these time intervals and patterns by introducing a random delay between the physical input events and the arrival of input events at the application, for example a web browser. For mice, the number of input events is also obfuscated by combining many small mouse move events into a few mouse jumps. This also obfuscates the exact shape of the mouse movement path.
 
-`kloak` grabs the input device and sends delayed input events to the Wayland compositor using emulated input protocols. Grabbing the device disables any other application from reading the events. Events are scheduled to be released at a later time as they are recieved, and a semi-random delay is introduced before they are sent to the compositor.
+kloak grabs the input device and sends delayed input events to the Wayland compositor using emulated input protocols. Grabbing the device disables any other application from reading the events. Events are scheduled to be released at a later time as they are received, and a semi-random delay is introduced before they are sent to the compositor.
 
 ### When does it fail
 
@@ -156,4 +156,4 @@ The time between key press and release events are typically used to identify use
 * If the delay is too small, it is not effective. Adjust the delay to as high a value that's comfortable.
 * Repeated key presses are not obfuscated. If your system is set to repeat held-down keys at a unique rate, this could leak your identity. (TODO: Is this still the case, or are held-down keys obfuscated now?)
 * Writing style is still apparent, in which [stylometry techniques could be used to determine authorship](https://vmonaco.com/papers/An%20investigation%20of%20keystroke%20and%20stylometry%20traits%20for%20authenticating%20online%20test%20takers.pdf).
-* Higher level cognitive behavior, such as editing and application usage, are still apparent. These lower-frequency actions are less understood at this point, but could potentially be used to reveal identity.
+* Higher-level cognitive behavior, such as editing and application usage, are still apparent. These lower-frequency actions are less understood at this point, but could potentially be used to reveal identity.
