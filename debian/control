@@ -38,23 +38,25 @@ Package: kloak
 ## Update: Same as above.
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, python3
-Description: anti keyboard and mouse tracking deanonymization tool
- A keystroke and mouse level online anonymization kernel.
+Description: privacy tool for anonymizing keyboard and mouse use
+ A keystroke and mouse-level online anonymization kernel.
+ A tool to prevent tracking through keyboard and mouse input.
  .
- Real-time anonymization tool for input devices like keyboards and mice.
+ Real-time anonymization for input devices like keyboards and mice,
+ designed to counter tracking techniques.
  .
  Helps protect your privacy by making it harder to identify you based on
  how you type or move your mouse.
  .
  For keyboards, it hides patterns by changing the timing between each key
- press and release. These patterns, known as keystroke biometrics, can
+ press and release. These patterns, known as keystroke biometrics, could
  otherwise be used to recognize individuals.
  .
- For mice, it adds random changes to the timing and number of movements,
- and modifies the mouse pointer path. This prevents mouse biometrics from
- revealing identity.
+ For mice, it introduces random changes to the timing and number of
+ movements, and modifies the mouse pointer path. This helps prevent
+ mouse biometrics from revealing identity.
  .
- kloak works only with the Wayland display server.
+ kloak is designed for use only with the Wayland display server.
  .
  https://www.whonix.org/wiki/Keystroke_and_Mouse_Deanonymization#Kloak
  .
