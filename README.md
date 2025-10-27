@@ -1,17 +1,30 @@
-# anti keystroke deanonymization tool
+# privacy tool for anonymizing keyboard and mouse use #
 
-kloak: *Event-level online anonymization kernel for input devices*
+A keystroke and mouse-level online anonymization kernel.
+A tool to prevent tracking through keyboard and mouse input.
 
-A privacy tool that makes keystroke and mouse biometrics less effective. For
-keyboards, this is accomplished by obfuscating the time intervals between
-input events. For mice, this is done by obfuscating the time intervals between
-mouse input events, the number of mouse input events, and the exact
-path taken by the mouse pointer. This data can be used for identification if
-not obfuscated.
+Real-time anonymization for input devices like keyboards and mice,
+designed to counter tracking techniques.
 
-kloak is designed for use on Wayland only.
+Helps protect your privacy by making it harder to identify you based on
+how you type or move your mouse.
+
+For keyboards, it hides patterns by changing the timing between each key
+press and release. These patterns, known as keystroke biometrics, could
+otherwise be used to recognize individuals.
+
+For mice, it introduces random changes to the timing and number of
+movements, and modifies the mouse pointer path. This helps prevent
+mouse biometrics from revealing identity.
+
+kloak is designed for use only with the Wayland display server.
 
 https://www.whonix.org/wiki/Keystroke_and_Mouse_Deanonymization#Kloak
+
+Technical details:
+
+* Obfuscates time intervals between keyboard input events.
+* Obfuscates time intervals, frequency, and pointer paths for mouse input.
 
 ## Installation
 

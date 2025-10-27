@@ -22,6 +22,7 @@ kloak is designed for use only with the Wayland display server.
 https://www.whonix.org/wiki/Keystroke_and_Mouse_Deanonymization#Kloak
 
 Technical details:
+
 * Obfuscates time intervals between keyboard input events.
 * Obfuscates time intervals, frequency, and pointer paths for mouse input.
 
