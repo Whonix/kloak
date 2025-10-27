@@ -63,4 +63,3 @@ Description: privacy tool for anonymizing keyboard and mouse use
  Technical details:
  * Obfuscates time intervals between keyboard input events.
  * Obfuscates time intervals, frequency, and pointer paths for mouse input.
-
