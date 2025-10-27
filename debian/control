@@ -38,11 +38,14 @@ Package: kloak
 ## Update: Same as above.
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, python3
-Description: anti keystroke deanonymization tool
- A keystroke-level online anonymization kernel.
+Description: Event-level online anonymization kernel for input devices
+ A privacy tool that makes keystroke and mouse biometrics less effective. For
+ keyboards, this is accomplished by obfuscating the time intervals between
+ input events. For mice, this is done by obfuscating the time intervals between
+ mouse input events, the number of mouse input events, and the exact
+ path taken by the mouse pointer. This data can be used for identification if
+ not obfuscated.
  .
- A privacy tool that makes keystroke biometrics less effective. This
- is accomplished by obfuscating the time intervals between key press and
- release events, which are typically used for identification.
+ kloak is designed for use on Wayland only.
  .
  https://www.whonix.org/wiki/Keystroke_and_Mouse_Deanonymization#Kloak
