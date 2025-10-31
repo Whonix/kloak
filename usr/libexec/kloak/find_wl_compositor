@@ -56,12 +56,12 @@ import os
 import sys
 import subprocess
 import re
-import socket
-import struct
 import logging
 import time
 from pathlib import Path
 from typing import Pattern, Match, NoReturn
+
+from query_sock_pid.query_sock_pid import query_sock_pid
 
 logging.basicConfig(
     format="%(funcName)s: %(levelname)s: %(message)s", level=logging.INFO
@@ -114,32 +114,6 @@ def wlsortmorph(obj: tuple[str, str]) -> str:
     wl_match_list[1] = wl_match_list[1].zfill(4)
 
     return f"{"".join(uid_match_list)}/{"".join(wl_match_list)}"
-
-
-def query_sock_pid(sock_path: str) -> str | None:
-    """
-    Given a path to a UNIX socket, returns the PID of the program listening on
-    it.
-    """
-
-    try:
-        with socket.socket(
-            socket.AF_UNIX, socket.SOCK_STREAM | socket.SOCK_CLOEXEC
-        ) as sock:
-            sock.settimeout(0.5)
-            sock.connect(sock_path)
-            struct_fmt: str = "=iII"
-            rslt_buf: bytes = sock.getsockopt(
-                socket.SOL_SOCKET,
-                socket.SO_PEERCRED,
-                struct.calcsize(struct_fmt),
-            )
-            pid: int
-            pid, _, _ = struct.unpack(struct_fmt, rslt_buf)
-            return str(pid)
-    except Exception:
-        ## Logging not desirable here, socket may have been closed or deleted.
-        return None
 
 
 # pylint: disable=too-many-locals,too-many-branches,too-many-statements
