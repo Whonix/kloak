@@ -87,7 +87,7 @@ static TAILQ_HEAD(tailhead_evq, input_packet) evq_head;
 
 static int32_t max_delay = DEFAULT_MAX_DELAY_MS;
 static int32_t startup_delay = DEFAULT_STARTUP_TIMEOUT_MS;
-static uint32_t cursor_color = 0xffff0000;
+static uint32_t cursor_color = 0x00000000;
 static bool should_draw_cursor = true;
 static bool enable_natural_scrolling = false;
 
@@ -1387,7 +1387,7 @@ static void layer_surface_configure(void *data,
   ssize_t i = 0;
   int shm_fd = 0;
   struct wl_region *zeroed_region = NULL;
-  
+
   assert(should_draw_cursor);
 
   for (i = 0; i < MAX_SCREEN_COUNT; i++) {
