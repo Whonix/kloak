@@ -1,3 +1,48 @@
+commit b9f111d09df42ec6e1d7cabf4abaae87381e0749
+Merge: ab2c904 691d151
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sun Nov 9 03:07:15 2025 -0500
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit 691d1512cd870db7297f5d38aeba421f08543311
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Sat Nov 8 23:43:48 2025 -0600
+
+    apparmor
+
+commit b846f2d49035155c4095925a7e322e8f9dbf0e99
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Sat Nov 8 20:35:04 2025 -0600
+
+    Revert "Split query_sock_pid function from find_wl_compositor into a helper-scripts library"
+    
+    This reverts commit ccf3d95b9649a00ebbb7faddfa645fd50130db5b.
+
+commit e67fe65a9765eeeb1b7bc502c671c81c9838b3a9
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Sat Nov 8 20:34:16 2025 -0600
+
+    apparmor
+
+commit d53d214631804d04999ea014341f95c4f0b362d5
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Sat Nov 8 20:02:09 2025 -0600
+
+    Make cursor color completely transparent by default
+
+commit aa88a355c6b61433cc1db8220be526898622d251
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Sat Nov 8 19:59:53 2025 -0600
+
+    Disable cursor draw if the cursor color is fully transparent
+
+commit ab2c9048aebba7ec4ca933ed05875dc1b3d282b3
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri Oct 31 14:41:00 2025 +0000
+
+    bumped changelog version
+
 commit 3097124d5d5606c9c74281773c8ac1d7b17097fa
 Merge: 04ac58a a68f22c
 Author: Patrick Schleizer <adrelanos@whonix.org>
