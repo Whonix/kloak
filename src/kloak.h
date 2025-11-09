@@ -19,7 +19,7 @@
 /*******************/
 /* tunable defines */
 /*******************/
-#define MAX_DRAWABLE_LAYERS 128
+#define MAX_SCREEN_COUNT 128
 #define CURSOR_RADIUS 15
 #define POLL_TIMEOUT_MS 1
 #define DEFAULT_MAX_DELAY_MS 100
@@ -153,12 +153,12 @@ struct disp_state {
   uint32_t seat_caps;
   bool seat_set;
   struct wl_keyboard *kb;
-  struct wl_output *outputs[MAX_DRAWABLE_LAYERS];
-  uint32_t output_names[MAX_DRAWABLE_LAYERS];
+  struct wl_output *outputs[MAX_SCREEN_COUNT];
+  uint32_t output_names[MAX_SCREEN_COUNT];
   struct zxdg_output_manager_v1 *xdg_output_manager;
-  struct zxdg_output_v1 *xdg_outputs[MAX_DRAWABLE_LAYERS];
-  struct output_geometry *output_geometries[MAX_DRAWABLE_LAYERS];
-  struct output_geometry *pending_output_geometries[MAX_DRAWABLE_LAYERS];
+  struct zxdg_output_v1 *xdg_outputs[MAX_SCREEN_COUNT];
+  struct output_geometry *output_geometries[MAX_SCREEN_COUNT];
+  struct output_geometry *pending_output_geometries[MAX_SCREEN_COUNT];
   int32_t global_space_width;
   int32_t global_space_height;
   int32_t pointer_space_x;
@@ -174,7 +174,7 @@ struct disp_state {
   struct xkb_state *xkb_state;
   char *old_kb_map_shm;
   int32_t old_kb_map_shm_size;
-  struct drawable_layer *layers[MAX_DRAWABLE_LAYERS];
+  struct drawable_layer *layers[MAX_SCREEN_COUNT];
 };
 
 /***************/
