@@ -17,6 +17,8 @@ include <tunables/global>
 
   ptrace (read),
 
+  signal (receive),
+
   /etc/ld.so.cache r,
   /etc/ld.so.preload r,
   /etc/python3.13/sitecustomize.py r,
@@ -36,6 +38,8 @@ include <tunables/global>
   /dev/pts/* rw,
   /dev/tty* rw,
   /dev/console rw,
+  /dev/zero rw,
+  /dev/null rw,
 
   /proc/ r,
   /proc/*/stat r,
@@ -45,4 +49,7 @@ include <tunables/global>
   /run/user/*/ r,
   /run/user/*/wayland-* r,
   /run/kloak_wl_compositor_data rw,
+
+  deny /etc/nsswitch.conf r,
+  deny /etc/passwd r,
 }
