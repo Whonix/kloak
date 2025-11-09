@@ -1,4 +1,4 @@
-# Last Modified: Wed Sep 25 04:21:21 2024
+# Last Modified: Sun Nov  9 08:31:12 2025
 include <tunables/global>
 
 ## Copyright (C) 2012 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
@@ -9,15 +9,13 @@ include <tunables/global>
 
   network unix stream,
 
-  #capability dac_override,
   capability sys_tty_config,
   capability sys_ptrace,
   capability dac_read_search,
   capability dac_override,
 
-  ptrace (read),
-
-  signal (receive),
+  ptrace read,
+  signal receive,
 
   /etc/ld.so.cache r,
   /etc/ld.so.preload r,
@@ -30,8 +28,8 @@ include <tunables/global>
 
   /proc/sys/vm/overcommit_memory r,
   /usr/share/zoneinfo/** r,
-  /usr{,/local}/lib/python3.13/dist-packages/ r,
-  /usr{,/local}/lib/python3.13/dist-packages/** r,
+  /usr{,/local}/lib/python*/dist-packages/ r,
+  /usr{,/local}/lib/python*/dist-packages/** r,
   /usr/libexec/kloak/ r,
 
   /etc/locale.alias r,
@@ -51,6 +49,9 @@ include <tunables/global>
   /run/user/*/ r,
   /run/user/*/wayland-* r,
   /run/kloak_wl_compositor_data rw,
+
+  /usr/lib/python*/dist-packages/query_sock_pid/__pycache__/ rw,
+  /usr/lib/python*/dist-packages/query_sock_pid/__pycache__/** rw,
 
   deny /etc/nsswitch.conf r,
   deny /etc/passwd r,
