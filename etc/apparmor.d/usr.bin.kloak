@@ -16,6 +16,7 @@ include <tunables/global>
   signal receive set=term peer=unconfined,
 
   capability dac_override,
+  deny capability dac_read_search,
 
   /etc/ld.so.cache r,
   /etc/ld.so.preload r,
