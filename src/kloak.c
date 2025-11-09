@@ -87,7 +87,8 @@ static TAILQ_HEAD(tailhead_evq, input_packet) evq_head;
 
 static int32_t max_delay = DEFAULT_MAX_DELAY_MS;
 static int32_t startup_delay = DEFAULT_STARTUP_TIMEOUT_MS;
-static uint32_t cursor_color = 0xffff0000;
+static uint32_t cursor_color = 0x00000000;
+static bool should_draw_cursor = true;
 static bool enable_natural_scrolling = false;
 
 static uint32_t **esc_key_list = NULL;
@@ -398,6 +399,7 @@ static int create_shm_file(ssize_t size) {
   int snprintf_len = 0;
   int32_t ret = 0;
 
+  assert(should_draw_cursor);
   assert(size >= 0);
   /*
    * In a perfect world, we'd do the sizeof check here at compile time, but
@@ -562,15 +564,15 @@ static void recalc_global_space(struct disp_state *param_state) {
   int32_t cur_geom_height = 0;
   int32_t temp_br_x = 0;
   int32_t temp_br_y = 0;
-  struct output_geometry *screen_list[MAX_DRAWABLE_LAYERS];
+  struct output_geometry *screen_list[MAX_SCREEN_COUNT];
   ssize_t screen_list_len = 0;
-  struct output_geometry *conn_screen_list[MAX_DRAWABLE_LAYERS];
+  struct output_geometry *conn_screen_list[MAX_SCREEN_COUNT];
   ssize_t conn_screen_list_len = 0;
   bool screen_in_conn_list = false;
   struct output_geometry *conn_screen = NULL;
   struct output_geometry *cur_screen = NULL;
 
-  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+  for (ssize_t i = 0; i < MAX_SCREEN_COUNT; i++) {
     if (!param_state->output_geometries[i]) {
       continue;
     }
@@ -670,7 +672,7 @@ static struct screen_local_coord abs_coord_to_screen_local_coord(int32_t x,
     return out_data;
   }
 
-  for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+  for (i = 0; i < MAX_SCREEN_COUNT; i++) {
     if (!state.output_geometries[i]) {
       continue;
     }
@@ -726,7 +728,7 @@ static struct coord screen_local_coord_to_abs_coord(int32_t x, int32_t y,
     return out_val;
   }
 
-  if (!state.layers[output_idx]) {
+  if (!state.output_geometries[output_idx]) {
     return out_val;
   }
   cur_geom_x = state.output_geometries[output_idx]->x;
@@ -805,6 +807,8 @@ static void draw_block(uint32_t *pixbuf, int32_t offset, int32_t x, int32_t y,
   int32_t end_y = 0;
   int32_t work_x = 0;
   int32_t work_y = 0;
+
+  assert(should_draw_cursor);
 
   start_x = x - rad;
   if (start_x < 0) start_x = 0;
@@ -1014,7 +1018,7 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
   } else if (strcmp(interface, wl_output_interface.name) == 0) {
     bool new_layer_allocated = false;
 
-    for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+    for (i = 0; i < MAX_SCREEN_COUNT; i++) {
       if (!param_state->layers[i]) {
         param_state->outputs[i] = wl_registry_bind(registry, name,
           &wl_output_interface, 4);
@@ -1048,13 +1052,13 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
     if (!new_layer_allocated) {
       fprintf(stderr,
         "FATAL ERROR: Cannot handle more than %d displays attached at once!\n",
-        MAX_DRAWABLE_LAYERS);
+        MAX_SCREEN_COUNT);
       exit(1);
     }
   } else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
     param_state->xdg_output_manager = wl_registry_bind(registry, name,
       &zxdg_output_manager_v1_interface, 3);
-    for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+    for (i = 0; i < MAX_SCREEN_COUNT; i++) {
       if ((param_state->outputs[i]) && (!param_state->xdg_outputs[i])) {
         /*
          * This is where we make xdg_outputs for any wl_outputs that were
@@ -1070,8 +1074,10 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
       }
     }
   } else if (strcmp(interface, zwlr_layer_shell_v1_interface.name) == 0) {
-    param_state->layer_shell = wl_registry_bind(registry, name,
-      &zwlr_layer_shell_v1_interface, 4);
+    if (should_draw_cursor) {
+      param_state->layer_shell = wl_registry_bind(registry, name,
+        &zwlr_layer_shell_v1_interface, 4);
+    }
   } else if (
     strcmp(interface, zwlr_virtual_pointer_manager_v1_interface.name) == 0) {
     param_state->virt_pointer_manager = wl_registry_bind(registry, name,
@@ -1091,12 +1097,15 @@ static void registry_handle_global_remove(void *data,
   uint32_t name) {
   struct disp_state *param_state = data;
 
-  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+  for (ssize_t i = 0; i < MAX_SCREEN_COUNT; i++) {
     if (param_state->layers[i]) {
       if (param_state->output_names[i] == name) {
         struct drawable_layer *layer = param_state->layers[i];
 
-        zwlr_layer_surface_v1_destroy(layer->layer_surface);
+        if (layer->layer_surface != NULL) {
+          assert(should_draw_cursor);
+          zwlr_layer_surface_v1_destroy(layer->layer_surface);
+        }
         wl_output_release(param_state->outputs[i]);
         param_state->outputs[i] = NULL;
         param_state->output_names[i] = 0;
@@ -1105,12 +1114,17 @@ static void registry_handle_global_remove(void *data,
         free(param_state->pending_output_geometries[i]);
         param_state->pending_output_geometries[i] = NULL;
         param_state->output_geometries[i] = NULL;
-        wl_surface_destroy(layer->surface);
+        if (layer->surface != NULL) {
+          assert(should_draw_cursor);
+          wl_surface_destroy(layer->surface);
+        }
         if (layer->pixbuf != NULL) {
+          assert(should_draw_cursor);
           assert(layer->size >= 0);
           munmap(layer->pixbuf, (size_t)(layer->size));
         }
         if (layer->shm_pool != NULL) {
+          assert(should_draw_cursor);
           wl_shm_pool_destroy(layer->shm_pool);
         }
         free(layer);
@@ -1235,7 +1249,9 @@ static void kb_handle_repeat_info(__attribute__((unused)) void *data,
 
 static void wl_buffer_release(__attribute__((unused)) void *data,
   struct wl_buffer *buffer) {
-  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+  assert(should_draw_cursor);
+
+  for (ssize_t i = 0; i < MAX_SCREEN_COUNT; i++) {
     if (!state.layers[i]) {
       continue;
     }
@@ -1285,7 +1301,7 @@ static void wl_output_handle_mode(__attribute__((unused)) void *data,
 static void wl_output_info_done(void *data, struct wl_output *output) {
   struct disp_state *param_state = data;
 
-  for (ssize_t i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+  for (ssize_t i = 0; i < MAX_SCREEN_COUNT; i++) {
     if (param_state->outputs[i] == output) {
       struct output_geometry *geometry = param_state->pending_output_geometries[i];
 
@@ -1322,7 +1338,7 @@ static void xdg_output_handle_logical_position(void *data,
   struct disp_state *param_state = data;
   ssize_t i = 0;
 
-  for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+  for (i = 0; i < MAX_SCREEN_COUNT; i++) {
     if (param_state->xdg_outputs[i] == xdg_output) {
       param_state->pending_output_geometries[i]->x = x;
       param_state->pending_output_geometries[i]->y = y;
@@ -1336,7 +1352,7 @@ static void xdg_output_handle_logical_size(void *data,
   struct disp_state *param_state = data;
   ssize_t i = 0;
 
-  for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+  for (i = 0; i < MAX_SCREEN_COUNT; i++) {
     if (param_state->xdg_outputs[i] == xdg_output) {
       param_state->pending_output_geometries[i]->width = width;
       param_state->pending_output_geometries[i]->height = height;
@@ -1365,13 +1381,16 @@ static void xdg_output_handle_description(__attribute__((unused)) void *data,
 static void layer_surface_configure(void *data,
   struct zwlr_layer_surface_v1 *layer_surface, uint32_t serial, uint32_t width,
   uint32_t height) {
+
   struct disp_state *param_state = data;
   struct drawable_layer *layer = NULL;
   ssize_t i = 0;
   int shm_fd = 0;
   struct wl_region *zeroed_region = NULL;
 
-  for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+  assert(should_draw_cursor);
+
+  for (i = 0; i < MAX_SCREEN_COUNT; i++) {
     if (param_state->layers[i]) {
       if (param_state->layers[i]->layer_surface == layer_surface) {
         layer = param_state->layers[i];
@@ -1451,6 +1470,8 @@ static void draw_frame(struct drawable_layer *layer) {
   bool cursor_is_on_layer = false;
   ssize_t layer_idx = 0;
 
+  assert(should_draw_cursor);
+
   if (!layer->layer_surface_configured)
     return;
 
@@ -1481,7 +1502,7 @@ static void draw_frame(struct drawable_layer *layer) {
 
   cursor_is_on_layer = false;
   if (scr_coord.valid) {
-    for (layer_idx = 0; layer_idx < MAX_DRAWABLE_LAYERS; layer_idx++) {
+    for (layer_idx = 0; layer_idx < MAX_SCREEN_COUNT; layer_idx++) {
       if ((state.layers[layer_idx] == layer)
         && (layer_idx == scr_coord.output_idx)) {
         cursor_is_on_layer = true;
@@ -1498,7 +1519,7 @@ static void draw_frame(struct drawable_layer *layer) {
       layer->last_drawn_cursor_y + CURSOR_RADIUS + 1);
   }
   if (cursor_is_on_layer) {
-    /* Draw red crosshairs at the pointer location */
+    /* Draw crosshairs at the pointer location */
     draw_block(layer->pixbuf, (layer->size * chosen_frame_idx) / 4,
       scr_coord.x, scr_coord.y, layer->width, layer->height, CURSOR_RADIUS,
       true);
@@ -1528,7 +1549,6 @@ static struct drawable_layer *allocate_drawable_layer(struct disp_state *param_s
   struct drawable_layer *layer = safe_calloc(1, sizeof(struct drawable_layer));
   ssize_t i = 0;
 
-  layer->frame_pending = true;
   layer->last_drawn_cursor_x = -1;
   layer->last_drawn_cursor_y = -1;
   for (i = 0; i < MAX_UNRELEASED_FRAMES; i++) {
@@ -1536,33 +1556,38 @@ static struct drawable_layer *allocate_drawable_layer(struct disp_state *param_s
     layer->cursor_y_pos_list[i] = -1;
   }
   layer->output = output;
-  layer->surface = wl_compositor_create_surface(param_state->compositor);
-  if (!layer->surface) {
-    fprintf(stderr, "FATAL ERROR: Could not create Wayland surface!\n");
-    exit(1);
-  }
-  layer->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
-    param_state->layer_shell, layer->surface, layer->output,
-    ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "com.kicksecure.kloak");
-  zwlr_layer_surface_v1_add_listener(layer->layer_surface,
-    &layer_surface_listener, param_state);
 
-  zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
-    ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP);
-  zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
-    ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
-  zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
-    ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT);
-  zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
-    ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
-  zwlr_layer_surface_v1_set_exclusive_zone(layer->layer_surface, -1);
-  wl_surface_commit(layer->surface);
+  if (should_draw_cursor) {
+    layer->frame_pending = true;
+    layer->surface = wl_compositor_create_surface(param_state->compositor);
+    if (!layer->surface) {
+      fprintf(stderr, "FATAL ERROR: Could not create Wayland surface!\n");
+      exit(1);
+    }
+    layer->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
+      param_state->layer_shell, layer->surface, layer->output,
+      ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "com.kicksecure.kloak");
+    zwlr_layer_surface_v1_add_listener(layer->layer_surface,
+      &layer_surface_listener, param_state);
+
+    zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
+      ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP);
+    zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
+      ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
+    zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
+      ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT);
+    zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
+      ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
+    zwlr_layer_surface_v1_set_exclusive_zone(layer->layer_surface, -1);
+    wl_surface_commit(layer->surface);
+  }
 
   return layer;
 }
 
 static void damage_surface_enh(struct wl_surface *surface, int32_t x,
   int32_t y, int32_t width, int32_t height) {
+  assert(should_draw_cursor);
   assert(width >= 0);
   assert(height >= 0);
   if (x < 0) x = 0;
@@ -1595,7 +1620,7 @@ static struct input_packet * update_virtual_cursor(void) {
      * either is invalid or points at an area where there is no screen. Reset
      * everything in the hopes of recovering sanity. */
     printf("Resetting!\n");
-    for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+    for (i = 0; i < MAX_SCREEN_COUNT; i++) {
       if (state.layers[i]) {
         struct coord sane_location = screen_local_coord_to_abs_coord(0, 0, i);
 
@@ -1722,8 +1747,10 @@ static struct input_packet * update_virtual_cursor(void) {
   scr_coord = abs_coord_to_screen_local_coord((int32_t)(cursor_x),
     (int32_t)(cursor_y));
 
-  state.layers[prev_scr_coord.output_idx]->frame_pending = true;
-  state.layers[scr_coord.output_idx]->frame_pending = true;
+  if (should_draw_cursor) {
+    state.layers[prev_scr_coord.output_idx]->frame_pending = true;
+    state.layers[scr_coord.output_idx]->frame_pending = true;
+  }
 
   /* = rather than == is intentional here */
   if ((old_ev_packet = TAILQ_LAST(&evq_head, tailhead_evq))
@@ -2269,7 +2296,7 @@ static void applayer_wayland_init(void) {
       "FATAL ERROR: No zxdg_output_v1 objects from compositor!\n");
     exit(1);
   }
-  if (state.layer_shell == NULL) {
+  if (should_draw_cursor && state.layer_shell == NULL) {
     fprintf(stderr,
       "FATAL ERROR: No zwlr_layer_shell_v1 object from compositor!\n");
     exit(1);
@@ -2414,6 +2441,13 @@ static void parse_cli_args(int argc, char **argv) {
       startup_delay = parse_uint31_arg("start-delay", optarg, 10);
     } else if (getopt_rslt == 'c') {
       cursor_color = parse_uint32_arg("color", optarg, 16);
+      if ((cursor_color >> 24) == 0) {
+        /*
+         * Cursor is entirely transparent, disable drawing it to save
+         * resources
+         */
+        should_draw_cursor = false;
+      }
     } else if (getopt_rslt == 'n') {
       if (strcmp(optarg, "true") == 0) {
         enable_natural_scrolling = true;
@@ -2514,11 +2548,12 @@ int main(int argc, char **argv) {
 
       release_scheduled_input_events();
 
-      for (i = 0; i < MAX_DRAWABLE_LAYERS; i++) {
+      for (i = 0; i < MAX_SCREEN_COUNT; i++) {
         if (!state.layers[i]) {
           continue;
         }
         if (state.layers[i]->frame_pending) {
+          assert(should_draw_cursor);
           draw_frame(state.layers[i]);
         }
       }

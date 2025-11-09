@@ -4,7 +4,7 @@ include <tunables/global>
 ## Copyright (C) 2012 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
 ## See the file COPYING for copying conditions.
 
-/usr/libexec/kloak/find_wl_compositor {
+/usr/libexec/kloak/find_wl_compositor flags=(attach_disconnected.path=/disconnected) {
   include <local/usr.libexec.kloak.find_wl_compositor>
 
   network unix stream,
@@ -16,6 +16,8 @@ include <tunables/global>
   capability dac_override,
 
   ptrace (read),
+
+  signal (receive),
 
   /etc/ld.so.cache r,
   /etc/ld.so.preload r,
@@ -36,6 +38,10 @@ include <tunables/global>
   /dev/pts/* rw,
   /dev/tty* rw,
   /dev/console rw,
+  /dev/zero rw,
+  /dev/null rw,
+  /disconnected/dev/zero rw,
+  /disconnected/dev/null rw,
 
   /proc/ r,
   /proc/*/stat r,
@@ -45,4 +51,7 @@ include <tunables/global>
   /run/user/*/ r,
   /run/user/*/wayland-* r,
   /run/kloak_wl_compositor_data rw,
+
+  deny /etc/nsswitch.conf r,
+  deny /etc/passwd r,
 }
