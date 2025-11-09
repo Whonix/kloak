@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -su
+#!/usr/bin/python3 -suB
 
 ## Copyright (C) 2025 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
 ## See the file COPYING for copying conditions.
@@ -51,6 +51,11 @@ are probably ways of fooling this mechanism maliciously, but if an attacker
 can do that, they probably already have enough access to the machine to do
 much worse things.
 """
+
+#!/usr/bin/python3 -suB
+## python option '-B' in shebang is used to simplify the AppArmor profile.
+## man python
+## -B     Don't write .pyc files on import.
 
 import os
 import sys
