@@ -41,8 +41,8 @@
 /*******************/
 
 /*
- * Defines a libinput device on the system by its device ointer and file name.
- * Intended for use in a doubly-linked list.
+ * Defines a libinput device on the system by its device pointer and file
+ * name. Intended for use in a doubly-linked list.
  */
 struct li_device_info {
   struct libinput_device *device;
@@ -116,27 +116,58 @@ struct coord {
 };
 
 /*
- * Defines a buffered input event. Two types of events are supported, mouse
- * movement events and libinput events. libinput events can be any arbitrary
- * event supported by libinput. Mouse movement events are defined as a cursor
- * position in compositor global space. Both kinds of events have a scheduled
- * release time. An `entries` field is included to allow buffered events to be
- * stored in a tail queue.
+ * Defines the type of a buffered input event.
+ */
+enum input_packet_type {
+  KLOAK_PACKET_TYPE_MOUSEMOVE,
+  KLOAK_PACKET_TYPE_MOUSESCROLL,
+  KLOAK_PACKET_TYPE_LIBINPUT
+};
+
+/*
+ * A container for storing the actual data in an input_packet, as explained
+ * below.
+ */
+union input_packet_data {
+  struct {
+    int32_t cursor_x;
+    int32_t cursor_y;
+  } mousemove;
+
+  struct {
+    int32_t vert_scroll_ticks;
+    int32_t horiz_scroll_ticks;
+  } mousescroll;
+
+  struct {
+    struct libinput_event *li_event;
+  } libinput;
+};
+
+/*
+ * Defines a buffered input event. Three types of events are supported, mouse
+ * movement events, scroll events, and libinput events.
+ *
+ * - Mouse movement events are defined as a cursor position in compositor
+ *   global space.
+ * - Scroll events are defined as a number of scroll "ticks" and a scroll axis
+ *   (either vertical or horizontal).
+ * - libinput events are raw events directly from libinput, intended for
+ *   release unmodified at a later time.
+ *
+ * All kinds of events have a scheduled release time. An `entries` field is
+ * included to allow buffered events to be stored in a tail queue.
+ *
+ * The actual data of the input packet is in the `data` field. The fields of
+ * `data` (mousemove, mousescroll, libinput) correspond to the
+ * `KLOAK_PACKET_TYPE_MOUSEMOVE`, `KLOAK_PACKET_TYPE_MOUSESCROLL`, and
+ * `KLOAK_PACKET_TYPE_LIBINPUT` packet types, respectively.
  */
 struct input_packet {
-  bool is_libinput;
-
-  /* libinput-specific bits */
-  struct libinput_event * li_event;
-  enum libinput_event_type li_event_type;
-
-  /* mouse movement bits */
-  int32_t cursor_x;
-  int32_t cursor_y;
-
-  /* generic bits */
+  enum input_packet_type packet_type;
   int64_t sched_time;
   TAILQ_ENTRY(input_packet) entries;
+  union input_packet_data data;
 };
 
 /*
@@ -351,6 +382,13 @@ static void attach_input_device(const char *dev_name);
  */
 static void detach_input_device(const char *dev_name);
 
+/*
+ * Extracts a whole number of scroll ticks from a scroll accumulator,
+ * modifying the accumulator's value as appropriate to remove that number of
+ * ticks from it.
+ */
+static int32_t get_ticks_from_scroll_accum(double *accum_ptr);
+
 /********************/
 /* wayland handling */
 /********************/
@@ -453,28 +491,35 @@ static void damage_surface_enh(struct wl_surface *surface, int32_t x,
  * isn't one already queued, and update a queued mouse movement event to
  * reflect the current virtual cursor position otherwise.
  */
-static struct input_packet * update_virtual_cursor(void);
+static struct input_packet *update_virtual_cursor(void);
+
+/*
+ * Updates the scroll accumulators. If enough scroll movement has accumulated
+ * to scroll one or more ticks, this will create a new mouse scroll event if
+ * there isn't an appropriate one already queued, and update a queued scroll
+ * event to reflect the new scroll quantity otherwise.
+ */
+static struct input_packet *update_mouse_scroll(void);
 
 /*
  * Processes a libinput event, sending emulated input to the compositor as
  * appropriate.
  */
-static void handle_libinput_event(enum libinput_event_type ev_type,
-  struct libinput_event *li_event, uint32_t ts_milliseconds);
+static void handle_libinput_event(struct libinput_event *li_event,
+  uint32_t ts_milliseconds);
 
 /*
  * Tracks actively held down keys in the escape key list and terminates kloak
  * if all escape keys are actively being held down.
  */
-static void register_esc_combo_event(enum libinput_event_type li_event_type,
-  struct libinput_event *li_event);
+static void register_esc_combo_event(struct libinput_event *li_event);
 
 /*
  * Schedules a libinput event for future release to the compositor. As a side
  * effect, also redraws the virtual cursor if needed.
  */
 static void queue_libinput_event_and_relocate_virtual_cursor(
-  enum libinput_event_type li_event_type, struct libinput_event *li_event);
+  struct libinput_event *li_event);
 
 /*
  * Finds all queued input events that are ready to be released, and process

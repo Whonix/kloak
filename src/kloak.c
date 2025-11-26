@@ -14,6 +14,11 @@
  * - Use an assert to check that a value is within bounds before every cast.
  */
 
+/*
+ * TODO: We might want to check if any floating-point numbers in the
+ * application are infinity or NaN, and throw a fatal error if so.
+ */
+
 #define _GNU_SOURCE
 
 #include <stdlib.h>
@@ -75,6 +80,8 @@ static double cursor_x = 0;
 static double cursor_y = 0;
 static double prev_cursor_x = 0;
 static double prev_cursor_y = 0;
+static double vert_scroll_accum = 0.0f;
+static double horiz_scroll_accum = 0.0f;
 
 static struct disp_state state = { 0 };
 static struct libinput *li = NULL;
@@ -992,6 +999,25 @@ static void detach_input_device(const char *dev_name) {
   free(ldi_node);
 }
 
+static int32_t get_ticks_from_scroll_accum(double *accum_ptr) {
+  double scroll_accum = *accum_ptr;
+  double scroll_ticks_d = 0.0f;
+  int32_t scroll_ticks = 0;
+
+  if (fpclassify(scroll_accum) != FP_ZERO) {
+    scroll_ticks_d = scroll_accum / 120.0f;
+    assert(scroll_ticks_d <= (INT32_MAX / 120));
+    assert(scroll_ticks_d >= (INT32_MIN / 120));
+    scroll_ticks = (int32_t)(scroll_ticks_d);
+    if (scroll_ticks != 0) {
+      scroll_accum += -(scroll_ticks * 120);
+      *accum_ptr = scroll_accum;
+    }
+  }
+
+  return scroll_ticks;
+}
+
 /********************/
 /* wayland handling */
 /********************/
@@ -1606,7 +1632,7 @@ static struct input_packet * update_virtual_cursor(void) {
   struct coord trav_coord = { 0 };
   struct screen_local_coord trav_scr_coord = { 0 };
   struct screen_local_coord scr_coord = { 0 };
-  struct input_packet *old_ev_packet;
+  struct input_packet *old_ev_packet = NULL;
   struct input_packet *ev_packet = NULL;
 
   assert(prev_cursor_x < INT32_MAX && prev_cursor_x >= 0);
@@ -1754,27 +1780,49 @@ static struct input_packet * update_virtual_cursor(void) {
 
   /* = rather than == is intentional here */
   if ((old_ev_packet = TAILQ_LAST(&evq_head, tailhead_evq))
-    && (!old_ev_packet->is_libinput)) {
-    old_ev_packet->cursor_x = (int32_t)(cursor_x);
-    old_ev_packet->cursor_y = (int32_t)(cursor_y);
+    && (old_ev_packet->packet_type == KLOAK_PACKET_TYPE_MOUSEMOVE)) {
+    old_ev_packet->data.mousemove.cursor_x = (int32_t)(cursor_x);
+    old_ev_packet->data.mousemove.cursor_y = (int32_t)(cursor_y);
     return NULL;
   } else {
     ev_packet = safe_calloc(1, sizeof(struct input_packet));
-    if (ev_packet == NULL) {
-      fprintf(stderr,
-        "FATAL ERROR: Could not allocate memory for libinput event packet!\n");
-      exit(1);
-    }
-    ev_packet->is_libinput = false;
-    ev_packet->cursor_x = (int32_t)(cursor_x);
-    ev_packet->cursor_y = (int32_t)(cursor_y);
+    ev_packet->packet_type = KLOAK_PACKET_TYPE_MOUSEMOVE;
+    ev_packet->data.mousemove.cursor_x = (int32_t)(cursor_x);
+    ev_packet->data.mousemove.cursor_y = (int32_t)(cursor_y);
     return ev_packet;
   }
 }
 
-static void handle_libinput_event(enum libinput_event_type ev_type,
-  struct libinput_event *li_event, uint32_t ts_milliseconds) {
+static struct input_packet *update_mouse_scroll(void) {
+  int32_t vert_scroll_ticks = get_ticks_from_scroll_accum(&vert_scroll_accum);
+  int32_t horiz_scroll_ticks = get_ticks_from_scroll_accum(
+    &horiz_scroll_accum);
+  struct input_packet *old_ev_packet = NULL;
+  struct input_packet *ev_packet = NULL;
+
+  if ((vert_scroll_ticks != 0) || (horiz_scroll_ticks != 0)) {
+    if ((old_ev_packet = TAILQ_LAST(&evq_head, tailhead_evq))
+      && (old_ev_packet->packet_type == KLOAK_PACKET_TYPE_MOUSESCROLL)) {
+      old_ev_packet->data.mousescroll.vert_scroll_ticks += vert_scroll_ticks;
+      old_ev_packet->data.mousescroll.horiz_scroll_ticks
+        += horiz_scroll_ticks;
+      return NULL;
+    } else {
+      ev_packet = safe_calloc(1, sizeof(struct input_packet));
+      ev_packet->packet_type = KLOAK_PACKET_TYPE_MOUSESCROLL;
+      ev_packet->data.mousescroll.vert_scroll_ticks = vert_scroll_ticks;
+      ev_packet->data.mousescroll.horiz_scroll_ticks = horiz_scroll_ticks;
+      return ev_packet;
+    }
+  }
+
+  return NULL;
+}
+
+static void handle_libinput_event(struct libinput_event *li_event,
+  uint32_t ts_milliseconds) {
   bool mouse_event_handled = false;
+  enum libinput_event_type ev_type = libinput_event_get_type(li_event);
 
   if (ev_type == LIBINPUT_EVENT_DEVICE_ADDED) {
     struct libinput_device *new_dev = libinput_event_get_device(li_event);
@@ -1805,78 +1853,6 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
       zwlr_virtual_pointer_v1_button(
         state.virt_pointer, ts_milliseconds, button_code,
         WL_POINTER_BUTTON_STATE_RELEASED);
-    }
-
-  } else if (ev_type == LIBINPUT_EVENT_POINTER_SCROLL_WHEEL
-    || ev_type == LIBINPUT_EVENT_POINTER_SCROLL_FINGER
-    || ev_type == LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS) {
-    struct libinput_event_pointer *pointer_event
-      = libinput_event_get_pointer_event(li_event);
-    int vert_scroll_present = libinput_event_pointer_has_axis(pointer_event,
-      LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
-    int horiz_scroll_present = libinput_event_pointer_has_axis(pointer_event,
-      LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
-
-    mouse_event_handled = true;
-
-    if (vert_scroll_present) {
-      double vert_scroll_value = libinput_event_pointer_get_scroll_value(
-        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
-
-      if ((int64_t)(vert_scroll_value) == 0) {
-        zwlr_virtual_pointer_v1_axis_stop(state.virt_pointer,
-          ts_milliseconds, WL_POINTER_AXIS_VERTICAL_SCROLL);
-      } else {
-        zwlr_virtual_pointer_v1_axis(state.virt_pointer, ts_milliseconds,
-          WL_POINTER_AXIS_VERTICAL_SCROLL,
-          wl_fixed_from_double(vert_scroll_value));
-      }
-      switch (ev_type) {
-        case LIBINPUT_EVENT_POINTER_SCROLL_WHEEL:
-          zwlr_virtual_pointer_v1_axis_source(state.virt_pointer,
-            WL_POINTER_AXIS_SOURCE_WHEEL);
-          break;
-        case LIBINPUT_EVENT_POINTER_SCROLL_FINGER:
-          zwlr_virtual_pointer_v1_axis_source(state.virt_pointer,
-            WL_POINTER_AXIS_SOURCE_FINGER);
-          break;
-        case LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS:
-          zwlr_virtual_pointer_v1_axis_source(state.virt_pointer,
-            WL_POINTER_AXIS_SOURCE_CONTINUOUS);
-          break;
-        default:
-          abort();
-      }
-    }
-
-    if (horiz_scroll_present) {
-      double horiz_scroll_value = libinput_event_pointer_get_scroll_value(
-        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
-
-      if ((int64_t)(horiz_scroll_value) == 0) {
-        zwlr_virtual_pointer_v1_axis_stop(state.virt_pointer,
-          ts_milliseconds, WL_POINTER_AXIS_HORIZONTAL_SCROLL);
-      } else {
-        zwlr_virtual_pointer_v1_axis(state.virt_pointer,
-          ts_milliseconds, WL_POINTER_AXIS_HORIZONTAL_SCROLL,
-          wl_fixed_from_double(horiz_scroll_value));
-      }
-      switch (ev_type) {
-        case LIBINPUT_EVENT_POINTER_SCROLL_WHEEL:
-          zwlr_virtual_pointer_v1_axis_source(state.virt_pointer,
-            WL_POINTER_AXIS_SOURCE_WHEEL);
-          break;
-        case LIBINPUT_EVENT_POINTER_SCROLL_FINGER:
-          zwlr_virtual_pointer_v1_axis_source(state.virt_pointer,
-            WL_POINTER_AXIS_SOURCE_FINGER);
-          break;
-        case LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS:
-          zwlr_virtual_pointer_v1_axis_source(state.virt_pointer,
-            WL_POINTER_AXIS_SOURCE_CONTINUOUS);
-          break;
-        default:
-          abort();
-      }
     }
 
   } else if (ev_type == LIBINPUT_EVENT_KEYBOARD_KEY) {
@@ -1919,11 +1895,11 @@ static void handle_libinput_event(enum libinput_event_type ev_type,
   libinput_event_destroy(li_event);
 }
 
-static void register_esc_combo_event(
-  enum libinput_event_type li_event_type, struct libinput_event *li_event) {
+static void register_esc_combo_event(struct libinput_event *li_event) {
   struct libinput_event_keyboard *kb_event = NULL;
   uint32_t key = 0;
   enum libinput_key_state key_state = LIBINPUT_KEY_STATE_PRESSED;
+  enum libinput_event_type li_event_type = libinput_event_get_type(li_event);
   size_t i = 0;
   size_t j = 0;
   bool hit_exit = true;
@@ -1964,13 +1940,16 @@ static void register_esc_combo_event(
 }
 
 static void queue_libinput_event_and_relocate_virtual_cursor(
-  enum libinput_event_type li_event_type, struct libinput_event *li_event) {
+  struct libinput_event *li_event) {
   struct input_packet *ev_packet = NULL;
   struct libinput_event_pointer *pointer_event = NULL;
+  enum libinput_event_type li_event_type = libinput_event_get_type(li_event);
   double abs_x = 0;
   double abs_y = 0;
   double rel_x = 0;
   double rel_y = 0;
+  double vert_scroll_val = 0.0f;
+  double horiz_scroll_val = 0.0f;
   int64_t current_time = 0;
   int64_t lower_bound = 0;
   int64_t random_delay = 0;
@@ -2013,6 +1992,123 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
       return;
     }
 
+  /*
+   * Scroll event handling is somewhat tricky...
+   *
+   * We want to mask the kind of scrolling device the user is using. To do
+   * this, we add together all mouse scroll events in an accumulator, then
+   * translate what's in the accumulator into scroll events as appropriate.
+   * The intended user experience is:
+   *
+   * - "Clicky" mouse wheel rotationr: the page should scroll some quantity
+   *   with every "click". Emphasis on "click" here. We do NOT want to output
+   *   scroll events with values matching the user's actual scrolling too
+   *   precisely, so we do NOT want to say "if the user's mouse wheel rotated
+   *   7.33116 degrees, scroll 7.33116 units" or similar.
+   * - Everything else (smooth mouse wheel rotation, two-finger scrolling,
+   *   continuous scrolling, future high-resolution scrolling methods humanity
+   *   dreams up in their nightmares): the page should scroll a "mouse click's
+   *   worth" of distance after enough scroll distance has accumulated.
+   *
+   * libinput has at least four different ways of representing scroll
+   * movement. Unfortunately, none of them are suitable in all situations.
+   *
+   * - libinput_event_pointer_get_scroll_value() returns a double indicating
+   *   some distance of movement. For scroll wheels, this corresponds to the
+   *   angle (in degrees) the wheel rotated. For touch and continuous inputs,
+   *   this corresponds to some quantity of "relative motion" (an abstract
+   *   term the libinput API documentation does not elaborate on, but one
+   *   assumes it correlates reasonably with mouse wheel rotation angles).
+   *   This is great until you realize that mouse wheels sometimes rotate
+   *   different quantities with each "tick" (and mice that don't have mouse
+   *   wheel ticks look the same as mice with "clicky" mouse wheels when using
+   *   libinput). This means that if we just use this function for everything,
+   *   some users will see no scrolling after rotating the scroll wheel one
+   *   click, then after a few "working" clicks they'll get a click that
+   *   scrolls twice as far as expected. Other users will always have to
+   *   scroll multiple clicks to get one "click's worth" of scrolling, and
+   *   other users will (almost) always get multiple "click's worth"s of
+   *   scrolling.
+   * - libinput_event_pointer_get_scroll_value_v120() fixes the above mess by
+   *   representing scroll distance in terms of mouse wheel clicks rather than
+   *   raw angles. The function returns a double equal to (number of mouse
+   *   ticks * 120), with support for "fractional ticks" in the form of values
+   *   not evenly divisible by 120. By using this function, we can translate
+   *   scroll ticks directly into quantities of scroll movement on screen, no
+   *   matter how many degrees the wheel turns per tick. Unfortunately, this
+   *   function *only* supports scroll wheel events, it doesn't work with any
+   *   other kind of scrolling.
+   * - libinput_event_pointer_get_axis_value() and
+   *   libinput_event_pointer_get_axis_value_discrete() are similar to the
+   *   above, but the values they provide are different (their output is in
+   *   "relative scroll units" and "discrete steps", respectively), the latter
+   *   doesn't work with high-resolution scroll devices, and both are
+   *   deprecated.
+   *
+   * To acheive the desired user experience given the above API, the scroll
+   * accumulator's value represents 1/120ths of a scroll tick (the same value
+   * used by the v120 function above). For scroll wheels, we can thus use the
+   * output of the v120 function directly. For everything else, we assume that
+   * a scroll wheel tick always corresponds to 15 degrees of mouse wheel
+   * rotation from the standpoint of libinput_event_pointer_get_scroll_value()
+   * (this is a blatantly false assumption but it's close enough for our
+   * purposes, since the "default" degrees of rotation per wheel click is 15
+   * in libinput), and thus we can translate the output of
+   * libinput_event_pointer_get_scroll_value() into a value suitable for use
+   * in our accumulator by multiplying it by 8 (because 120 / 15 = 8).
+   *
+   * This is further complicated by the fact that there are both vertical and
+   * horizontal scroll events, so we actually have two scroll accumulators,
+   * one for each dimension.
+   */
+  } else if (li_event_type == LIBINPUT_EVENT_POINTER_SCROLL_WHEEL) {
+    pointer_event = libinput_event_get_pointer_event(li_event);
+    if (libinput_event_pointer_has_axis(pointer_event,
+      LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL)) {
+      vert_scroll_val = libinput_event_pointer_get_scroll_value_v120(
+        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL);
+    }
+    if (libinput_event_pointer_has_axis(pointer_event,
+      LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL)) {
+      horiz_scroll_val = libinput_event_pointer_get_scroll_value_v120(
+        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL);
+    }
+    vert_scroll_accum += vert_scroll_val;
+    horiz_scroll_accum += horiz_scroll_val;
+    ev_packet = update_mouse_scroll();
+    libinput_event_destroy(li_event);
+    if (!ev_packet) {
+      return;
+    }
+
+  } else if ((li_event_type == LIBINPUT_EVENT_POINTER_SCROLL_FINGER)
+    || (li_event_type == LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS)) {
+    pointer_event = libinput_event_get_pointer_event(li_event);
+    if (libinput_event_pointer_has_axis(pointer_event,
+      LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL)) {
+      /*
+       * Note that IEEE-754 floating point math does not have undefined
+       * behavior on overflow/underflow. If we're using some weird compiler
+       * and CPU combination that doesn't use IEEE-754, this might be
+       * undefined behavior, but this is pretty rare, see:
+       * https://lwn.net/Articles/886516/
+       */
+      vert_scroll_val = libinput_event_pointer_get_scroll_value(
+        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL) * 8.0f;
+    }
+    if (libinput_event_pointer_has_axis(pointer_event,
+      LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL)) {
+      horiz_scroll_val = libinput_event_pointer_get_scroll_value(
+        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL) * 8.0f;
+    }
+    vert_scroll_accum += vert_scroll_val;
+    horiz_scroll_accum += horiz_scroll_val;
+    ev_packet = update_mouse_scroll();
+    libinput_event_destroy(li_event);
+    if (!ev_packet) {
+      return;
+    }
+
   } else {
     ev_packet = safe_calloc(1, sizeof(struct input_packet));
     if (ev_packet == NULL) {
@@ -2020,9 +2116,8 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
         "FATAL ERROR: Could not allocate memory for libinput event packet!\n");
       exit(1);
     }
-    ev_packet->is_libinput = true;
-    ev_packet->li_event = li_event;
-    ev_packet->li_event_type = li_event_type;
+    ev_packet->packet_type = KLOAK_PACKET_TYPE_LIBINPUT;
+    ev_packet->data.libinput.li_event = li_event;
   }
 
   current_time = current_time_ms();
@@ -2039,16 +2134,11 @@ static void release_scheduled_input_events(void) {
 
   while ((packet = TAILQ_FIRST(&evq_head))
     && (current_time >= packet->sched_time)) {
-    if (packet->is_libinput) {
-      assert(packet->sched_time >= 0);
-      if (packet->sched_time > UINT32_MAX) {
-        fprintf(stderr,
-          "packet->sched_time overflowed maximum value. This is not an error, but kloak must be restarted. Exiting.");
-        exit(0);
-      }
-      handle_libinput_event(packet->li_event_type, packet->li_event,
-        (uint32_t)(packet->sched_time));
-    } else {
+    /*
+     * These conditionals are intentionally ordered so that more common events
+     * are processed earlier, don't re-order them unless you have to.
+     */
+    if (packet->packet_type == KLOAK_PACKET_TYPE_MOUSEMOVE) {
       assert(packet->sched_time >= 0);
       if (packet->sched_time > UINT32_MAX) {
         fprintf(stderr,
@@ -2057,17 +2147,54 @@ static void release_scheduled_input_events(void) {
       }
       assert(state.pointer_space_x >= 0);
       assert(state.pointer_space_y >= 0);
-      assert(packet->cursor_x >= state.pointer_space_x);
-      assert(packet->cursor_y >= state.pointer_space_y);
+      assert(packet->data.mousemove.cursor_x >= state.pointer_space_x);
+      assert(packet->data.mousemove.cursor_y >= state.pointer_space_y);
       assert(state.global_space_width >= state.pointer_space_x);
       assert(state.global_space_height >= state.pointer_space_y);
       zwlr_virtual_pointer_v1_motion_absolute(
         state.virt_pointer, (uint32_t)(packet->sched_time),
-        (uint32_t)(packet->cursor_x - state.pointer_space_x),
-        (uint32_t)(packet->cursor_y - state.pointer_space_y),
+        (uint32_t)(packet->data.mousemove.cursor_x - state.pointer_space_x),
+        (uint32_t)(packet->data.mousemove.cursor_y - state.pointer_space_y),
         (uint32_t)(state.global_space_width - state.pointer_space_x),
         (uint32_t)(state.global_space_height - state.pointer_space_y));
       zwlr_virtual_pointer_v1_frame(state.virt_pointer);
+
+    } else if (packet->packet_type == KLOAK_PACKET_TYPE_LIBINPUT) {
+      assert(packet->sched_time >= 0);
+      if (packet->sched_time > UINT32_MAX) {
+        fprintf(stderr,
+          "packet->sched_time overflowed maximum value. This is not an error, but kloak must be restarted. Exiting.");
+        exit(0);
+      }
+      handle_libinput_event(packet->data.libinput.li_event,
+        (uint32_t)(packet->sched_time));
+
+    } else {
+      bool send_axis_source_and_frame = false;
+      assert(packet->packet_type == KLOAK_PACKET_TYPE_MOUSESCROLL);
+      if (packet->data.mousescroll.vert_scroll_ticks != 0) {
+        zwlr_virtual_pointer_v1_axis(state.virt_pointer,
+          (uint32_t)(packet->sched_time), WL_POINTER_AXIS_VERTICAL_SCROLL,
+          wl_fixed_from_int(packet->data.mousescroll.vert_scroll_ticks * 15));
+        zwlr_virtual_pointer_v1_axis_discrete(state.virt_pointer,
+          (uint32_t)(packet->sched_time), WL_POINTER_AXIS_VERTICAL_SCROLL,
+          wl_fixed_from_int(15), packet->data.mousescroll.vert_scroll_ticks);
+        send_axis_source_and_frame = true;
+      }
+      if (packet->data.mousescroll.horiz_scroll_ticks != 0) {
+        zwlr_virtual_pointer_v1_axis(state.virt_pointer,
+          (uint32_t)(packet->sched_time), WL_POINTER_AXIS_HORIZONTAL_SCROLL,
+          wl_fixed_from_int(packet->data.mousescroll.vert_scroll_ticks * 15));
+        zwlr_virtual_pointer_v1_axis_discrete(state.virt_pointer,
+          (uint32_t)(packet->sched_time), WL_POINTER_AXIS_HORIZONTAL_SCROLL,
+          wl_fixed_from_int(15), packet->data.mousescroll.vert_scroll_ticks);
+        send_axis_source_and_frame = true;
+      }
+      if (send_axis_source_and_frame) {
+        zwlr_virtual_pointer_v1_axis_source(state.virt_pointer,
+          WL_POINTER_AXIS_SOURCE_WHEEL);
+        zwlr_virtual_pointer_v1_frame(state.virt_pointer);
+      }
     }
     TAILQ_REMOVE(&evq_head, packet, entries);
     free(packet);
@@ -2535,9 +2662,8 @@ int main(int argc, char **argv) {
           break;
 
         li_event = libinput_get_event(li);
-        register_esc_combo_event(next_ev_type, li_event);
-        queue_libinput_event_and_relocate_virtual_cursor(next_ev_type,
-          li_event);
+        register_esc_combo_event(li_event);
+        queue_libinput_event_and_relocate_virtual_cursor(li_event);
         /*
          * We do NOT free the libinput event here.
          * queue_libinput_event_and_relocate_virtual_cursor will destroy the
@@ -2591,7 +2717,7 @@ int main(int argc, char **argv) {
           break;
 
         li_event = libinput_get_event(li);
-        register_esc_combo_event(next_ev_type, li_event);
+        register_esc_combo_event(li_event);
         /*
          * We have to free the libinput event here ourselves since we don't
          * call queue_libinput_event_and_relocate_virtual_cursor (which would
