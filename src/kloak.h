@@ -150,8 +150,8 @@ union input_packet_data {
  *
  * - Mouse movement events are defined as a cursor position in compositor
  *   global space.
- * - Scroll events are defined as a number of scroll "ticks" and a scroll axis
- *   (either vertical or horizontal).
+ * - Scroll events are defined as a pair of scroll "tick" values, one for each
+ *   dimension (vertical and horizontal).
  * - libinput events are raw events directly from libinput, intended for
  *   release unmodified at a later time.
  *

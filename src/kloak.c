@@ -76,10 +76,10 @@
 /* global variables */
 /********************/
 
-static double cursor_x = 0;
-static double cursor_y = 0;
-static double prev_cursor_x = 0;
-static double prev_cursor_y = 0;
+static double cursor_x = 0.0f;
+static double cursor_y = 0.0f;
+static double prev_cursor_x = 0.0f;
+static double prev_cursor_y = 0.0f;
 static double vert_scroll_accum = 0.0f;
 static double horiz_scroll_accum = 0.0f;
 
@@ -1944,10 +1944,10 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
   struct input_packet *ev_packet = NULL;
   struct libinput_event_pointer *pointer_event = NULL;
   enum libinput_event_type li_event_type = libinput_event_get_type(li_event);
-  double abs_x = 0;
-  double abs_y = 0;
-  double rel_x = 0;
-  double rel_y = 0;
+  double abs_x = 0.0f;
+  double abs_y = 0.0f;
+  double rel_x = 0.0f;
+  double rel_y = 0.0f;
   double vert_scroll_val = 0.0f;
   double horiz_scroll_val = 0.0f;
   int64_t current_time = 0;
@@ -2169,9 +2169,15 @@ static void release_scheduled_input_events(void) {
       handle_libinput_event(packet->data.libinput.li_event,
         (uint32_t)(packet->sched_time));
 
-    } else {
+    } else { /* packet->packet_type == KLOAK_PACKET_TYPE_MOUSESCROLL */
       bool send_axis_source_and_frame = false;
       assert(packet->packet_type == KLOAK_PACKET_TYPE_MOUSESCROLL);
+      assert(packet->sched_time >= 0);
+      if (packet->sched_time > UINT32_MAX) {
+        fprintf(stderr,
+          "packet->sched_time overflowed maximum value. This is not an error, but kloak must be restarted. Exiting.");
+        exit(0);
+      }
       if (packet->data.mousescroll.vert_scroll_ticks != 0) {
         zwlr_virtual_pointer_v1_axis(state.virt_pointer,
           (uint32_t)(packet->sched_time), WL_POINTER_AXIS_VERTICAL_SCROLL,
