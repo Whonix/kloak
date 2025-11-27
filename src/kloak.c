@@ -76,12 +76,12 @@
 /* global variables */
 /********************/
 
-static double cursor_x = 0.0f;
-static double cursor_y = 0.0f;
-static double prev_cursor_x = 0.0f;
-static double prev_cursor_y = 0.0f;
-static double vert_scroll_accum = 0.0f;
-static double horiz_scroll_accum = 0.0f;
+static double cursor_x = 0.0;
+static double cursor_y = 0.0;
+static double prev_cursor_x = 0.0;
+static double prev_cursor_y = 0.0;
+static double vert_scroll_accum = 0.0;
+static double horiz_scroll_accum = 0.0;
 
 static struct disp_state state = { 0 };
 static struct libinput *li = NULL;
@@ -755,10 +755,10 @@ static struct coord screen_local_coord_to_abs_coord(int32_t x, int32_t y,
 struct coord traverse_line(struct coord start, struct coord end,
   int32_t pos) {
   struct coord out_val = { 0 };
-  double num = 0;
-  double denom = 0;
-  double slope = 0;
-  double steep = 0;
+  double num = 0.0;
+  double denom = 0.0;
+  double slope = 0.0;
+  double steep = 0.0;
 
   num = ((double) end.y) - ((double) start.y);
   denom = ((double) start.x) - ((double) end.x);
@@ -1001,11 +1001,11 @@ static void detach_input_device(const char *dev_name) {
 
 static int32_t get_ticks_from_scroll_accum(double *accum_ptr) {
   double scroll_accum = *accum_ptr;
-  double scroll_ticks_d = 0.0f;
+  double scroll_ticks_d = 0.0;
   int32_t scroll_ticks = 0;
 
   if (fpclassify(scroll_accum) != FP_ZERO) {
-    scroll_ticks_d = scroll_accum / 120.0f;
+    scroll_ticks_d = scroll_accum / 120.0;
     assert(scroll_ticks_d <= (INT32_MAX / 120));
     assert(scroll_ticks_d >= (INT32_MIN / 120));
     scroll_ticks = (int32_t)(scroll_ticks_d);
@@ -1944,12 +1944,12 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
   struct input_packet *ev_packet = NULL;
   struct libinput_event_pointer *pointer_event = NULL;
   enum libinput_event_type li_event_type = libinput_event_get_type(li_event);
-  double abs_x = 0.0f;
-  double abs_y = 0.0f;
-  double rel_x = 0.0f;
-  double rel_y = 0.0f;
-  double vert_scroll_val = 0.0f;
-  double horiz_scroll_val = 0.0f;
+  double abs_x = 0.0;
+  double abs_y = 0.0;
+  double rel_x = 0.0;
+  double rel_y = 0.0;
+  double vert_scroll_val = 0.0;
+  double horiz_scroll_val = 0.0;
   int64_t current_time = 0;
   int64_t lower_bound = 0;
   int64_t random_delay = 0;
@@ -2094,12 +2094,12 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
        * https://lwn.net/Articles/886516/
        */
       vert_scroll_val = libinput_event_pointer_get_scroll_value(
-        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL) * 8.0f;
+        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL) * 8.0;
     }
     if (libinput_event_pointer_has_axis(pointer_event,
       LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL)) {
       horiz_scroll_val = libinput_event_pointer_get_scroll_value(
-        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL) * 8.0f;
+        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL) * 8.0;
     }
     vert_scroll_accum += vert_scroll_val;
     horiz_scroll_accum += horiz_scroll_val;
@@ -2190,10 +2190,10 @@ static void release_scheduled_input_events(void) {
       if (packet->data.mousescroll.horiz_scroll_ticks != 0) {
         zwlr_virtual_pointer_v1_axis(state.virt_pointer,
           (uint32_t)(packet->sched_time), WL_POINTER_AXIS_HORIZONTAL_SCROLL,
-          wl_fixed_from_int(packet->data.mousescroll.vert_scroll_ticks * 15));
+          wl_fixed_from_int(packet->data.mousescroll.horiz_scroll_ticks * 15));
         zwlr_virtual_pointer_v1_axis_discrete(state.virt_pointer,
           (uint32_t)(packet->sched_time), WL_POINTER_AXIS_HORIZONTAL_SCROLL,
-          wl_fixed_from_int(15), packet->data.mousescroll.vert_scroll_ticks);
+          wl_fixed_from_int(15), packet->data.mousescroll.horiz_scroll_ticks);
         send_axis_source_and_frame = true;
       }
       if (send_axis_source_and_frame) {
