@@ -2111,7 +2111,9 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
       return;
     }
 
-  } else {
+  } else if ((li_event_type == LIBINPUT_EVENT_DEVICE_ADDED)
+    || (li_event_type == LIBINPUT_EVENT_POINTER_BUTTON)
+    || (li_event_type == LIBINPUT_EVENT_KEYBOARD_KEY)) {
     ev_packet = safe_calloc(1, sizeof(struct input_packet));
     if (ev_packet == NULL) {
       fprintf(stderr,
@@ -2120,6 +2122,15 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
     }
     ev_packet->packet_type = KLOAK_PACKET_TYPE_LIBINPUT;
     ev_packet->data.libinput.li_event = li_event;
+  } else {
+    /*
+     * Other libinput events (like gestures) can't actually be passed through
+     * via the virtual-keyboard-unstable-v1 or wlr-virtual-pointer-unstable-v1
+     * protocols; we'd have to create our own handlers for those. We don't
+     * have any such handlers, so simply ignore those events.
+     */
+    libinput_event_destroy(li_event);
+    return;
   }
 
   current_time = current_time_ms();
