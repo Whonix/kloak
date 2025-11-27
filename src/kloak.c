@@ -1005,12 +1005,12 @@ static int32_t get_ticks_from_scroll_accum(double *accum_ptr) {
   int32_t scroll_ticks = 0;
 
   if (fpclassify(scroll_accum) != FP_ZERO) {
-    scroll_ticks_d = scroll_accum / 120.0;
-    assert(scroll_ticks_d <= (INT32_MAX / 120));
-    assert(scroll_ticks_d >= (INT32_MIN / 120));
+    scroll_ticks_d = scroll_accum / SCROLL_UNITS_PER_TICK_D;
+    assert(scroll_ticks_d <= (INT32_MAX / SCROLL_UNITS_PER_TICK));
+    assert(scroll_ticks_d >= (INT32_MIN / SCROLL_UNITS_PER_TICK));
     scroll_ticks = (int32_t)(scroll_ticks_d);
     if (scroll_ticks != 0) {
-      scroll_accum += -(scroll_ticks * 120);
+      scroll_accum += -(scroll_ticks * SCROLL_UNITS_PER_TICK);
       *accum_ptr = scroll_accum;
     }
   }
@@ -2094,12 +2094,14 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
        * https://lwn.net/Articles/886516/
        */
       vert_scroll_val = libinput_event_pointer_get_scroll_value(
-        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL) * 8.0;
+        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_VERTICAL)
+        * SCROLL_ANGLE_TO_UNITS_FACTOR_D;
     }
     if (libinput_event_pointer_has_axis(pointer_event,
       LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL)) {
       horiz_scroll_val = libinput_event_pointer_get_scroll_value(
-        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL) * 8.0;
+        pointer_event, LIBINPUT_POINTER_AXIS_SCROLL_HORIZONTAL)
+        * SCROLL_ANGLE_TO_UNITS_FACTOR_D;
     }
     vert_scroll_accum += vert_scroll_val;
     horiz_scroll_accum += horiz_scroll_val;
@@ -2181,19 +2183,23 @@ static void release_scheduled_input_events(void) {
       if (packet->data.mousescroll.vert_scroll_ticks != 0) {
         zwlr_virtual_pointer_v1_axis(state.virt_pointer,
           (uint32_t)(packet->sched_time), WL_POINTER_AXIS_VERTICAL_SCROLL,
-          wl_fixed_from_int(packet->data.mousescroll.vert_scroll_ticks * 15));
+          wl_fixed_from_int(packet->data.mousescroll.vert_scroll_ticks
+            * SCROLL_ANGLE_PER_TICK));
         zwlr_virtual_pointer_v1_axis_discrete(state.virt_pointer,
           (uint32_t)(packet->sched_time), WL_POINTER_AXIS_VERTICAL_SCROLL,
-          wl_fixed_from_int(15), packet->data.mousescroll.vert_scroll_ticks);
+          wl_fixed_from_int(SCROLL_ANGLE_PER_TICK),
+          packet->data.mousescroll.vert_scroll_ticks);
         send_axis_source_and_frame = true;
       }
       if (packet->data.mousescroll.horiz_scroll_ticks != 0) {
         zwlr_virtual_pointer_v1_axis(state.virt_pointer,
           (uint32_t)(packet->sched_time), WL_POINTER_AXIS_HORIZONTAL_SCROLL,
-          wl_fixed_from_int(packet->data.mousescroll.horiz_scroll_ticks * 15));
+          wl_fixed_from_int(packet->data.mousescroll.horiz_scroll_ticks
+            * SCROLL_ANGLE_PER_TICK));
         zwlr_virtual_pointer_v1_axis_discrete(state.virt_pointer,
           (uint32_t)(packet->sched_time), WL_POINTER_AXIS_HORIZONTAL_SCROLL,
-          wl_fixed_from_int(15), packet->data.mousescroll.horiz_scroll_ticks);
+          wl_fixed_from_int(SCROLL_ANGLE_PER_TICK),
+            packet->data.mousescroll.horiz_scroll_ticks);
         send_axis_source_and_frame = true;
       }
       if (send_axis_source_and_frame) {

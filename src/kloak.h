@@ -3,11 +3,6 @@
  * See the file COPYING for copying conditions.
  */
 
-/*
- * TODO: Move most of the includes from kloak.c to here; right now this is a
- * very non-portable header file.
- */
-
 /*********************************/
 /* static defines, do not change */
 /*********************************/
@@ -15,6 +10,15 @@
 #define ASCII_UPPERCASE_START 65
 #define ASCII_LOWERCASE_START 97
 #define UNIX_SOCK_PATH_MAX 107
+/*
+ * See the scroll handling comment in
+ * queue_libinput_event_and_relocate_virtual_cursor() for details on why the
+ * scroll-related values below were chosen.
+ */
+#define SCROLL_UNITS_PER_TICK 120
+#define SCROLL_UNITS_PER_TICK_D 120.0
+#define SCROLL_ANGLE_PER_TICK 15
+#define SCROLL_ANGLE_TO_UNITS_FACTOR_D 8.0
 
 /*******************/
 /* tunable defines */
