@@ -1,3 +1,46 @@
+commit c82798bdfd7ca0cc3b47c120cd6fb9c23923d61e
+Merge: e680008 59c2f33
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Tue Dec 2 07:09:16 2025 -0500
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit 59c2f33d28af12b0d835847ed4499289d254109e
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Wed Nov 26 21:16:26 2025 -0600
+
+    Discard libinput events we can't handle earlier (necessary for scroll event batching to work right)
+
+commit dd97515ab43e4014ffe81dedb8765bb507189077
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Wed Nov 26 20:13:19 2025 -0600
+
+    Turn magic numbers in scroll calculations into defines
+
+commit 55359507a61224a6a0ee0474a686bab1abd42653
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Wed Nov 26 20:05:21 2025 -0600
+
+    Fix several floating-point literals, fix incorrect scroll axis value being used for horizontal scrolling
+
+commit 693674f19037501fb22ff917569540154565066f
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Wed Nov 26 18:39:47 2025 -0600
+
+    Make some float initialization cleaner, clarify comments, add a missing time check
+
+commit 9bc452a38c46d100d23bcd7349d6d99893899010
+Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
+Date:   Tue Nov 25 23:31:09 2025 -0600
+
+    WIP: Rework scroll event handling for better anonymity and to allow sending discrete scroll events
+
+commit e680008ae3e41b26716492033feaf240ced7265a
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sun Nov 9 09:18:40 2025 +0000
+
+    bumped changelog version
+
 commit 0d761bdb458ae1814823fea4fbf57350db20da0a
 Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Sun Nov 9 04:18:11 2025 -0500
