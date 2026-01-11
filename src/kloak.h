@@ -366,7 +366,7 @@ static uint32_t parse_uint32_arg(const char *arg_name, const char *val,
 static int32_t sleep_ms(int64_t ms);
 
 /*
- * Allocates a formatted string and returns a ointer to it. It is the caller's
+ * Allocates a formatted string and returns a pointer to it. It is the caller's
  * responsibility to free this when it is no longer in use.
  */
 static char *sgenprintf(const char *str, ...);
