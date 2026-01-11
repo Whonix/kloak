@@ -2045,7 +2045,7 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
    *   doesn't work with high-resolution scroll devices, and both are
    *   deprecated.
    *
-   * To acheive the desired user experience given the above API, the scroll
+   * To achieve the desired user experience given the above API, the scroll
    * accumulator's value represents 1/120ths of a scroll tick (the same value
    * used by the v120 function above). For scroll wheels, we can thus use the
    * output of the v120 function directly. For everything else, we assume that

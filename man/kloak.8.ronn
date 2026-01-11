@@ -28,7 +28,7 @@ kloak(8) -- anti keystroke deanonymization tool
     hexadecimal value in the format AARRGGBB (one byte for each of alpha, red,
     green, blue). Default is ffff0000 (solid red).
   * `-n`, `--natural-scrolling` :
-    Enable reversed ("natural") scroling. Expects the string 'true' or
+    Enable reversed ("natural") scrolling. Expects the string 'true' or
     'false'. Default is 'false'.
   * `-k`, `--esc-key-combo` :
     Specify the key combination that will terminate kloak. Keys are separated
