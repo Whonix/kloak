@@ -3,6 +3,9 @@
 ## Copyright (C) 2025 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
 ## See the file COPYING for copying conditions.
 
+## Code duplication. Similar to
+## helper-scripts /usr/libexec/helper-scripts/find_wl_compositor
+
 # pylint: disable=broad-exception-caught
 
 """
