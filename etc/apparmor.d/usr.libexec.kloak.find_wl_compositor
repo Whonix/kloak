@@ -4,6 +4,9 @@ include <tunables/global>
 ## Copyright (C) 2012 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
 ## See the file COPYING for copying conditions.
 
+## Code duplication. Entire file is almost identical to
+## helper-scripts  /etc/apparmor.d/usr.libexec.helper-scripts.find_wl_compositor
+
 /usr/libexec/kloak/find_wl_compositor flags=(attach_disconnected.path=/disconnected) {
   include <local/usr.libexec.kloak.find_wl_compositor>
 
