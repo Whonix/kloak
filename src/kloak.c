@@ -2370,7 +2370,7 @@ static void print_usage(void) {
   fprintf(stderr, "  -n, --natural-scrolling=(true|false)\n");
   fprintf(stderr, "    Enable or disable natural scrolling on supported pointing devices. Default\n");
   fprintf(stderr, "    is false.\n");
-  fprintf(stderr, "  -k, --esc-key-combo=KEY_![,KEY_2|KEY_3...]\n");
+  fprintf(stderr, "  -k, --esc-key-combo=KEY_1[,KEY_2|KEY_3...]\n");
   fprintf(stderr, "    Specify the key combination that will terminate kloak. Keys are separated\n");
   fprintf(stderr, "    by commas. Keys can be aliased to each other by separating them with a\n");
   fprintf(stderr, "    pipe (|) character. Default is KEY_RIGHTSHIFT,KEY_ESC.\n");
