@@ -26,7 +26,8 @@ kloak(8) -- anti keystroke deanonymization tool
   * `-c`, `--color` :
     Configure the color to use for the virtual mouse cursor. Expects a
     hexadecimal value in the format AARRGGBB (one byte for each of alpha, red,
-    green, blue). Default is ffff0000 (solid red).
+    green, blue). Default is 00000000 (fully transparent black, i.e.
+    invisible).
   * `-n`, `--natural-scrolling` :
     Enable reversed ("natural") scrolling. Expects the string 'true' or
     'false'. Default is 'false'.
