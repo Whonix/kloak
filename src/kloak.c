@@ -2566,7 +2566,7 @@ static void applayer_poll_init(void) {
 }
 
 static void parse_cli_args(int argc, char **argv) {
-  const char *optstring = "d:s:h";
+  const char *optstring = "d:s:hc:k:n:";
   static struct option optarr[] = {
     {"delay", required_argument, NULL, 'd'},
     {"start-delay", required_argument, NULL, 's'},
