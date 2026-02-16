@@ -1,3 +1,34 @@
+commit 852166008f429cfeaa48ef390693ff8c89267935
+Merge: aa648cd fdd1794
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Mon Feb 16 05:25:08 2026 -0500
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit fdd1794a2bb5f81b8c8712fa0308e1f29e485e7e
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Sat Feb 14 22:01:12 2026 -0600
+
+    Fix docs related to default cursor color
+
+commit 6dbd6b7d6eba104c242a26415580937a0cb36fd9
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Sat Feb 14 21:46:26 2026 -0600
+
+    Fix short option parsing
+
+commit 2cac9433af45db85bfef3331c864d483a784ba3a
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Fri Feb 13 17:10:54 2026 -0600
+
+    typo
+
+commit aa648cd14474f60c4f9f9bd7817aedc28ff08906
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri Jan 16 12:12:12 2026 +0000
+
+    bumped changelog version
+
 commit 1d6f8d509dcdf50dc29036c8da3c047cc35ddf4b
 Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Fri Jan 16 05:10:35 2026 -0500
