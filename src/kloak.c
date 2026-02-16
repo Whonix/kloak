@@ -2366,11 +2366,11 @@ static void print_usage(void) {
   fprintf(stderr, "    Configure the time to wait before startup. Default is 500.\n");
   fprintf(stderr, "  -c, --color=AARRGGBB\n");
   fprintf(stderr, "    Configure the color to use for the virtual mouse cursor. Default is\n");
-  fprintf(stderr, "    ffff0000 (solid red).\n");
+  fprintf(stderr, "    00000000 (fully transparent black, i.e. invisible).\n");
   fprintf(stderr, "  -n, --natural-scrolling=(true|false)\n");
   fprintf(stderr, "    Enable or disable natural scrolling on supported pointing devices. Default\n");
   fprintf(stderr, "    is false.\n");
-  fprintf(stderr, "  -k, --esc-key-combo=KEY_![,KEY_2|KEY_3...]\n");
+  fprintf(stderr, "  -k, --esc-key-combo=KEY_1[,KEY_2|KEY_3...]\n");
   fprintf(stderr, "    Specify the key combination that will terminate kloak. Keys are separated\n");
   fprintf(stderr, "    by commas. Keys can be aliased to each other by separating them with a\n");
   fprintf(stderr, "    pipe (|) character. Default is KEY_RIGHTSHIFT,KEY_ESC.\n");
@@ -2566,7 +2566,7 @@ static void applayer_poll_init(void) {
 }
 
 static void parse_cli_args(int argc, char **argv) {
-  const char *optstring = "d:s:h";
+  const char *optstring = "d:s:hc:k:n:";
   static struct option optarr[] = {
     {"delay", required_argument, NULL, 'd'},
     {"start-delay", required_argument, NULL, 's'},
