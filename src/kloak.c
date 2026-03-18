@@ -350,6 +350,21 @@ static void safe_closedir(DIR *dirp) {
   }
 }
 
+static void li_device_info_ref(struct li_device_info *ldi) {
+  ldi->refcount += 1;
+}
+
+static void li_device_info_unref(struct li_device_info *ldi) {
+  ldi->refcount -= 1;
+  if (ldi->refcount == 0) {
+    /* The user data for a device is the struct we're freeing, so NULL out the
+     * user data for safety. */
+    libinput_device_set_user_data(ldi->device, NULL);
+    free(ldi->device_name);
+    free(ldi);
+  }
+}
+
 /*static off_t safe_lseek(int fd, off_t offset, int whence) {
   off_t rslt = lseek(fd, offset, whence);
   if (rslt == -1) {
@@ -973,6 +988,13 @@ static void attach_input_device(const char *dev_name) {
   ldi_node = safe_calloc(1, sizeof(struct li_device_info));
   ldi_node->device = new_device;
   ldi_node->device_name = safe_strdup(dev_name);
+  ldi_node->num_lock_state = 0;
+  ldi_node->num_lock_held = false;
+  ldi_node->caps_lock_state = 0;
+  ldi_node->caps_lock_held = false;
+  ldi_node->last_led_state = 0;
+  ldi_node->refcount = 1;
+  libinput_device_set_user_data(new_device, ldi_node);
   LIST_INSERT_HEAD(&ldi_head, ldi_node, entries);
 }
 
@@ -993,10 +1015,9 @@ static void detach_input_device(const char *dev_name) {
     return;
   }
 
+  li_device_info_unref(ldi_node);
   libinput_path_remove_device(ldi_node->device);
-  free(ldi_node->device_name);
   LIST_REMOVE(ldi_node, entries);
-  free(ldi_node);
 }
 
 static int32_t get_ticks_from_scroll_accum(double *accum_ptr) {
@@ -1823,6 +1844,11 @@ static void handle_libinput_event(struct libinput_event *li_event,
   uint32_t ts_milliseconds) {
   bool mouse_event_handled = false;
   enum libinput_event_type ev_type = libinput_event_get_type(li_event);
+  struct libinput_device *ev_device = libinput_event_get_device(li_event);
+  struct li_device_info *ev_device_info = libinput_device_get_user_data(
+    ev_device
+  );
+  assert(ev_device_info != NULL);
 
   if (ev_type == LIBINPUT_EVENT_DEVICE_ADDED) {
     struct libinput_device *new_dev = libinput_event_get_device(li_event);
@@ -1862,6 +1888,7 @@ static void handle_libinput_event(struct libinput_event *li_event,
       uint32_t key = libinput_event_keyboard_get_key(kb_event);
       enum libinput_key_state key_state
         = libinput_event_keyboard_get_key_state(kb_event);
+      enum libinput_led led_state = 0;
       xkb_mod_mask_t depressed_mods;
       xkb_mod_mask_t latched_mods;
       xkb_mod_mask_t locked_mods;
@@ -1886,12 +1913,54 @@ static void handle_libinput_event(struct libinput_event *li_event,
         latched_mods, locked_mods, effective_group);
       zwp_virtual_keyboard_v1_key(state.virt_kb, ts_milliseconds, key,
         key_state);
+
+      /* Generally, X11 and Wayland turn an LED on after a key press, and
+       * off after a key release. The exact reason for this is unclear, but
+       * we mimic that behavior here to make sure we don't trip any weird
+       * edge cases that depend on this. */
+      if (key == KEY_NUMLOCK) {
+        if (key_state == LIBINPUT_KEY_STATE_PRESSED
+          && !ev_device_info->num_lock_held) {
+          ev_device_info->num_lock_held = true;
+          ev_device_info->num_lock_state += 1;
+        } else if (key_state == LIBINPUT_KEY_STATE_RELEASED) {
+          ev_device_info->num_lock_held = false;
+          ev_device_info->num_lock_state += 1;
+        }
+        if (ev_device_info->num_lock_state == 4) {
+          ev_device_info->num_lock_state = 0;
+        }
+      } else if (key == KEY_CAPSLOCK) {
+        if (key_state == LIBINPUT_KEY_STATE_PRESSED
+          && !ev_device_info->caps_lock_held) {
+          ev_device_info->caps_lock_held = true;
+          ev_device_info->caps_lock_state += 1;
+        } else if (key_state == LIBINPUT_KEY_STATE_RELEASED) {
+          ev_device_info->caps_lock_held = false;
+          ev_device_info->caps_lock_state += 1;
+        }
+        if (ev_device_info->caps_lock_state == 4) {
+          ev_device_info->caps_lock_state = 0;
+        }
+      }
+      if (ev_device_info->num_lock_state != 0) {
+        led_state |= LIBINPUT_LED_NUM_LOCK;
+      }
+      if (ev_device_info->caps_lock_state != 0) {
+        led_state |= LIBINPUT_LED_CAPS_LOCK;
+      }
+      if (led_state != ev_device_info->last_led_state) {
+        ev_device_info->last_led_state = led_state;
+        libinput_device_led_update(ev_device, led_state);
+      }
     }
   }
 
   if (mouse_event_handled) {
     zwlr_virtual_pointer_v1_frame(state.virt_pointer);
   }
+
+  li_device_info_unref(ev_device_info);
   libinput_event_destroy(li_event);
 }
 
@@ -1943,6 +2012,8 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
   struct libinput_event *li_event) {
   struct input_packet *ev_packet = NULL;
   struct libinput_event_pointer *pointer_event = NULL;
+  struct libinput_device *ev_device = NULL;
+  struct li_device_info *ev_device_info = NULL;
   enum libinput_event_type li_event_type = libinput_event_get_type(li_event);
   double abs_x = 0.0;
   double abs_y = 0.0;
@@ -2122,6 +2193,10 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
     }
     ev_packet->packet_type = KLOAK_PACKET_TYPE_LIBINPUT;
     ev_packet->data.libinput.li_event = li_event;
+    ev_device = libinput_event_get_device(li_event);
+    ev_device_info = libinput_device_get_user_data(ev_device);
+    assert(ev_device_info != NULL);
+    li_device_info_ref(ev_device_info);
   } else {
     /*
      * Other libinput events (like gestures) can't actually be passed through
