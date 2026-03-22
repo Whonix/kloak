@@ -1000,6 +1000,7 @@ static void attach_input_device(const char *dev_name) {
 
 static void detach_input_device(const char *dev_name) {
   struct li_device_info *ldi_node = NULL;
+  struct libinput_device *dev = NULL;
   bool found_device = false;
 
   ldi_node = LIST_FIRST(&ldi_head);
@@ -1015,9 +1016,16 @@ static void detach_input_device(const char *dev_name) {
     return;
   }
 
-  li_device_info_unref(ldi_node);
-  libinput_path_remove_device(ldi_node->device);
+  dev = ldi_node->device;
   LIST_REMOVE(ldi_node, entries);
+  /* 'ldi_node' MUST be unreferenced first, then the contained device can be
+   * removed. li_device_info_unref() will null out the user data of 'dev'
+   * before freeing 'ldi_node' if the reference count reaches 0, and libinput
+   * is liable to free 'dev' if removing it causes its reference count to
+   * reach 0. Thus reversing the below two lines would likely result in a
+   * use-after-free. */
+  li_device_info_unref(ldi_node);
+  libinput_path_remove_device(dev);
 }
 
 static int32_t get_ticks_from_scroll_accum(double *accum_ptr) {
