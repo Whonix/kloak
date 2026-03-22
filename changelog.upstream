@@ -1,3 +1,28 @@
+commit 51466cbb00d8389fe858e495f293000958db8cb0
+Merge: 2acef70 1535631
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sun Mar 22 05:59:57 2026 -0400
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit 15356310945d2383cd0065ed0182da3255fed6c2
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Wed Mar 18 21:28:44 2026 -0400
+
+    Use a polling mechanism in find_wl_compositor instead of a not-always-functional flag file, remove outdated comment, fix an incorrect variable use
+
+commit 53b24b6fcdcd4a23ded118989d3b523f91cc363f
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Tue Mar 17 23:50:54 2026 -0400
+
+    Illuminate the Num Lock and Caps Lock LEDs when appropriate (this fixes numpad under VirtualBox as well)
+
+commit 2acef70f399b846e1ef65e9d04ab57565b9ad789
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Mon Feb 16 10:34:35 2026 +0000
+
+    bumped changelog version
+
 commit 852166008f429cfeaa48ef390693ff8c89267935
 Merge: aa648cd fdd1794
 Author: Patrick Schleizer <adrelanos@whonix.org>
