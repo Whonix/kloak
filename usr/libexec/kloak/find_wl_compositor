@@ -15,9 +15,6 @@ VT.
 
 We use the following procedure to find the correct compositor:
 
-- Determine if XDG_RUNTIME_DIR and WAYLAND_DISPLAY are already set. If
-  they are, we have everything we need already set up, skip the rest of
-  the autodetect process. Otherwise, continue.
 - Determine the active VT.
 - Find all applications that are "running on" the TTY corresponding to
   that VT (any application with stdout or stderr connected to a
@@ -90,9 +87,6 @@ known_compositor_list: list[str] = [
 ]
 
 kloak_env_save_str: str = "/run/kloak_wl_compositor_data"
-kloak_wayland_flag_str: str = (
-    "/run/desktop_config_dist_wayland_session_started"
-)
 
 
 def wlsortmorph(obj: tuple[str, str]) -> str:
@@ -150,20 +144,36 @@ def query_sock_pid(sock_path: str) -> str | None:
         return None
 
 
-# pylint: disable=too-many-locals,too-many-branches,too-many-statements
-def main() -> NoReturn:
+def log_error(
+    do_log: bool, msg: str, exc_info: Exception | None = None
+) -> None:
     """
-    Main function.
+    Prints error log info if do_log is True, otherwise acts as a no-op.
     """
 
-    while not Path(kloak_wayland_flag_str).is_file():
-        time.sleep(1)
+    if not do_log:
+        return
+
+    if exc_info is not None:
+        logger.error(msg, exc_info=exc_info)
+    else:
+        logger.error(msg)
+
+
+# pylint: disable=too-many-locals,too-many-branches,too-many-statements,too-many-return-statements
+def scan(do_log: bool) -> bool:
+    """
+    Attempts to find the Wayland compositor running on the active VT. If
+    found, writes info about how to connect to this compositor to the path
+    pointed to by kloak_env_save_str and returns True. Otherwise, returns
+    False.
+    """
 
     try:
         Path(kloak_env_save_str).unlink(missing_ok=True)
     except Exception:
-        logger.error("Could not force-unlink '%s'!", kloak_env_save_str)
-        sys.exit(1)
+        log_error(do_log, f"Could not force-unlink '{kloak_env_save_str}'!")
+        return False
 
     try:
         active_vt: int = int(
@@ -176,12 +186,12 @@ def main() -> NoReturn:
             ).stdout.strip()
         )
     except Exception as e:
-        logger.error("Unable to determine active VT!", exc_info=e)
-        sys.exit(1)
+        log_error(do_log, "Unable to determine active VT!", exc_info=e)
+        return False
 
     if active_vt == 0:
-        logger.error("Active VT appears to be 0, cannot continue!")
-        sys.exit(1)
+        log_error(do_log, "Active VT appears to be 0!")
+        return False
 
     process_on_vt_list: list[tuple[str, str]] = []
 
@@ -229,14 +239,16 @@ def main() -> NoReturn:
                 continue
             process_on_vt_list.append((proc_entry.name, comm_str))
     except Exception as e:
-        logger.error(
-            "Unable to scan /proc for Wayland compositors!", exc_info=e
+        log_error(
+            do_log,
+            "Unable to scan /proc for Wayland compositors!",
+            exc_info=e,
         )
-        sys.exit(1)
+        return False
 
     if len(process_on_vt_list) == 0:
-        logger.error("No processes found on active VT!")
-        sys.exit(1)
+        log_error(do_log, "No processes found on active VT!")
+        return False
 
     wl_pid_str_list: list[str] = [
         pid_str
@@ -245,8 +257,8 @@ def main() -> NoReturn:
     ]
 
     if len(wl_pid_str_list) == 0:
-        logger.error("No Wayland compositors found on active VT!")
-        sys.exit(1)
+        log_error(do_log, "No Wayland compositors found on active VT!")
+        return False
 
     xdg_runtime_dir_set: set[str] = set()
     for pid_str in wl_pid_str_list:
@@ -319,8 +331,8 @@ def main() -> NoReturn:
             break
 
     if xdg_runtime_dir_var is None or wayland_display_var is None:
-        logger.error("No Wayland compositors found on active VT!")
-        sys.exit(1)
+        log_error(do_log, "No Wayland compositors found on active VT!")
+        return False
 
     try:
         with os.fdopen(
@@ -335,13 +347,33 @@ def main() -> NoReturn:
             print(f"XDG_RUNTIME_DIR={xdg_runtime_dir_var}", file=output_file)
             print(f"WAYLAND_DISPLAY={wayland_display_var}", file=output_file)
     except Exception as e:
-        logger.error(
-            "Cannot write Wayland compositor information to '%s'!",
-            output_file,
+        log_error(
+            do_log,
+            "Cannot write Wayland compositor information to "
+            + f"'{kloak_env_save_str}'!",
             exc_info=e,
         )
-        sys.exit(1)
+        return False
 
+    return True
+
+
+def main() -> NoReturn:
+    """
+    Main function.
+    """
+
+    ## Try to find a compositor for 30 seconds, waiting 3 seconds between
+    ## attempts
+    for scan_attempt_idx in range(10):
+        time.sleep(3)
+        ## Only print log messages on the last iteration.
+        scan_result: bool = scan(scan_attempt_idx == 4)
+        if scan_result:
+            break
+
+    if not scan_result:
+        sys.exit(1)
     sys.exit(0)
 
 

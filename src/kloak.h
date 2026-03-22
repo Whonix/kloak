@@ -51,6 +51,12 @@
 struct li_device_info {
   struct libinput_device *device;
   char *device_name;
+  uint8_t num_lock_state;
+  bool num_lock_held;
+  uint8_t caps_lock_state;
+  bool caps_lock_held;
+  enum libinput_led last_led_state;
+  uint32_t refcount;
   LIST_ENTRY(li_device_info) entries;
 };
 
@@ -265,6 +271,16 @@ static DIR *safe_opendir(const char *name, bool allow_enoent);
  * Closes a directory. Kills the process if the close fails.
  */
 static void safe_closedir(DIR *dirp);
+
+/*
+ * Increments the reference count of an li_device_info struct.
+ */
+static void li_device_info_ref(struct li_device_info *ldi);
+
+/*
+ * Decrements the reference count of an li_device_info struct,
+ */
+static void li_device_info_unref(struct li_device_info *ldi);
 
 /*
  * Reads the specified number of random bytes from /dev/urandom into the
