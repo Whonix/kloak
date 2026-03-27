@@ -265,7 +265,7 @@ static void safe_close(int fd);
 /*
  * Opens a directory. Kills the process if the open fails.
  */
-static DIR *safe_opendir(const char *name, bool allow_enoent);
+static DIR *safe_opendir(const char *name);
 
 /*
  * Closes a directory. Kills the process if the close fails.
