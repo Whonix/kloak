@@ -1,3 +1,22 @@
+commit 36e53145ab705d8375da08d1c7b75bed07bafbab
+Merge: 79b78dc 6aa53ab
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri Mar 27 04:23:30 2026 -0400
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit 6aa53abfde53a023f2ee6b6ad44afb5366c70993
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Sun Mar 22 18:29:05 2026 -0400
+
+    Fix use-after-free in kloak.c, fix logging bug in find_wl_compositor, add -fanalyzer "mode" to Makefile
+
+commit 79b78dc4ef3a9e303afc411ff6f95133b0a1c9d9
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sun Mar 22 11:16:52 2026 +0000
+
+    bumped changelog version
+
 commit 51466cbb00d8389fe858e495f293000958db8cb0
 Merge: 2acef70 1535631
 Author: Patrick Schleizer <adrelanos@whonix.org>
