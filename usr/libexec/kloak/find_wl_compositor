@@ -365,10 +365,11 @@ def main() -> NoReturn:
 
     ## Try to find a compositor for 30 seconds, waiting 3 seconds between
     ## attempts
-    for scan_attempt_idx in range(10):
+    max_scan_attempts: int = 10
+    for scan_attempt_idx in range(max_scan_attempts):
         time.sleep(3)
         ## Only print log messages on the last iteration.
-        scan_result: bool = scan(scan_attempt_idx == 4)
+        scan_result: bool = scan(scan_attempt_idx == (max_scan_attempts - 1))
         if scan_result:
             break
 
