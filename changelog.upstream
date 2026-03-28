@@ -1,3 +1,37 @@
+commit f1fcd94cba6adc5ede39c4f362e423d4401f47f3
+Merge: f95c2e8 45311d6
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Mar 28 03:20:24 2026 -0400
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit 45311d60161bb2a3261d8560a9d59f6325ebd81a
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Fri Mar 27 17:15:28 2026 -0400
+
+    Multiple bugfixes
+    
+    * Remove broken, dead code from `safe_opendir()`.
+    * Fix a calculation bug that could make kloak think non-touching,
+      non-overlapping screens were overlapping.
+    * Fix a calculation bug that could make kloak think touching or
+      overlapping screens did not overlap.
+    * Move a misplaced NULL check earlier in the input device registration
+      code.
+    * Fix a bad flag check that made kloak think the compositor always
+      supported a keyboard, even if it didn't.
+    * Ignore "raw" keymaps sent by the Wayland compositor.
+    * Harden against potentially malicious XKB v1 keymaps with no NULL
+      terminator.
+    * Avoid crashing when the cursor tries to move diagonally off a screen
+      into compositor global space.
+
+commit f95c2e8b08ee714f54612bdda4d75c5ebd569b82
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri Mar 27 08:58:15 2026 +0000
+
+    bumped changelog version
+
 commit 36e53145ab705d8375da08d1c7b75bed07bafbab
 Merge: 79b78dc 6aa53ab
 Author: Patrick Schleizer <adrelanos@whonix.org>
