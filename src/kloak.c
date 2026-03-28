@@ -313,16 +313,14 @@ static void safe_close(int fd) {
   }
 }
 
-static DIR *safe_opendir(const char *name, bool allow_enoent) {
+static DIR *safe_opendir(const char *name) {
   DIR *out_ptr = opendir(name);
   int dir_fd = 0;
   if (out_ptr == NULL) {
-    if (!allow_enoent || errno != ENOENT) {
-      fprintf(stderr,
-        "FATAL ERROR: Could not open directory '%s': %s\n", name,
-        strerror(errno));
-      exit(1);
-    }
+    fprintf(stderr,
+      "FATAL ERROR: Could not open directory '%s': %s\n", name,
+      strerror(errno));
+    exit(1);
   }
 
   dir_fd = dirfd(out_ptr);
@@ -556,20 +554,54 @@ static bool check_screen_touch(struct output_geometry scr1,
     scr1.height += 1;
   }
 
-  if (check_point_in_area(scr1.x, scr1.y, scr2.x, scr2.y, scr2.x + scr2.width,
-    scr2.y + scr2.height)) {
+  if (check_point_in_area(scr1.x, scr1.y, scr2.x, scr2.y, scr2.width,
+    scr2.height)) {
     return true;
   }
   if (check_point_in_area(scr1.x + scr1.width, scr1.y, scr2.x, scr2.y,
-    scr2.x + scr2.width, scr2.y + scr2.height)) {
+    scr2.width, scr2.height)) {
     return true;
   }
   if (check_point_in_area(scr1.x, scr1.y + scr1.height, scr2.x, scr2.y,
-    scr2.x + scr2.width, scr2.y + scr2.height)) {
+    scr2.width, scr2.height)) {
     return true;
   }
   if (check_point_in_area(scr1.x + scr1.width, scr1.y + scr1.height, scr2.x,
-    scr2.y, scr2.x + scr2.width, scr2.y + scr2.height)) {
+    scr2.y, scr2.width, scr2.height)) {
+    return true;
+  }
+  /*
+   * It's possible for none of screen 1's corners to be inside screen 2, but
+   * for some of screen 2's corners to be inside screen 1, i.e. in this
+   * configuration:
+   *
+   * +------------------+
+   * |                  |
+   * |               +------------------+
+   * |     Screen 1  |  |  Screen 2     |
+   * |               +------------------+
+   * |                  |
+   * +------------------+
+   *
+   * Therefore we need to repeat the above checks to see if screen 2 has a
+   * corner within screen 1. We do NOT need to grow screen 2 by one pixel in
+   * all directions like we did with screen 1; the growing of screen 1 is
+   * enough to allow touch detection, we just need to actually detect it.
+   */
+  if (check_point_in_area(scr2.x, scr2.y, scr1.x, scr1.y, scr1.width,
+    scr1.height)) {
+    return true;
+  }
+  if (check_point_in_area(scr2.x + scr2.width, scr2.y, scr1.x, scr1.y,
+    scr1.width, scr1.height)) {
+    return true;
+  }
+  if (check_point_in_area(scr2.x, scr2.y + scr2.height, scr1.x, scr1.y,
+    scr1.width, scr1.height)) {
+    return true;
+  }
+  if (check_point_in_area(scr2.x + scr2.width, scr2.y + scr2.height, scr1.x,
+    scr1.y, scr1.width, scr1.height)) {
     return true;
   }
   return false;
@@ -975,14 +1007,14 @@ static void attach_input_device(const char *dev_name) {
   new_device = libinput_path_add_device(li, device_path);
   free(device_path);
 
+  if (new_device == NULL) {
+    return;
+  }
+
   /* Set any "special" input device settings. */
   if (enable_natural_scrolling == true
     && libinput_device_config_scroll_has_natural_scroll(new_device) != 0) {
     libinput_device_config_scroll_set_natural_scroll_enabled(new_device, 1);
-  }
-
-  if (new_device == NULL) {
-    return;
   }
 
   ldi_node = safe_calloc(1, sizeof(struct li_device_info));
@@ -1203,7 +1235,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *seat,
   struct disp_state *param_state = data;
 
   param_state->seat_caps = capabilities;
-  if (capabilities | WL_SEAT_CAPABILITY_KEYBOARD) {
+  if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
     param_state->kb = wl_seat_get_keyboard(seat);
     wl_keyboard_add_listener(param_state->kb, &kb_listener, param_state);
   } else {
@@ -1219,6 +1251,13 @@ static void kb_handle_keymap(void *data,
   struct disp_state *param_state = data;
   char *kb_map_shm = NULL;
 
+  if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1) {
+    fprintf(stderr,
+      "WARNING: Unsupported raw keymap was provided by server, ignoring.\n");
+    safe_close(fd);
+    return;
+  }
+
   assert(size <= INT32_MAX);
 
   kb_map_shm = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
@@ -1226,6 +1265,14 @@ static void kb_handle_keymap(void *data,
     fprintf(stderr, "FATAL ERROR: Could not mmap xkb layout!\n");
     exit(1);
   }
+
+  /* XKB v1 keymaps are NULL-terminated strings. */
+  if (memchr(kb_map_shm, '\0', size) == NULL) {
+    fprintf(stderr,
+      "FATAL ERROR: Compositor sent potentially malicious keymap with no NULL terminator!\n");
+    exit(1);
+  }
+
   if (param_state->old_kb_map_shm) {
     if (strcmp(param_state->old_kb_map_shm, kb_map_shm) == 0) {
       /* New and old maps are the same, cleanup and return. */
@@ -1699,8 +1746,8 @@ static struct input_packet * update_virtual_cursor(void) {
    * This is a bit tricky to do since we can't just look at the intended final
    * location of the mouse and move it there if that location is valid, since
    * that would allow jumping over "voids" in the compositor global space
-   * (places whether global space has a pixel but no screen covers that
-   * pixel). Instead, we use the following algorithm:
+   * (places where global space has a pixel but no screen covers that pixel).
+   * Instead, we use the following algorithm:
    *
    * - Take the previous cursor position and treat it as a "start location".
    *   Treat the current cursor position as an "end location".
@@ -1783,8 +1830,17 @@ static struct input_packet * update_virtual_cursor(void) {
           continue;
         }
       }
-      /* This should never be reached, but just in case... */
-      abort();
+      /*
+       * If all of the above fail, we've gone diagonally off a screen and into
+       * compositor global space. Move the cursor back to where it was and
+       * stop it.
+       */
+      start.x = prev_trav_coord.x;
+      start.y = prev_trav_coord.y;
+      end.x = prev_trav_coord.x;
+      end.y = prev_trav_coord.y;
+      i = -1;
+      continue;
     }
     if (end_x_hit && end_y_hit) {
       if ((int32_t)(cursor_x) != end.x) {
@@ -2592,7 +2648,7 @@ static void applayer_libinput_init(void) {
 
   li = libinput_path_create_context(&li_interface, NULL);
 
-  input_dir = safe_opendir("/dev/input", false);
+  input_dir = safe_opendir("/dev/input");
   for (input_dir_entry = readdir(input_dir); input_dir_entry != NULL;
     input_dir_entry = readdir(input_dir)) {
     if (input_dir_entry->d_type != DT_CHR) {
