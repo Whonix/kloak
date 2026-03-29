@@ -58,4 +58,5 @@ include <tunables/global>
 
   deny /etc/nsswitch.conf r,
   deny /etc/passwd r,
+  deny /etc/localtime r,
 }
