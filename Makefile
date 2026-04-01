@@ -29,6 +29,9 @@ CC_VERSION=$(shell $(CC) --version)
 #
 # Added the following flags:
 # -ftrapv                      # Crash on signed integer overflow/underflow
+# -ftrivial-auto-var-init=zero # Zero-init local variables to prevent info leaks
+# -fzero-call-used-regs=used-gpr # Zero registers before return to mitigate ROP/info leaks
+# -Wl,-z,separate-code         # Separate code from data pages in ELF binary
 # lots of additional warning flags and hardening
 WARN_CFLAGS := -Wall -Wextra -Wformat -Wformat=2 -Wconversion \
 	-Wimplicit-fallthrough -Werror=format-security -Werror=implicit \
@@ -59,7 +62,8 @@ endif
 FORTIFY_CFLAGS := -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 	-fstack-clash-protection -fstack-protector-all \
 	-fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing \
-	-fstrict-flex-arrays=3 -ftrapv
+	-fstrict-flex-arrays=3 -ftrapv \
+	-ftrivial-auto-var-init=zero -fzero-call-used-regs=used-gpr
 
 ifeq (yes,$(patsubst x86_64%-linux-gnu,yes,$(TARGETARCH)))
 FORTIFY_CFLAGS += -fcf-protection=full # only supported on x86_64
@@ -72,7 +76,8 @@ BIN_CFLAGS := -fPIE
 
 CFLAGS := $(WARN_CFLAGS) $(FORTIFY_CFLAGS) $(BIN_CFLAGS) $(CFLAGS)
 LDFLAGS := -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now \
-	-Wl,--as-needed -Wl,--no-copy-dt-needed-entries -pie $(LDFLAGS)
+	-Wl,-z,separate-code -Wl,--as-needed -Wl,--no-copy-dt-needed-entries \
+	-pie $(LDFLAGS)
 
 ifeq (, $(shell which $(PKG_CONFIG)))
 $(error pkg-config not installed!)
