@@ -1,3 +1,38 @@
+commit 54c7371c8d5bb50e047ddd848e58f542d1e06455
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sun Apr 5 06:22:48 2026 -0400
+
+    remove trailing space
+
+commit 0a7ab9bbb6b44666603dabff0efb21a788d9c6e6
+Merge: d6a59fb 269d91b
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sun Apr 5 06:20:25 2026 -0400
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit 269d91b0cd77e4aa3e43bc5fa758bc743fb1cd00
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Sun Apr 5 00:30:22 2026 -0400
+
+    Bug and documentation fixes
+    
+    * Detect if the Wayland compositor connection is lost and exit when that
+      occurs. (This avoids swallowing all input until the escape key combo
+      is pressed in the event the compositor disconnects, which fixes a bug
+      when using kloak and manual login via greetd.)
+    * Avoid going into a dormant mode if the compositor find_wl_compositor
+      finds is unavailable when kloak goes to connect to it.
+    * Handle an EAGAIN error from `wl_display_flush()` properly.
+    * Fix a comment that had the file descriptors in `ev_fds` mixed up.
+    * Update documentation.
+
+commit d6a59fba693767a62b6b67425882235b2361aa60
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sun Mar 29 10:01:55 2026 +0000
+
+    bumped changelog version
+
 commit 8861fba0724a71d520a5187663feaa4134f3b4f2
 Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Sun Mar 29 05:59:04 2026 -0400
