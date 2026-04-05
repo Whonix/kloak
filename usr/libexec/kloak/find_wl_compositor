@@ -346,6 +346,7 @@ def scan(do_log: bool) -> bool:
         ) as output_file:
             print(f"XDG_RUNTIME_DIR={xdg_runtime_dir_var}", file=output_file)
             print(f"WAYLAND_DISPLAY={wayland_display_var}", file=output_file)
+            print("KLOAK_EXIT_ON_WL_CONNECT_FAILURE=1", file=output_file)
     except Exception as e:
         log_error(
             do_log,
