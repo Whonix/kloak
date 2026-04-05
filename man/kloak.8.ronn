@@ -68,15 +68,18 @@ with multiple graphically logged in users. `kloak` will automatically detect
 the Wayland compositor running on the display and will connect to that
 compositor.
 
-Once `kloak` is started, a small crosshair will appear in the upper-left
-corner of the screen (red by default, but you may configure its color using
-`-c`). This is the virtual mouse cursor. When you move the mouse pointer, the
-virtual cursor will move first. The real mouse cursor will then chase it in an
-erratic pattern. Websites and most applications can only track the real mouse
-cursor, not the virtual one, thus this hides the rhythm of your actual mouse
-movements from applications. Keystroke rhythms will be obfuscated as well by
-inserting random delays into the usual stream of key press and key release
-events.
+Once `kloak` is started, your mouse movements will move a "virtual" mouse
+cursor. This cursor is invisible by default (which provides a better
+experience when using `kloak` inside most virtual machine software). When you
+move the mouse, the virtual cursor will move first. The real mouse cursor will
+then chase it in an erratic pattern. Websites and most applications can only
+track the real mouse cursor, not the virtual one, thus this hides the rhythm
+of your actual mouse movements from applications. Keystroke rhythms will be
+obfuscated as well by inserting random delays into the usual stream of key
+press and key release events.
+
+If you want to see the virtual mouse cursor, use the `-c` option to set the
+cursor's color. It will appear as a small crosshair.
 
 Because `kloak` grabs all input devices for itself and only sends those events
 to a single compositor, keyboard and mouse input to anything other than that
@@ -93,6 +96,12 @@ that would usually be configured by the Wayland compositor need to be
 configured in `kloak` instead. Currently the only special feature `kloak`
 supports is reversed (a.k.a. "natural") scrolling, which can be enabled by
 specifying `--natural-scrolling=true`.
+
+Typically, if `kloak` cannot connect to a Wayland compositor, it will remain
+running, but will do nothing other than swallowing all keyboard and mouse
+input. It will wait for the user to press an escape key combo before exiting.
+If you would like `kloak` to exit immediately if it cannot connect to Wayland,
+set the `KLOAK_EXIT_ON_WL_CONNECT_FAILURE` environment variable to `1`.
 
 ## WWW
 https://github.com/Whonix/kloak

@@ -126,7 +126,7 @@ If you're a fast typist and it seems like there is a long lag between pressing a
 
 The full usage and options are:
 
-    $ ./kloak -h
+    $ ./kloak --help
 
     Usage: kloak [options]
     Anonymizes keyboard and mouse input patterns by injecting jitter into input
@@ -134,10 +134,22 @@ The full usage and options are:
     work with X11.
 
     Options:
-      -d, --delay=milliseconds          maximum delay of released events.
-                                        Default 100.
-      -s, --start-delay=milliseconds    time to wait before startup. Default 500.
-      -h, --help                        print help
+      -h, --help
+        Print help.
+      -d, --delay=milliseconds
+        Configure the maximum delay of released events. Default is 100.
+      -s, --start-delay=milliseconds
+        Configure the time to wait before startup. Default is 500.
+      -c, --color=AARRGGBB
+        Configure the color to use for the virtual mouse cursor. Default is
+        00000000 (fully transparent black, i.e. invisible).
+      -n, --natural-scrolling=(true|false)
+        Enable or disable natural scrolling on supported pointing devices. Default
+        is false.
+      -k, --esc-key-combo=KEY_1[,KEY_2|KEY_3...]
+        Specify the key combination that will terminate kloak. Keys are separated
+        by commas. Keys can be aliased to each other by separating them with a
+        pipe (|) character. Default is KEY_RIGHTSHIFT,KEY_ESC.
 
 ## Try it out
 

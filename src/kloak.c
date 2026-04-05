@@ -113,6 +113,7 @@ static int64_t start_time = 0;
 static int randfd = 0;
 
 static bool did_wayland_init = false;
+static bool exit_on_wl_connect_failure = false;
 
 static struct key_name_value key_table[] = {
   {"KEY_ESC", KEY_ESC},
@@ -1077,6 +1078,21 @@ static int32_t get_ticks_from_scroll_accum(double *accum_ptr) {
   }
 
   return scroll_ticks;
+}
+
+static void wl_display_flush_safe(struct wl_display *display) {
+  if (wl_display_flush(display) == -1) {
+    if (errno == EAGAIN) {
+      ev_fds[2].events |= POLLOUT;
+    } else {
+      fprintf(stderr,
+        "FATAL ERROR: Could not send data to Wayland server: %s\n",
+        strerror(errno));
+      exit(1);
+    }
+  } else {
+    ev_fds[2].events &= ~POLLOUT;
+  }
 }
 
 /********************/
@@ -2530,17 +2546,24 @@ static void applayer_wayland_init(void) {
    */
   state.display = wl_display_connect(NULL);
   if (!state.display) {
-    fprintf(stderr,
-      "WARNING: Could not get Wayland display, will await escape key combo to exit.\n");
-    /*
-     * If this happens, we didn't manage to connect to the Wayland compositor
-     * at all. If this happens, we want to wait for the user to press a key
-     * combo to exit kloak, rather than immediately exiting. This prevents
-     * spamming the journal, and allows systemd to restart kloak whenever the
-     * user requests. Simply return, don't exit; did_wayland_init will remain
-     * false, so that kloak will only do escape key scanning and nothing else.
-     */
-    return;
+    if (exit_on_wl_connect_failure) {
+      fprintf(stderr,
+        "FATAL ERROR: Could not get Wayland display, and KLOAK_EXIT_ON_WL_CONNECT_FAILURE is 1!\n");
+      exit(1);
+    } else {
+      fprintf(stderr,
+        "WARNING: Could not get Wayland display, will await escape key combo to exit.\n");
+      /*
+       * If this happens, we didn't manage to connect to the Wayland
+       * compositor at all. If this happens, we want to wait for the user to
+       * press a key combo to exit kloak, rather than immediately exiting.
+       * This prevents spamming the journal, and allows systemd to restart
+       * kloak whenever the user requests. Simply return, don't exit;
+       * did_wayland_init will remain false, so that kloak will only do escape
+       * key scanning and nothing else.
+       */
+      return;
+    }
   }
   state.display_fd = wl_display_get_fd(state.display);
 
@@ -2685,9 +2708,9 @@ static void applayer_inotify_init(void) {
 
 static void applayer_poll_init(void) {
   /*
-   * ev_fds[0] = Wayland server file descriptor
-   * ev_fds[1] = libinput file descriptor
-   * ev_fds[2] = inotify file descriptor for libinput hotplug
+   * ev_fds[0] = libinput file descriptor
+   * ev_fds[1] = inotify file descriptor for libinput hotplug
+   * ev_fds[2] = Wayland server file descriptor
    */
   if (did_wayland_init) {
     ev_fds = safe_calloc(POLL_FD_COUNT, sizeof(struct pollfd));
@@ -2767,6 +2790,7 @@ static void parse_cli_args(int argc, char **argv) {
 
 int main(int argc, char **argv) {
   ssize_t i = 0;
+  char *env_val = NULL;
 
   /*
    * BIG FAT WARNING: Do not attempt to build kloak with NDEBUG defined. Many
@@ -2797,6 +2821,11 @@ int main(int argc, char **argv) {
   }
 
   parse_cli_args(argc, argv);
+  env_val = getenv("KLOAK_EXIT_ON_WL_CONNECT_FAILURE");
+  if (env_val != NULL && strcmp(env_val, "1") == 0) {
+    exit_on_wl_connect_failure = true;
+  }
+
   if (sleep_ms(startup_delay) != 0) {
     fprintf(stderr,
       "FATAL ERROR: Could not sleep for requested start duration!\n");
@@ -2814,7 +2843,7 @@ int main(int argc, char **argv) {
       while (wl_display_prepare_read(state.display) != 0) {
         wl_display_dispatch_pending(state.display);
       }
-      wl_display_flush(state.display);
+      wl_display_flush_safe(state.display);
 
       while (true) {
         enum libinput_event_type next_ev_type = libinput_next_event_type(li);
@@ -2845,16 +2874,26 @@ int main(int argc, char **argv) {
           draw_frame(state.layers[i]);
         }
       }
-      wl_display_flush(state.display);
+      wl_display_flush_safe(state.display);
 
       poll(ev_fds, POLL_FD_COUNT, calc_poll_timeout());
 
       if (ev_fds[2].revents & POLLIN) {
-        wl_display_read_events(state.display);
+        if (wl_display_read_events(state.display) == -1) {
+          fprintf(stderr,
+            "FATAL ERROR: Could not read events from Wayland server: %s\n",
+            strerror(errno));
+          exit(1);
+        }
         wl_display_dispatch_pending(state.display);
       } else {
         wl_display_cancel_read(state.display);
       }
+      /* 
+       * Note that it's also possible for ev_fds[2].revents to have POLLOUT
+       * set. We can ignore that here because we will attempt to write to the
+       * display server FD on the next iteration through the loop anyway.
+       */
       ev_fds[2].revents = 0;
 
       if (ev_fds[0].revents & POLLIN) {

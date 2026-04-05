@@ -409,6 +409,14 @@ static void detach_input_device(const char *dev_name);
  */
 static int32_t get_ticks_from_scroll_accum(double *accum_ptr);
 
+/*
+ * Attempts to flush the display queue. If an EAGAIN error is received, sets
+ * up the ev_fds poll array to trigger on POLLOUT for the Wayland display's
+ * fd, otherwise ensures that POLLOUT is unset on that fd. If any other error
+ * is received, aborts the program.
+ */
+static void wl_display_flush_safe(struct wl_display *display);
+
 /********************/
 /* wayland handling */
 /********************/
