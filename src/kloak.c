@@ -779,6 +779,7 @@ static struct coord screen_local_coord_to_abs_coord(int32_t x, int32_t y,
   };
 
   assert(output_idx >= 0);
+  assert(output_idx < MAX_SCREEN_COUNT);
   if (x < 0 || y < 0) {
     return out_val;
   }
@@ -892,7 +893,11 @@ static int32_t parse_uint31_arg(const char *arg_name, const char *val,
   char *val_endchar = NULL;
   uint64_t val_int = 0;
 
+  errno = 0;
   val_int = strtoul(val, &val_endchar, base);
+  if (errno == ERANGE) {
+    goto parse_uint31_arg_error;
+  }
   if (*val_endchar != '\0') {
     goto parse_uint31_arg_error;
   }
@@ -913,16 +918,20 @@ static uint32_t parse_uint32_arg(const char *arg_name, const char *val,
   char *val_endchar = NULL;
   uint64_t val_int = 0;
 
+  errno = 0;
   val_int = strtoul(val, &val_endchar, base);
+  if (errno == ERANGE) {
+    goto parse_uint32_arg_error;
+  }
   if (*val_endchar != '\0') {
-    goto parse_uint31_arg_error;
+    goto parse_uint32_arg_error;
   }
   if (val_int > UINT32_MAX) {
-    goto parse_uint31_arg_error;
+    goto parse_uint32_arg_error;
   }
   return (uint32_t)(val_int);
 
-parse_uint31_arg_error:
+parse_uint32_arg_error:
   fprintf(stderr,
     "FATAL ERROR: Invalid value '%s' passed to parameter '%s'!\n", val, arg_name);
   exit(1);
@@ -1067,6 +1076,7 @@ static int32_t get_ticks_from_scroll_accum(double *accum_ptr) {
   int32_t scroll_ticks = 0;
 
   if (fpclassify(scroll_accum) != FP_ZERO) {
+    assert(isfinite(scroll_accum));
     scroll_ticks_d = scroll_accum / SCROLL_UNITS_PER_TICK_D;
     assert(scroll_ticks_d <= (INT32_MAX / SCROLL_UNITS_PER_TICK));
     assert(scroll_ticks_d >= (INT32_MIN / SCROLL_UNITS_PER_TICK));
@@ -1524,6 +1534,7 @@ static void layer_surface_configure(void *data,
   layer->stride = (int32_t)(width * 4);
   layer->size = layer->stride * layer->height;
   assert(layer->size >= 0);
+  assert(layer->size <= INT32_MAX / MAX_UNRELEASED_FRAMES);
   shm_fd = create_shm_file(layer->size * MAX_UNRELEASED_FRAMES);
   if (shm_fd == -1) {
     fprintf(stderr,
@@ -2407,6 +2418,8 @@ static void handle_inotify_events(void) {
   ie = (void *)(read_buf);
   rem_len = read_len;
   while (true) {
+    assert(rem_len >= (ssize_t)(sizeof(struct inotify_event)));
+    assert(ie->len < SSIZE_MAX - sizeof(struct inotify_event));
     struct_len = ((ssize_t)(sizeof(struct inotify_event)) + (ssize_t)(ie->len));
     assert(struct_len <= rem_len);
     rem_len -= struct_len;
