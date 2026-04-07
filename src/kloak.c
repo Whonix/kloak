@@ -2902,7 +2902,7 @@ int main(int argc, char **argv) {
       } else {
         wl_display_cancel_read(state.display);
       }
-      /* 
+      /*
        * Note that it's also possible for ev_fds[2].revents to have POLLOUT
        * set. We can ignore that here because we will attempt to write to the
        * display server FD on the next iteration through the loop anyway.
