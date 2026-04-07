@@ -46,6 +46,8 @@ endif
 #WARN_CFLAGS +=  #
 #endif
 
+# IMPORTANT: Do NOT remove -ftrapv from the list of flags, it is used to allow
+# signed integer arithmetic without explicit overflow checks.
 FORTIFY_CFLAGS := -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 	-fstack-clash-protection -fstack-protector-all \
 	-fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing \
