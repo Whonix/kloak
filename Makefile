@@ -19,17 +19,7 @@ apparmor_dir   ?= /etc/apparmor.d/
 TARGETARCH=$(shell $(CC) -dumpmachine)
 CC_VERSION=$(shell $(CC) --version)
 
-# https://best.openssf.org/Compiler-Hardening-Guides/Compiler-Options-Hardening-Guide-for-C-and-C++.html
-#
-# Omitted the following flags:
-# -D_GLIBCXX_ASSERTIONS  # application is not written in C++
-# -fPIC -shared          # not a shared library
-# -fexceptions           # not multithreaded
-# -fhardened             # superfluous when building an apt package
-#
-# Added the following flags:
-# -ftrapv                      # Crash on signed integer overflow/underflow
-# lots of additional warning flags and hardening
+# https://www.kicksecure.com/wiki/Dev/compiler_hardening
 WARN_CFLAGS := -Wall -Wextra -Wformat -Wformat=2 -Wconversion \
 	-Wimplicit-fallthrough -Werror=format-security -Werror=implicit \
 	-Werror=int-conversion -Werror=incompatible-pointer-types \
@@ -56,10 +46,13 @@ endif
 #WARN_CFLAGS +=  #
 #endif
 
+# IMPORTANT: Do NOT remove -ftrapv from the list of flags, it is used to allow
+# signed integer arithmetic without explicit overflow checks.
 FORTIFY_CFLAGS := -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 	-fstack-clash-protection -fstack-protector-all \
 	-fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing \
-	-fstrict-flex-arrays=3 -ftrapv
+	-fstrict-flex-arrays=3 -ftrapv -ftrivial-auto-var-init=pattern \
+	-fzero-call-used-regs=all
 
 ifeq (yes,$(patsubst x86_64%-linux-gnu,yes,$(TARGETARCH)))
 FORTIFY_CFLAGS += -fcf-protection=full # only supported on x86_64
@@ -72,7 +65,8 @@ BIN_CFLAGS := -fPIE
 
 CFLAGS := $(WARN_CFLAGS) $(FORTIFY_CFLAGS) $(BIN_CFLAGS) $(CFLAGS)
 LDFLAGS := -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now \
-	-Wl,--as-needed -Wl,--no-copy-dt-needed-entries -pie $(LDFLAGS)
+	-Wl,-z,separate-code -Wl,--as-needed -Wl,--no-copy-dt-needed-entries \
+	-pie $(LDFLAGS)
 
 ifeq (, $(shell which $(PKG_CONFIG)))
 $(error pkg-config not installed!)
