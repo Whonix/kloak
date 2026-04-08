@@ -51,14 +51,15 @@ endif
 FORTIFY_CFLAGS := -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 	-fstack-clash-protection -fstack-protector-all \
 	-fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing \
-	-fstrict-flex-arrays=3 -ftrapv -ftrivial-auto-var-init=pattern \
-	-fzero-call-used-regs=all
+	-fstrict-flex-arrays=3 -ftrapv -ftrivial-auto-var-init=pattern
 
 ifeq (yes,$(patsubst x86_64%-linux-gnu,yes,$(TARGETARCH)))
 FORTIFY_CFLAGS += -fcf-protection=full # only supported on x86_64
+FORTIFY_CFLAGS += -fzero-call-used-regs=all # only known to be supported on x86_64 and aarch64
 endif
 ifeq (yes,$(patsubst aarch64%-linux-gnu,yes,$(TARGETARCH)))
 FORTIFY_CFLAGS += -mbranch-protection=standard # only supported on aarch64
+FORTIFY_CFLAGS += -fzero-call-used-regs=all # see above
 endif
 
 BIN_CFLAGS := -fPIE
