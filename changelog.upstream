@@ -1,3 +1,41 @@
+commit 0853a36596158b6054fdc25b2a58e91e31a4e01c
+Merge: bc5074a faaeb2c
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Wed Apr 8 13:45:10 2026 -0400
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit faaeb2ce3dcb3ce56eeee30219bc9bbf57390e96
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Tue Apr 7 00:21:11 2026 -0400
+
+    Add back the rationale for including -ftrapv since this is a non-standard hardening flag
+
+commit 377dbaced61ab377775d58e30654a52373feafad
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Tue Apr 7 00:18:15 2026 -0400
+
+    Add more security hardening flags (from Claude Code)
+
+commit 59f38223f658d86168ce34fb5f1d3d1f1e3f9361
+Merge: f2dfa9e bc5074a
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Mon Apr 6 20:46:32 2026 -0400
+
+    Merge branch 'master' into arraybolt3/trixie
+
+commit f2dfa9e6583c47b17e49755c8ab9a155d4835891
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Sun Apr 5 20:18:10 2026 -0400
+
+    Add more hardening checks (taken from Claude Code)
+
+commit bc5074af16480e7a3ad3cbfefe225582c2edbcd9
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sun Apr 5 10:30:03 2026 +0000
+
+    bumped changelog version
+
 commit 54c7371c8d5bb50e047ddd848e58f542d1e06455
 Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Sun Apr 5 06:22:48 2026 -0400
