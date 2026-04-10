@@ -29,6 +29,7 @@ For all file types built with GCC and Clang on all platforms:
 * <code>-Werror=incompatible-pointer-types</code>: Disallows conversion of pointers between incompatible types.
 * <code>-Wformat-overflow</code>: Warns when parameters to <code>sprintf</code> and similar functions may overflow the destination buffer.
 * <code>-Wformat-signedness</code>: Warns if an unsigned integer is passed to <code>printf</code> or a similar function when a signed integer is needed, and vice versa.
+* <code>-Wformat-truncation</code>: Warns when output from <code>snprintf</code> and similar functions is truncated.
 * <code>-Wnull-dereference</code>: Warns if a <code>NULL</code> pointer dereference is detected by the compiler (note: by default this is a no-op because we use <code>-fno-delete-null-pointer-checks</code>).
 * <code>-Winit-self</code>: Warns if code attempts to initialize an uninitialized variable with itself.
 * <code>-Wmissing-include-dirs</code>: Warns if a user-supplied include directory does not exist.
@@ -60,6 +61,7 @@ For all file types built with GCC and Clang on all platforms:
 * <code>-fstack-clash-protection</code>: Attempts to prevent stack clash style attacks.
 * <code>-fstack-protector-all</code>: Protects against stack smashing in all functions.
 * <code>-fno-delete-null-pointer-checks</code>: Prevents the compiler from deleting explicit null pointer checks from code. This optimization is potentially very dangerous. Note that disabling this optimization also renders <code>-Wnull-dereference</code> unable to warn about anything, so developers should temporarily remove it before doing test builds, then re-add it later.
+* <code>-fno-strict-overflow</code>: Prevents the compiler from assuming that signed integer overflow is undefined behavior. Without this flag, the compiler may optimize away overflow checks, potentially creating security vulnerabilities.
 * <code>-fno-strict-aliasing</code>: Disables strict aliasing rules, so that casting between pointer types (for example, from a char buffer to <code>uint64_t</code>) is well-defined.
 * <code>-fstrict-flex-arrays=3</code>: Treats a trailing array in a struct as flexible only if it is defined with no specified length.
 * <code>-ftrivial-auto-var-init=pattern</code>: Ensures stack-allocated variables are virtually always initialized, using a special pattern that will probably cause a crash if the variable is not intentionally initialized. This both mitigates security issues resulting from uninitialized variables and makes it easier to catch bugs resulting from them.
@@ -122,8 +124,9 @@ All flags for GCC x86_64 executables:
 -O2 -g -Wall -Wextra -Wformat -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 -Werror=format-security -Werror=implicit -Werror=int-conversion \
 -Werror=incompatible-pointer-types -Wformat-overflow -Wformat-signedness \
--Wnull-dereference -Winit-self -Wmissing-include-dirs -Wshift-negative-value \
--Wshift-overflow -Wswitch-default -Wuninitialized -Walloca -Warray-bounds \
+-Wformat-truncation -Wnull-dereference -Winit-self -Wmissing-include-dirs \
+-Wshift-negative-value -Wshift-overflow -Wswitch-default -Wuninitialized \
+-Walloca -Warray-bounds \
 -Wfloat-equal -Wshadow -Wpointer-arith -Wundef -Wunused-macros \
 -Wbad-function-cast -Wcast-qual -Wcast-align -Wwrite-strings -Wdate-time \
 -Wstrict-prototypes -Wold-style-definition -Wredundant-decls -Winvalid-utf8 \
@@ -134,8 +137,9 @@ All flags for GCC x86_64 executables:
 -Wduplicated-branches -Wduplicated-cond -Wcast-align=strict \
 -Wjump-misses-init -Wlogical-op -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 -fstack-clash-protection -fstack-protector-all -fno-delete-null-pointer-checks \
--fno-strict-aliasing -fstrict-flex-arrays=3 -ftrivial-auto-var-init=pattern \
--fcf-protection=full -fPIE -Wl,-z,nodlopen \
+-fno-strict-overflow -fno-strict-aliasing -fstrict-flex-arrays=3 \
+-ftrivial-auto-var-init=pattern \
+-fcf-protection=full -fzero-call-used-regs=all -fPIE -Wl,-z,nodlopen \
 -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,-z,separate-code -Wl,--as-needed \
 -Wl,--no-copy-dt-needed-entries -pie
 }}
@@ -146,17 +150,18 @@ All flags for Clang x86_64 executables:
 -O2 -g -Wall -Wextra -Wformat -Wformat=2 -Wconversion -Wimplicit-fallthrough \
 -Werror=format-security -Werror=implicit -Werror=int-conversion \
 -Werror=incompatible-pointer-types -Wformat-overflow -Wformat-signedness \
--Wnull-dereference -Winit-self -Wmissing-include-dirs -Wshift-negative-value \
--Wshift-overflow -Wswitch-default -Wuninitialized -Walloca -Warray-bounds \
+-Wformat-truncation -Wnull-dereference -Winit-self -Wmissing-include-dirs \
+-Wshift-negative-value -Wshift-overflow -Wswitch-default -Wuninitialized \
+-Walloca -Warray-bounds \
 -Wfloat-equal -Wshadow -Wpointer-arith -Wundef -Wunused-macros \
 -Wbad-function-cast -Wcast-qual -Wcast-align -Wwrite-strings -Wdate-time \
 -Wstrict-prototypes -Wold-style-definition -Wredundant-decls -Winvalid-utf8 \
 -Wvla -Wdisabled-optimization -Wstack-protector -Wdeclaration-after-statement \
 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fstack-clash-protection \
--fstack-protector-all -fno-delete-null-pointer-checks -fno-strict-aliasing \
--fsanitize=undefined -fsanitize-minimal-runtime -fno-sanitize-recover=all \
+-fstack-protector-all -fno-delete-null-pointer-checks \
+-fno-strict-overflow -fno-strict-aliasing -fsanitize=undefined -fsanitize-minimal-runtime -fno-sanitize-recover=all \
 -fstrict-flex-arrays=3 -ftrivial-auto-var-init=pattern -fcf-protection=full \
--fPIE -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro \
+-fzero-call-used-regs=all -fPIE -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro \
 -Wl,-z,now -Wl,-z,separate-code -Wl,--as-needed -Wl,--no-copy-dt-needed-entries \
 -pie
 }}
