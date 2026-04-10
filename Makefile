@@ -42,10 +42,6 @@ WARN_CFLAGS += -Wtrampolines -Wbidi-chars=any,ucn -Wformat-overflow=2 \
 	-Wjump-misses-init -Wlogical-op
 endif
 
-#ifeq (,$(findstring clang,$(CC_VERSION))) # if clang
-#WARN_CFLAGS +=  #
-#endif
-
 # IMPORTANT: Do NOT remove -ftrapv from the list of flags, it is used to allow
 # signed integer arithmetic without explicit overflow checks. Also make sure
 # that -ftrapv ALWAYS comes after -fno-strict-overflow, as
@@ -54,6 +50,10 @@ FORTIFY_CFLAGS := -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 	-fstack-clash-protection -fstack-protector-all \
 	-fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing \
 	-fstrict-flex-arrays=3 -ftrapv -ftrivial-auto-var-init=pattern
+
+ifneq (,$(findstring clang,$(CC_VERSION))) # if clang
+FORTIFY_CFLAGS += -fsanitize=undefined -fsanitize-minimal-runtime -fno-sanitize-recover=all
+endif
 
 ## kloak only officially supports Linux with the GNU C library. Therefore we
 ## only check *-linux-gnu platforms in our arch checks. Contributions are
