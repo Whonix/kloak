@@ -2,18 +2,31 @@ name: CodeQL
 
 on:
   push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+    tags:
+      - '*'
+  ## Uncomment to also run on pushes/PRs to master:
+  # push:
+  #   branches: [ master ]
+  # pull_request:
+  #   branches: [ master ]
   schedule:
     - cron: '25 3 * * 5'
 
 jobs:
   analyze:
-    name: Analyze C/C++
+    name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     permissions:
       security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: c-cpp
+            build-mode: manual
+          - language: python
+            build-mode: none
 
     steps:
     - name: Checkout repository
@@ -22,10 +35,11 @@ jobs:
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v4
       with:
-        languages: c-cpp
-        build-mode: manual
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
 
     - name: Build
+      if: matrix.build-mode == 'manual'
       run: bash build.sh
 
     - name: Perform CodeQL Analysis
