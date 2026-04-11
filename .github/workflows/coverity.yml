@@ -2,11 +2,7 @@ name: Coverity
 
 on:
   push:
-    tags:
-      - '*'
-  ## Uncomment to also run on pushes to master:
-  # push:
-  #   branches: [ master ]
+  pull_request:
   schedule:
     - cron: '0 4 * * 5'
 

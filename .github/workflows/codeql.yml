@@ -2,13 +2,7 @@ name: CodeQL
 
 on:
   push:
-    tags:
-      - '*'
-  ## Uncomment to also run on pushes/PRs to master:
-  # push:
-  #   branches: [ master ]
-  # pull_request:
-  #   branches: [ master ]
+  pull_request:
   schedule:
     - cron: '25 3 * * 5'
 

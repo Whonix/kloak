@@ -1,8 +1,8 @@
 name: ChatGPT Review
 
 on:
+  push:
   pull_request:
-    types: [ opened, synchronize ]
 
 jobs:
   review:

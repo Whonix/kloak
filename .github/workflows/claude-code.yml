@@ -1,8 +1,8 @@
 name: Claude Code Review
 
 on:
+  push:
   pull_request:
-    types: [ opened, synchronize ]
 
 jobs:
   review:
