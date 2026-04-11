@@ -1,0 +1,28 @@
+name: Coverity
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 4 * * 5'
+
+jobs:
+  scan:
+    name: Coverity Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libevdev-dev libinput-dev libwayland-dev libxkbcommon-dev pkg-config
+
+    - name: Coverity Scan
+      uses: vapier/coverity-scan-action@v1
+      with:
+        email: ${{ secrets.COVERITY_SCAN_EMAIL }}
+        token: ${{ secrets.COVERITY_SCAN_TOKEN }}
+        command: make
