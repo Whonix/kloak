@@ -1,3 +1,195 @@
+commit b21d954a7b890fc773090b2810f560dda29aa5fc
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Apr 11 09:23:07 2026 -0400
+
+    bump
+
+commit acf7abdcac176f31a2afb887e439e8e4621d1b3e
+Merge: 3c41c10 fd118f1
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Apr 11 09:11:20 2026 -0400
+
+    Merge remote-tracking branch 'assisted-by-ai/claude/fix-codeql-setup-7bQor'
+
+commit fd118f13dcff6f66f1650db680d7dc9939efc53f
+Author: Claude <noreply@anthropic.com>
+Date:   Sat Apr 11 13:09:32 2026 +0000
+
+    Rename chatgpt-review.yml to codex-review.yml, limit Coverity triggers
+    
+    - Rename workflow file to match its content (openai/codex-action)
+    - Restrict Coverity to tags + weekly schedule to avoid hitting
+      the free tier submission limit
+    
+    https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
+
+commit 3c41c1029c65b91a3df4c9028f30fc976d7f7567
+Merge: a9beb6d 6c1334a
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Apr 11 08:56:54 2026 -0400
+
+    Merge remote-tracking branch 'assisted-by-ai/claude/fix-codeql-setup-7bQor'
+
+commit 6c1334acc8cb0c7c37bbde793ac52eafaa0f2a58
+Author: Claude <noreply@anthropic.com>
+Date:   Sat Apr 11 12:55:46 2026 +0000
+
+    Restrict @claude to allowed users only
+    
+    Prevents arbitrary users from burning API credits by spamming
+    @claude in comments.
+    
+    https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
+
+commit a9beb6dfb9fb35757f0b1fbe821aac22ac3ca0de
+Merge: d1317d1 32902a5
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Apr 11 08:54:50 2026 -0400
+
+    Merge remote-tracking branch 'github-whonix/master'
+
+commit 522dc193a958c7de3551108b00886094dc96830e
+Author: Claude <noreply@anthropic.com>
+Date:   Sat Apr 11 12:53:45 2026 +0000
+
+    Enable @claude mentions in PR and issue comments
+    
+    Add issue_comment and pull_request_review_comment triggers so
+    users can write @claude in any comment to get a response.
+    
+    https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
+
+commit d1317d18fc7e7a89e9d3c0b65ff2230584dc04b4
+Merge: c524b3e 582352b
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Apr 11 08:52:48 2026 -0400
+
+    Merge remote-tracking branch 'assisted-by-ai/claude/fix-codeql-setup-7bQor'
+
+commit 582352b9776cf2fa4fcf9f3731d538a2deb0532d
+Author: Claude <noreply@anthropic.com>
+Date:   Sat Apr 11 12:51:26 2026 +0000
+
+    Replace anc95/ChatGPT-CodeReview with official openai/codex-action
+    
+    Uses the official OpenAI Codex GitHub Action for PR review.
+    Also remove push trigger (PR-only like Claude Code).
+    
+    https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
+
+commit ecd2f84177a1b32ff3dda5756b39ee9cb98b1f04
+Author: Claude <noreply@anthropic.com>
+Date:   Sat Apr 11 12:47:44 2026 +0000
+
+    Remove push trigger from Claude Code workflow
+    
+    Claude Code action only supports pull_request events.
+    
+    https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
+
+commit 32902a5b7815328a95a503c1e83bd1e2c824d9b0
+Merge: c524b3e 82e5a89
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Apr 11 08:45:42 2026 -0400
+
+    Merge pull request #18 from Whonix/dependabot/github_actions/actions/checkout-6
+    
+    Bump actions/checkout from 4 to 6
+
+commit c524b3e9aea755b386ba9f2f5ac4ac66cdec885b
+Merge: ae01487 2b3e4bc
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Apr 11 08:43:35 2026 -0400
+
+    Merge remote-tracking branch 'assisted-by-ai/claude/fix-codeql-setup-7bQor'
+
+commit 2b3e4bc38273d8312066deaf9ef70d215385a49a
+Author: Claude <noreply@anthropic.com>
+Date:   Sat Apr 11 12:42:41 2026 +0000
+
+    Add id-token: write permission to Claude Code workflow
+    
+    Required for OIDC token authentication.
+    
+    https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
+
+commit 82e5a8901c33176b1439d0fdbe2791adf9d575a9
+Author: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>
+Date:   Sat Apr 11 12:38:16 2026 +0000
+
+    Bump actions/checkout from 4 to 6
+    
+    Bumps [actions/checkout](https://github.com/actions/checkout) from 4 to 6.
+    - [Release notes](https://github.com/actions/checkout/releases)
+    - [Changelog](https://github.com/actions/checkout/blob/main/CHANGELOG.md)
+    - [Commits](https://github.com/actions/checkout/compare/v4...v6)
+    
+    ---
+    updated-dependencies:
+    - dependency-name: actions/checkout
+      dependency-version: '6'
+      dependency-type: direct:production
+      update-type: version-update:semver-major
+    ...
+    
+    Signed-off-by: dependabot[bot] <support@github.com>
+
+commit ae01487a0d2bc9a875ae4670be8fd8b3585ddf52
+Merge: 97cf8e5 27f8e46
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Apr 11 08:37:26 2026 -0400
+
+    Merge remote-tracking branch 'assisted-by-ai/claude/fix-codeql-setup-7bQor'
+
+commit 27f8e460c09a4bfd28bb89a226c826996e5452c9
+Author: Claude <noreply@anthropic.com>
+Date:   Sat Apr 11 12:34:57 2026 +0000
+
+    Run all CI workflows on every push, tag, and PR
+    
+    https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
+
+commit 21f3bc6edd0dfd9e40d561c6bafabed76ef03931
+Author: Claude <noreply@anthropic.com>
+Date:   Sat Apr 11 12:29:37 2026 +0000
+
+    Enable all CI workflows and add Dependabot
+    
+    - CodeQL: add Python scanning, trigger on tags + weekly schedule
+    - Coverity Scan: enabled, triggers on tags + weekly schedule
+    - Claude Code: automated PR review on all PRs
+    - ChatGPT: automated PR review on all PRs
+    - Dependabot: weekly GitHub Actions version updates
+    
+    https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
+
+commit b78b604f2141ac939209e2c73919fbcad9291a05
+Merge: 97cf8e5 e7ec313
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Apr 11 07:53:57 2026 -0400
+
+    Merge pull request #17 from assisted-by-ai/claude/fix-codeql-setup-7bQor
+    
+    Add CodeQL security analysis workflow
+
+commit e7ec313bfdb7aa96054e35b7215ecbdf10393aac
+Author: Claude <noreply@anthropic.com>
+Date:   Sat Apr 11 11:10:04 2026 +0000
+
+    Add CodeQL workflow using codeql-action v4
+    
+    The build.sh existed but no GitHub Actions workflow referenced it,
+    so CodeQL analysis was never triggered. Add a minimal workflow that
+    uses manual build mode to run build.sh between init and analyze.
+    
+    https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
+
+commit 97cf8e5803c9cacf7df9f700899da77c02036b9a
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Apr 11 08:39:54 2026 +0000
+
+    bumped changelog version
+
 commit cd69e78ae85a0e4331a4bc1172a2cfc51f9df627
 Merge: e0aefd9 6aa04db
 Author: Patrick Schleizer <adrelanos@whonix.org>
