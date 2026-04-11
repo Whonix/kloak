@@ -1,3 +1,22 @@
+commit cd69e78ae85a0e4331a4bc1172a2cfc51f9df627
+Merge: e0aefd9 6aa04db
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat Apr 11 04:28:20 2026 -0400
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit 6aa04db1525cc4c22f1b49963df3291cda3cd4a0
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Fri Apr 10 16:57:06 2026 -0400
+
+    Add comment about why we use *-linux-gnu arch checks in the Makefile
+
+commit e0aefd9dec18b83dd07f1ce3eab68d2edeeefff1
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Thu Apr 9 11:59:40 2026 +0000
+
+    bumped changelog version
+
 commit a84bd8818f137749f880117e1991169ac7171f96
 Merge: e7993e2 6a2ad78
 Author: Patrick Schleizer <adrelanos@whonix.org>
