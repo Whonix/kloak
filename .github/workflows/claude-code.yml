@@ -25,3 +25,6 @@ jobs:
       uses: anthropics/claude-code-action@v1
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        ## Comma-separated list of GitHub usernames allowed to trigger @claude.
+        ## Remove or leave empty to allow everyone.
+        allowed_users: "adrelanos,ArrayBolt3"
