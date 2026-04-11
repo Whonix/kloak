@@ -2,6 +2,10 @@ name: Claude Code Review
 
 on:
   pull_request:
+  issue_comment:
+    types: [ created ]
+  pull_request_review_comment:
+    types: [ created ]
 
 jobs:
   review:
@@ -10,6 +14,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      issues: write
       id-token: write
 
     steps:
@@ -20,3 +25,6 @@ jobs:
       uses: anthropics/claude-code-action@v1
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        ## Comma-separated list of GitHub usernames allowed to trigger @claude.
+        ## Remove or leave empty to allow everyone.
+        allowed_users: "adrelanos,ArrayBolt3"
