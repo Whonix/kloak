@@ -53,6 +53,9 @@ FORTIFY_CFLAGS := -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
 	-fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing \
 	-fstrict-flex-arrays=3 -ftrapv -ftrivial-auto-var-init=pattern
 
+## kloak only officially supports Linux with the GNU C library. Therefore we
+## only check *-linux-gnu platforms in our arch checks. Contributions are
+## welcome if support for more kernels and/or C libraries is desirable.
 ifeq (yes,$(patsubst x86_64%-linux-gnu,yes,$(TARGETARCH)))
 FORTIFY_CFLAGS += -fcf-protection=full # only supported on x86_64
 FORTIFY_CFLAGS += -fzero-call-used-regs=all # only known to be supported on x86_64 and aarch64
