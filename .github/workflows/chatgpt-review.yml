@@ -1,20 +1,24 @@
-name: ChatGPT Review
+name: OpenAI Codex Review
 
 on:
-  push:
   pull_request:
 
 jobs:
   review:
-    name: ChatGPT Review
+    name: OpenAI Codex Review
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
 
     steps:
-    - name: Code Review with ChatGPT
-      uses: anc95/ChatGPT-CodeReview@main
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Run Codex Review
+      uses: openai/codex-action@main
+      with:
+        openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+        prompt: Review the code changes in this PR for security, correctness, and best practices.
