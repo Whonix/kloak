@@ -2,7 +2,8 @@ name: Coverity
 
 on:
   push:
-  pull_request:
+    tags:
+      - '*'
   schedule:
     - cron: '0 4 * * 5'
 
