@@ -475,7 +475,8 @@ static int64_t current_time_ms(void) {
   int64_t result = 0;
 
   clock_gettime(CLOCK_MONOTONIC, &spec);
-  result = (spec.tv_sec * 1000) + (spec.tv_nsec / 1000000);
+  assert(spec.tv_sec < INT64_MAX);
+  result = ((int64_t)spec.tv_sec * 1000) + (spec.tv_nsec / 1000000);
   assert(result >= 0);
   if (start_time == 0) {
     start_time = result;
@@ -1527,7 +1528,7 @@ static void layer_surface_configure(void *data,
     }
   }
   assert(layer != NULL);
-  assert(width * 4 <= INT32_MAX);
+  assert(width <= INT32_MAX / 4);
   assert(height <= INT32_MAX);
   layer->width = (int32_t)(width);
   layer->height = (int32_t)(height);
