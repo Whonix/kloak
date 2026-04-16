@@ -1,3 +1,41 @@
+commit 015ae4a18b645be13b9028b7bc82e67179626697
+Merge: 1683334 7f0866a
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Thu Apr 16 01:56:56 2026 -0400
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit 7f0866af74f4e95b71e851bc5af35f334649c834
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Wed Apr 15 00:33:15 2026 -0400
+
+    comment
+
+commit 5ae4197e1317daa29c1214409e15b1235dc5322b
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Sun Apr 12 15:14:08 2026 -0400
+
+    Modified and squashed commit of the following:
+
+    commit d519706829667ac18f650546598f5ede16c83667
+    Author: Claude <noreply@anthropic.com>
+    Date:   Fri Apr 10 10:25:17 2026 +0000
+
+        Add AGENTS.md with coding guidelines from upstream review
+
+        Documents lessons learned from Whonix/kloak#11 review feedback to prevent
+        recurring issues in future AI-assisted contributions: assert vs runtime
+        error handling policy, isfinite() preference, integer safety patterns,
+        and inotify-specific guidance.
+
+        https://claude.ai/code/session_01BJMGQoHMb3LYFNyvHhRPBZ
+
+commit 16833349a387ca89ccc6d0ab0ef32b7545a7a83f
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sun Apr 12 14:05:07 2026 +0000
+
+    bumped changelog version
+
 commit ae095ff2d8502c3875e84a77963b363c859c5fc3
 Merge: d8df2b0 9ade91e
 Author: Patrick Schleizer <adrelanos@whonix.org>
@@ -35,11 +73,11 @@ Author: Claude <noreply@anthropic.com>
 Date:   Sat Apr 11 13:09:32 2026 +0000
 
     Rename chatgpt-review.yml to codex-review.yml, limit Coverity triggers
-    
+
     - Rename workflow file to match its content (openai/codex-action)
     - Restrict Coverity to tags + weekly schedule to avoid hitting
       the free tier submission limit
-    
+
     https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
 
 commit 3c41c1029c65b91a3df4c9028f30fc976d7f7567
@@ -54,10 +92,10 @@ Author: Claude <noreply@anthropic.com>
 Date:   Sat Apr 11 12:55:46 2026 +0000
 
     Restrict @claude to allowed users only
-    
+
     Prevents arbitrary users from burning API credits by spamming
     @claude in comments.
-    
+
     https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
 
 commit a9beb6dfb9fb35757f0b1fbe821aac22ac3ca0de
@@ -72,10 +110,10 @@ Author: Claude <noreply@anthropic.com>
 Date:   Sat Apr 11 12:53:45 2026 +0000
 
     Enable @claude mentions in PR and issue comments
-    
+
     Add issue_comment and pull_request_review_comment triggers so
     users can write @claude in any comment to get a response.
-    
+
     https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
 
 commit d1317d18fc7e7a89e9d3c0b65ff2230584dc04b4
@@ -90,10 +128,10 @@ Author: Claude <noreply@anthropic.com>
 Date:   Sat Apr 11 12:51:26 2026 +0000
 
     Replace anc95/ChatGPT-CodeReview with official openai/codex-action
-    
+
     Uses the official OpenAI Codex GitHub Action for PR review.
     Also remove push trigger (PR-only like Claude Code).
-    
+
     https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
 
 commit ecd2f84177a1b32ff3dda5756b39ee9cb98b1f04
@@ -101,9 +139,9 @@ Author: Claude <noreply@anthropic.com>
 Date:   Sat Apr 11 12:47:44 2026 +0000
 
     Remove push trigger from Claude Code workflow
-    
+
     Claude Code action only supports pull_request events.
-    
+
     https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
 
 commit 32902a5b7815328a95a503c1e83bd1e2c824d9b0
@@ -112,7 +150,7 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Sat Apr 11 08:45:42 2026 -0400
 
     Merge pull request #18 from Whonix/dependabot/github_actions/actions/checkout-6
-    
+
     Bump actions/checkout from 4 to 6
 
 commit c524b3e9aea755b386ba9f2f5ac4ac66cdec885b
@@ -127,9 +165,9 @@ Author: Claude <noreply@anthropic.com>
 Date:   Sat Apr 11 12:42:41 2026 +0000
 
     Add id-token: write permission to Claude Code workflow
-    
+
     Required for OIDC token authentication.
-    
+
     https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
 
 commit 82e5a8901c33176b1439d0fdbe2791adf9d575a9
@@ -137,12 +175,12 @@ Author: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>
 Date:   Sat Apr 11 12:38:16 2026 +0000
 
     Bump actions/checkout from 4 to 6
-    
+
     Bumps [actions/checkout](https://github.com/actions/checkout) from 4 to 6.
     - [Release notes](https://github.com/actions/checkout/releases)
     - [Changelog](https://github.com/actions/checkout/blob/main/CHANGELOG.md)
     - [Commits](https://github.com/actions/checkout/compare/v4...v6)
-    
+
     ---
     updated-dependencies:
     - dependency-name: actions/checkout
@@ -150,7 +188,7 @@ Date:   Sat Apr 11 12:38:16 2026 +0000
       dependency-type: direct:production
       update-type: version-update:semver-major
     ...
-    
+
     Signed-off-by: dependabot[bot] <support@github.com>
 
 commit ae01487a0d2bc9a875ae4670be8fd8b3585ddf52
@@ -165,7 +203,7 @@ Author: Claude <noreply@anthropic.com>
 Date:   Sat Apr 11 12:34:57 2026 +0000
 
     Run all CI workflows on every push, tag, and PR
-    
+
     https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
 
 commit 21f3bc6edd0dfd9e40d561c6bafabed76ef03931
@@ -173,13 +211,13 @@ Author: Claude <noreply@anthropic.com>
 Date:   Sat Apr 11 12:29:37 2026 +0000
 
     Enable all CI workflows and add Dependabot
-    
+
     - CodeQL: add Python scanning, trigger on tags + weekly schedule
     - Coverity Scan: enabled, triggers on tags + weekly schedule
     - Claude Code: automated PR review on all PRs
     - ChatGPT: automated PR review on all PRs
     - Dependabot: weekly GitHub Actions version updates
-    
+
     https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
 
 commit b78b604f2141ac939209e2c73919fbcad9291a05
@@ -188,7 +226,7 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Sat Apr 11 07:53:57 2026 -0400
 
     Merge pull request #17 from assisted-by-ai/claude/fix-codeql-setup-7bQor
-    
+
     Add CodeQL security analysis workflow
 
 commit e7ec313bfdb7aa96054e35b7215ecbdf10393aac
@@ -196,11 +234,11 @@ Author: Claude <noreply@anthropic.com>
 Date:   Sat Apr 11 11:10:04 2026 +0000
 
     Add CodeQL workflow using codeql-action v4
-    
+
     The build.sh existed but no GitHub Actions workflow referenced it,
     so CodeQL analysis was never triggered. Add a minimal workflow that
     uses manual build mode to run build.sh between init and analyze.
-    
+
     https://claude.ai/code/session_01M3FwaVyefsdt5qe1t4Rwfo
 
 commit 97cf8e5803c9cacf7df9f700899da77c02036b9a
@@ -303,7 +341,7 @@ Author: Aaron Rainbolt <arraybolt3@gmail.com>
 Date:   Sun Apr 5 00:30:22 2026 -0400
 
     Bug and documentation fixes
-    
+
     * Detect if the Wayland compositor connection is lost and exit when that
       occurs. (This avoids swallowing all input until the escape key combo
       is pressed in the event the compositor disconnects, which fixes a bug
@@ -344,7 +382,7 @@ Author: Aaron Rainbolt <arraybolt3@gmail.com>
 Date:   Fri Mar 27 17:15:28 2026 -0400
 
     Multiple bugfixes
-    
+
     * Remove broken, dead code from `safe_opendir()`.
     * Fix a calculation bug that could make kloak think non-touching,
       non-overlapping screens were overlapping.
@@ -574,7 +612,7 @@ Author: Aaron Rainbolt <arraybolt3@ubuntu.com>
 Date:   Sat Nov 8 20:35:04 2025 -0600
 
     Revert "Split query_sock_pid function from find_wl_compositor into a helper-scripts library"
-    
+
     This reverts commit ccf3d95b9649a00ebbb7faddfa645fd50130db5b.
 
 commit e67fe65a9765eeeb1b7bc502c671c81c9838b3a9
@@ -705,7 +743,7 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Fri Oct 10 05:44:35 2025 -0400
 
     Merge pull request #9 from siliconwaffle/master
-    
+
     Update spec file to latest version and update systemd service Documentation tag.
 
 commit 30c9183ceb6c76aee6bfefa228dfe0382bd19eaf
@@ -764,7 +802,7 @@ Author: siliconwaffle <157927978+siliconwaffle@users.noreply.github.com>
 Date:   Tue Sep 30 18:27:50 2025 +0000
 
     Update kloak.service
-    
+
     Updated Documentation tag to include the manpage and switched from vmonaco/kloak to whonix/kloak.
 
 commit c4221145ce83a9f19684a88f80fec2b5309c5aaa
@@ -1210,7 +1248,7 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Wed Nov 20 09:50:40 2024 -0500
 
     Merge pull request #5 from Fat-Zer/better-makefile
-    
+
     A slightly more sophisticated Makefile
 
 commit 76b775049168cc327b2a13665d528e18fe266679
@@ -1218,7 +1256,7 @@ Author: Alexander Golubev <fatzer2@gmail.com>
 Date:   Fri Nov 15 22:00:07 2024 +0300
 
     A slightly more sophisticated Makefile
-    
+
     - support for override of the compiler and utils
     - support for append/override CFLAGS
     - a target to update man pages
@@ -1228,7 +1266,7 @@ Date:   Fri Nov 15 22:00:07 2024 +0300
       - handle GNU's tuples like `x86-64-pc-linux-gnu` and
         `aarch-unknowv-linux-gnu`
     - organize CFLAGS by sorting them into categories
-    
+
     Signed-off-by: Alexander Golubev <fatzer2@gmail.com>
 
 commit 3030e488a5aa4e9cecae0b932ff2c5564f2d7142
@@ -1237,7 +1275,7 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Mon Nov 18 07:34:36 2024 -0500
 
     Merge pull request #6 from siliconwaffle/master
-    
+
     Update kloak.spec
 
 commit 74f12a71993ba7ec26144730a48dc4c0e6a11a54
@@ -1245,7 +1283,7 @@ Author: siliconwaffle <157927978+siliconwaffle@users.noreply.github.com>
 Date:   Sun Nov 17 17:13:24 2024 +0000
 
     Update kloak.spec
-    
+
     bump version tag
 
 commit 1c4ecca1fc41b497ea55419e34d4ec999d759a21
@@ -1273,7 +1311,7 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Mon Oct 28 01:03:40 2024 -0400
 
     Merge pull request #2 from siliconwaffle/patch-1
-    
+
     Create kloak.spec
 
 commit da419970f57770fe247c470a2bfadfb2279c06ee
@@ -1282,7 +1320,7 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Mon Oct 28 01:00:15 2024 -0400
 
     Merge pull request #3 from siliconwaffle/patch-2
-    
+
     Update README.md
 
 commit afca687e715cab3e5f651fbc02b61dc6bdd3d4b8
@@ -1290,7 +1328,7 @@ Author: siliconwaffle <157927978+siliconwaffle@users.noreply.github.com>
 Date:   Sun Oct 27 17:45:45 2024 +0000
 
     Update README.md
-    
+
     Update dependencies information for Fedora, specifically adding gcc and libubsan(required for newer versions, there is no devel package available for it). And removing libevdev and libsodium(both are required by their respective devel packages, so their explicit listing here is unnecessary).
 
 commit c0884aa16b2a5c0588677a3ba5a9087eafc3e2b3
@@ -1298,7 +1336,7 @@ Author: siliconwaffle <157927978+siliconwaffle@users.noreply.github.com>
 Date:   Sun Oct 27 17:40:03 2024 +0000
 
     Create kloak.spec
-    
+
     Spec file for rpm, specifically for Fedora.
 
 commit 55879cf0d80f11e9601e24ed8e01104936f7a25c
@@ -1436,9 +1474,9 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Tue Sep 24 01:02:28 2024 -0400
 
     fork of kloak from upstream
-    
+
     from now, doing normal version bump with reach rebuild
-    
+
     since version numbers are now managed by Whonix
 
 commit 98febd4ffde18ff2d37f6882cf0e1f6d03bfc53a
@@ -1460,7 +1498,7 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Tue Sep 24 00:52:03 2024 -0400
 
     Merge pull request #1 from ArrayBolt3/arraybolt3
-    
+
     Harden and enhance Kloak
 
 commit bb4a7143877eb12904e797224c2b0afc05463713
@@ -1614,7 +1652,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Sun Sep 24 21:49:52 2023 -0700
 
     Merge pull request #62 from skyzzuu/check_rescue_key_str_not_null
-    
+
     ensure _rescue_keys_str is not null before passing to strncpy to avoid potential null pointer dereference
 
 commit 130d81b6e5f2c892fbd7596eaf1ad1f10911426e
@@ -1623,7 +1661,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Sun Sep 24 21:47:27 2023 -0700
 
     Merge pull request #63 from vmonaco/dev
-    
+
     update readme
 
 commit 61c0b09452ded9bcbd8476ee3aa103f116bc5330
@@ -1651,7 +1689,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Mon Sep 18 08:43:59 2023 -0700
 
     Merge pull request #55 from skyzzuu/readme_changes
-    
+
     add dependency installation information into readme
 
 commit af79b08ea3dd83b70c5099391ef3e1233b102511
@@ -1660,7 +1698,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Mon Sep 18 08:43:25 2023 -0700
 
     Merge pull request #53 from adrelanos/indentation-style
-    
+
     improve indentation style
 
 commit 68c3c7063d51afee6bee63c15ab2465d83591442
@@ -1668,7 +1706,7 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Mon Sep 18 08:04:34 2023 -0400
 
     improve indentation style
-    
+
     fixes https://github.com/vmonaco/kloak/issues/52
 
 commit ca5cf502265f24bfd871547739d8b86449d00bc1
@@ -1696,7 +1734,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Sun Sep 17 21:16:31 2023 -0700
 
     Merge pull request #57 from skyzzuu/avoid_mem_leak_after_exit
-    
+
     free pfds after exit to avoid memory leak
 
 commit f55ceccf164a7a2705fd6151bad77e6c421cf9e0
@@ -1730,7 +1768,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Tue Aug 15 21:57:43 2023 -0700
 
     Merge pull request #38 from vmonaco/dev
-    
+
     Multi-device support and multiple bug fixes
 
 commit f1718890b1620ac6ba42f2e2d1a1c2c84730c8d4
@@ -1739,7 +1777,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Tue Aug 15 21:57:15 2023 -0700
 
     Merge pull request #49 from adrelanos/chatgpt
-    
+
     chatgpt
 
 commit 0a1abe03dd873058cb3f2e83ce97a4ba1ad89ea1
@@ -1810,7 +1848,7 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Sun Jul 9 07:31:42 2023 -0400
 
     disable broken seccomp SystemCallFilter
-    
+
     https://github.com/vmonaco/kloak/pull/38#issuecomment-1627688486
 
 commit 6e13598c6d8d39c1f891e7ed036f1e1e800d5c85
@@ -1848,13 +1886,13 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Sat Jul 8 14:14:05 2023 -0400
 
     Added a running variable to control the while loop and added a signal handler (handle_signal) to catch the interrupt signal (SIGINT) and terminate the program gracefully.
-    
+
     Fixed the command-line argument handling by checking if argc is less than 2 (instead of assuming argc > 1). If no arguments are provided, the program displays the usage message and exits.
-    
+
     Updated the ioctl() call to check the return value for errors. If the ioctl() operation fails to get the device name, an error message is printed, and the program exits.
-    
+
     Removed the check for root access since it was only printing a message and not affecting the program's execution. If root access is required, it should be checked externally before running the program.
-    
+
     Closed the device file descriptor (fd) before exiting the program to release system resources properly.
 
 commit 54f0b3e111a44bb95223200575fe9d19a8c70c09
@@ -1862,9 +1900,9 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Sat Jul 8 14:10:20 2023 -0400
 
     The rescue_len variable was not initialized, causing undefined behavior. I added the initialization rescue_len = 0 to fix it.
-    
+
     In the init_inputs() function, I added error handling for the malloc call to allocate memory for the pfds array.
-    
+
     In the emit_event() function, I added error handling for the libevdev_uinput_write_event function call to check if writing the event to uinput was successful.
 
 commit cd31cd4060c97c6dabb4af88a17d9a56c3981931
@@ -1940,7 +1978,7 @@ Author: Patrick Schleizer <adrelanos@whonix.org>
 Date:   Wed Jun 14 09:51:12 2023 +0000
 
     fix lintian warning
-    
+
     P: kloak source: very-long-line-length-in-source-file 676 > 512 [README.md:170]
 
 commit 2155a425603c61490458590c5abfe75f3d8aa5cd
@@ -1973,7 +2011,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Wed Nov 16 21:02:23 2022 -0800
 
     Merge pull request #44 from GerHobbelt/master
-    
+
     README fixes: broken link to paper fixed + 1 language typo
 
 commit af2ddc31b008ac0042b5cfdcc53cce72dec9cbf3
@@ -2018,7 +2056,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Tue Jan 11 10:37:41 2022 -0800
 
     Merge pull request #40 from hardcore-sushi/systemd-fix
-    
+
     Add some system calls to the systemd whitelist to prevent crashes
 
 commit 6cce4829066bac632e1730b8f379e3c45ac15a02
@@ -2124,7 +2162,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Fri Sep 17 15:01:42 2021 -0700
 
     Merge pull request #36 from Whonix/master
-    
+
     port packaging to Debian bullseye
 
 commit 59c47d88e4b579e93a85209484681f536035e8d6
@@ -2277,7 +2315,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Thu Oct 8 13:32:15 2020 -0700
 
     Merge pull request #32 from madaidan/apparmor
-    
+
     Fix AppArmor and seccomp
 
 commit 3e61d1a6b5ac92ebbfbb8e55c5e85c79973e5bbc
@@ -2317,7 +2355,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Mon Sep 7 20:17:29 2020 -0700
 
     Merge pull request #30 from itoffshore/alpine
-    
+
     add service script note for hardened kernels
 
 commit bea5410a0a8f0b3bc8834a42c4c3322c6b8c6beb
@@ -2325,7 +2363,7 @@ Author: Stuart Cardall <developer@it-offshore.co.uk>
 Date:   Mon Sep 7 12:00:54 2020 +0100
 
     add service script note for hardened kernels
-    
+
     * hardened kernels without CONFIG_USER_NS_UNPRIVILEGED fail to start
       the kloak service if private namespaces are enabled.
 
@@ -2335,7 +2373,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Sun Sep 6 20:16:05 2020 -0700
 
     Merge pull request #29 from Whonix/master
-    
+
     packaging improvements and fixes
 
 commit 1a13e7537bd87c46576fe79432855e4842cea255
@@ -2349,9 +2387,9 @@ Author: Patrick Schleizer <adrelanos@riseup.net>
 Date:   Thu Aug 6 07:31:49 2020 -0400
 
     add `pread64`
-    
+
     Thanks to @haroonrafi / @pcrockett for the report!
-    
+
     fixes https://github.com/vmonaco/kloak/issues/28
 
 commit 3abdb4faeca4f8af3449f7ca58b66e1e6c7fa7c6
@@ -2377,7 +2415,7 @@ Author: Patrick Schleizer <adrelanos@riseup.net>
 Date:   Sun Apr 5 14:02:47 2020 -0400
 
     Architecture: amd64
-    
+
     https://github.com/vmonaco/kloak/issues/24
     https://github.com/vmonaco/kloak/issues/25
     Actually building might be possible but cross building using qemu has issues.
@@ -2447,7 +2485,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Wed Apr 1 15:51:08 2020 -0700
 
     Merge pull request #26 from Whonix/master
-    
+
     packaging and apparmor improvements
 
 commit 9733e77f2b3b551e209a8830dfb4d57b2f22f90a
@@ -2509,7 +2547,7 @@ Author: Patrick Schleizer <adrelanos@riseup.net>
 Date:   Mon Jan 13 12:30:40 2020 -0500
 
     apparmor allow ptrace
-    
+
     https://forums.whonix.org/t/current-state-of-kloak/5605/19
 
 commit ad4288a320da42c74649dc352b8b93c55bfec9be
@@ -2523,7 +2561,7 @@ Author: Patrick Schleizer <adrelanos@riseup.net>
 Date:   Wed Jan 1 07:14:38 2020 -0500
 
     capability sys_ptrace,
-    
+
     https://forums.whonix.org/t/current-state-of-kloak/5605/17
 
 commit 29b286926062f93cb222e355e1996093d6f682f4
@@ -2543,9 +2581,9 @@ Author: Patrick Schleizer <adrelanos@riseup.net>
 Date:   Wed Nov 27 10:26:02 2019 -0500
 
     for now "Architecture: amd64"
-    
+
     https://github.com/vmonaco/kloak/issues/24#
-    
+
     https://github.com/vmonaco/kloak/issues/25
 
 commit 076a61d3dc0b4daab4592637464077773cede43e
@@ -2559,9 +2597,9 @@ Author: Patrick Schleizer <adrelanos@riseup.net>
 Date:   Wed Nov 27 07:25:48 2019 -0500
 
     remove make_clean_hook_pre
-    
+
     since no longer required
-    
+
     since upstream Makefile now supports `make clean`
 
 commit bd0a1bb25a8b8a4b26b8d10bb57372e4df951dac
@@ -2575,9 +2613,9 @@ Author: Patrick Schleizer <adrelanos@riseup.net>
 Date:   Wed Nov 27 07:24:04 2019 -0500
 
     allow building without genmkfile
-    
+
     using standard Debian tools
-    
+
     such as `dpkg-buildpackage -b`
 
 commit a68357c55f7ea3923aa5ab0512a7b32f2f2646c1
@@ -2585,11 +2623,11 @@ Author: Patrick Schleizer <adrelanos@riseup.net>
 Date:   Wed Nov 27 07:21:25 2019 -0500
 
     add man pages
-    
+
     created with ronn
-    
+
     created from markdown templates in folder man/
-    
+
     debian/eventcap.8
     debian/kloak.8
 
@@ -2630,7 +2668,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Wed Sep 18 09:30:12 2019 -0700
 
     Merge pull request #22 from madaidan/fix-apparmor
-    
+
     Allow certain signals needed to start/stop/restart kloak
 
 commit 90dedd6efe115a10612c06bd1e2b3aecba314132
@@ -2645,7 +2683,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Tue Sep 17 09:04:38 2019 -0700
 
     Merge pull request #20 from Whonix/master
-    
+
     Apparmor Debian packaging integration
 
 commit bccd504ff2ebe558c3b2c3977f128b192b7bfcf2
@@ -2673,7 +2711,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Mon Sep 16 16:19:14 2019 -0700
 
     Merge pull request #18 from madaidan/systemd-sandbox
-    
+
     Add systemd sandboxing
 
 commit 133804e65377023cb6adeada2d1d7688766ec067
@@ -2682,7 +2720,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Mon Sep 16 16:17:47 2019 -0700
 
     Merge pull request #19 from madaidan/apparmor-profile
-    
+
     Add AppArmor profile
 
 commit 887ec7bd89fd69c724c1350041cc65acd06ce044
@@ -2727,7 +2765,7 @@ Author: Patrick Schleizer <adrelanos@riseup.net>
 Date:   Thu Sep 12 12:15:38 2019 +0000
 
     restore upstream README.md
-    
+
     https://github.com/vmonaco/kloak/pull/14#issuecomment-530150750
 
 commit 99841155fbf2dcb27988816ea77c48fa661dfad0
@@ -2754,7 +2792,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Tue Sep 10 15:52:44 2019 -0700
 
     Merge pull request #14 from Whonix/master
-    
+
     Debian buster
 
 commit f47066fd0481917793ce21dd51cb84e44c411a3f
@@ -2763,7 +2801,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Tue Sep 10 15:42:33 2019 -0700
 
     Merge pull request #15 from adrelanos/patch-1
-    
+
     implement make clean
 
 commit 2e6d22c6b4bd0de550a9a59cb5aa60d93989f73a
@@ -3002,7 +3040,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Fri Jan 20 12:41:46 2017 -0500
 
     Merge pull request #9 from adrelanos/master
-    
+
     Debian packaging fixes
 
 commit 4ee9fd3e36bbd2e4d4e4e8ec237ed2dbd7a1d339
@@ -3010,7 +3048,7 @@ Author: Patrick Schleizer <adrelanos@riseup.net>
 Date:   Fri Jan 20 17:17:51 2017 +0100
 
     fix typo
-    
+
     since lintian complained about it
 
 commit a00aa67ed61469b4f537b7254532c402f1b8b3ed
@@ -3031,7 +3069,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Sun Jan 8 07:43:57 2017 -0500
 
     Merge pull request #8 from dfgg12/patch-1
-    
+
     fixing typo in readme
 
 commit 23146cdcdde0caff1e8012b87b87e8a3227436db
@@ -3046,7 +3084,7 @@ Author: Vinnie Monaco <vinmonaco@gmail.com>
 Date:   Fri Jan 6 15:11:10 2017 -0500
 
     Merge pull request #6 from adrelanos/make_clean-fix
-    
+
     fix 'make clean'
 
 commit f4b400b570ea68b12f254d539ce9c80b87cae06b
@@ -3054,12 +3092,12 @@ Author: Patrick Schleizer <adrelanos@riseup.net>
 Date:   Fri Jan 6 20:01:20 2017 +0000
 
     fix 'make clean'
-    
+
     fixes the following issue
-    
+
     make clean
     /usr/share/genmkfile/makefile-full:83: warning: overriding recipe for target 'clean'
-    
+
     https://github.com/vmonaco/kloak/issues/3
     https://github.com/vmonaco/kloak/issues/5
 
@@ -3119,7 +3157,7 @@ Author: Patrick Schleizer <adrelanos@riseup.net>
 Date:   Fri Jan 6 18:35:51 2017 +0100
 
     Merge remote-tracking branch 'vmonaco/master' into debian
-    
+
     Conflicts:
             Makefile
 
@@ -3173,13 +3211,13 @@ Date:   Wed Jan 4 20:24:04 2017 +0000
     - depends on genmkfile, added genmkfile Makefile
     - added systemd unit file for auto start before graphical and getty target
     - for hardening, added `$(CPPFLAGS) $(CFLAGS) $(LDFLAGS)` to original makefile (renamed to Makefile_orig)
-    
+
     RELRO           STACK CANARY      NX            PIE             RPATH      RUNPATH      FILE
     Full RELRO      Canary found      NX enabled    PIE enabled     No RPATH   No RUNPATH   /usr/sbin/kloak
-    
+
     RELRO           STACK CANARY      NX            PIE             RPATH      RUNPATH      FILE
     Full RELRO      No canary found   NX enabled    PIE enabled     No RPATH   No RUNPATH   /usr/sbin/eventcap
-    
+
     - added manpages for kloak and eventcap
     - TODO: somehow auto detect /dev/input/... keyboard device for systemd unit file
 
