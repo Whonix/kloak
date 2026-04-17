@@ -2426,7 +2426,7 @@ static void handle_inotify_events(void) {
     rem_len -= struct_len;
     assert(rem_len >= 0);
 
-    if (strncmp(ie->name, "event", strlen("event")) == 0) {
+    if (strncmp(ie->name, "event", strlen("event") + 1) == 0) {
       if (ie->mask & IN_CREATE) {
         attach_input_device(ie->name);
       } else {
@@ -2890,7 +2890,11 @@ int main(int argc, char **argv) {
       }
       wl_display_flush_safe(state.display);
 
-      poll(ev_fds, POLL_FD_COUNT, calc_poll_timeout());
+      if (poll(ev_fds, POLL_FD_COUNT, calc_poll_timeout()) == -1) {
+        fprintf(stderr, "FATAL ERROR: 'poll' errored out: %s\n",
+          strerror(errno));
+        exit(1);
+      }
 
       if (ev_fds[2].revents & POLLIN) {
         if (wl_display_read_events(state.display) == -1) {
@@ -2921,7 +2925,7 @@ int main(int argc, char **argv) {
       ev_fds[1].revents = 0;
     }
 
-    wl_display_disconnect(state.display);
+    /* Control never reaches this point. */
   } else {
     while(true) {
       while (true) {
