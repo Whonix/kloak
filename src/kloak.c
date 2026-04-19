@@ -1700,14 +1700,13 @@ static struct drawable_layer *allocate_drawable_layer(struct disp_state *param_s
     zwlr_layer_surface_v1_add_listener(layer->layer_surface,
       &layer_surface_listener, param_state);
 
-    zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
-      ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP);
-    zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
-      ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
-    zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
-      ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT);
-    zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
-      ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
+    zwlr_layer_surface_v1_set_anchor(
+      layer->layer_surface,
+      ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
+      ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |
+      ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
+      ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT
+    );
     zwlr_layer_surface_v1_set_exclusive_zone(layer->layer_surface, -1);
     wl_surface_commit(layer->surface);
   }
