@@ -1,3 +1,35 @@
+commit 41cfe8ea72be7223f58b715d145180d95703cfef
+Merge: a997717 3e191be
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Wed Apr 22 09:03:18 2026 -0400
+
+    Merge remote-tracking branch 'ArrayBolt3/arraybolt3/trixie'
+
+commit 3e191bea796b30083d6d9935616ca97400b322b8
+Merge: 9c78964 16a46db
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Sun Apr 19 00:21:20 2026 -0400
+
+    Merge remote-tracking branch 'sotormd/wlroots-anchor' into arraybolt3/trixie
+
+commit 16a46db73d2b22c426798870a8e116c0d2e5bc13
+Author: vrm <sotormd@proton.me>
+Date:   Sat Apr 18 11:07:27 2026 +0530
+
+    Fix runtime failure due to layer-shell width validation
+
+commit 9c78964ac84a06ae2bf02c785d48afb6e3f2d101
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Fri Apr 17 16:33:52 2026 -0400
+
+    Fix issues detected by Coverity Scan
+
+commit a99771736eb114694a0dc0b458aed31819754c2e
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Thu Apr 16 12:31:42 2026 +0000
+
+    bumped changelog version
+
 commit 015ae4a18b645be13b9028b7bc82e67179626697
 Merge: 1683334 7f0866a
 Author: Patrick Schleizer <adrelanos@whonix.org>
