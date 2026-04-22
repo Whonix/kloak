@@ -1700,14 +1700,13 @@ static struct drawable_layer *allocate_drawable_layer(struct disp_state *param_s
     zwlr_layer_surface_v1_add_listener(layer->layer_surface,
       &layer_surface_listener, param_state);
 
-    zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
-      ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP);
-    zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
-      ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
-    zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
-      ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT);
-    zwlr_layer_surface_v1_set_anchor(layer->layer_surface,
-      ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
+    zwlr_layer_surface_v1_set_anchor(
+      layer->layer_surface,
+      ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
+      ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |
+      ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
+      ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT
+    );
     zwlr_layer_surface_v1_set_exclusive_zone(layer->layer_surface, -1);
     wl_surface_commit(layer->surface);
   }
@@ -2426,7 +2425,7 @@ static void handle_inotify_events(void) {
     rem_len -= struct_len;
     assert(rem_len >= 0);
 
-    if (strncmp(ie->name, "event", strlen("event")) == 0) {
+    if (strncmp(ie->name, "event", strlen("event") + 1) == 0) {
       if (ie->mask & IN_CREATE) {
         attach_input_device(ie->name);
       } else {
@@ -2890,7 +2889,11 @@ int main(int argc, char **argv) {
       }
       wl_display_flush_safe(state.display);
 
-      poll(ev_fds, POLL_FD_COUNT, calc_poll_timeout());
+      if (poll(ev_fds, POLL_FD_COUNT, calc_poll_timeout()) == -1) {
+        fprintf(stderr, "FATAL ERROR: 'poll' errored out: %s\n",
+          strerror(errno));
+        exit(1);
+      }
 
       if (ev_fds[2].revents & POLLIN) {
         if (wl_display_read_events(state.display) == -1) {
@@ -2921,7 +2924,7 @@ int main(int argc, char **argv) {
       ev_fds[1].revents = 0;
     }
 
-    wl_display_disconnect(state.display);
+    /* Control never reaches this point. */
   } else {
     while(true) {
       while (true) {
