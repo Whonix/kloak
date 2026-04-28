@@ -1079,8 +1079,8 @@ static int32_t get_ticks_from_scroll_accum(double *accum_ptr) {
   if (fpclassify(scroll_accum) != FP_ZERO) {
     assert(isfinite(scroll_accum));
     scroll_ticks_d = scroll_accum / SCROLL_UNITS_PER_TICK_D;
-    assert(scroll_ticks_d <= (INT32_MAX / SCROLL_UNITS_PER_TICK));
-    assert(scroll_ticks_d >= (INT32_MIN / SCROLL_UNITS_PER_TICK));
+    assert(scroll_ticks_d <= (INT32_MAX / SCROLL_UNITS_PER_TICK_D));
+    assert(scroll_ticks_d >= (INT32_MIN / SCROLL_UNITS_PER_TICK_D));
     scroll_ticks = (int32_t)(scroll_ticks_d);
     if (scroll_ticks != 0) {
       scroll_accum += -(scroll_ticks * SCROLL_UNITS_PER_TICK);
