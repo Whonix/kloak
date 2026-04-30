@@ -2708,6 +2708,9 @@ static void applayer_libinput_init(void) {
 }
 
 static void applayer_inotify_init(void) {
+  int retry = 0;
+  int64_t delay_ms = INOTIFY_WATCH_INITIAL_DELAY_MS;
+
   inotify_fd = inotify_init1(IN_CLOEXEC);
   if (inotify_fd == -1) {
     fprintf(stderr, "FATAL ERROR: Could not initialize inotify: %s\n",
@@ -2715,12 +2718,31 @@ static void applayer_inotify_init(void) {
     exit(1);
   }
 
-  if (inotify_add_watch(inotify_fd, "/dev/input", IN_CREATE | IN_DELETE)
-    == -1) {
+  for (retry = 0; retry <= INOTIFY_WATCH_MAX_RETRIES; retry++) {
+    if (inotify_add_watch(inotify_fd, "/dev/input", IN_CREATE | IN_DELETE)
+      != -1) {
+      return;
+    }
+
+    if (errno != ENOSPC || retry == INOTIFY_WATCH_MAX_RETRIES) {
+      fprintf(stderr,
+        "FATAL ERROR: Could not add inotify watch on /dev/input: %s\n",
+        strerror(errno));
+      if (errno == ENOSPC) {
+        fprintf(stderr,
+          "The system limit for inotify watches has been reached.\n"
+          "Consider increasing the limit by running:\n"
+          "  sysctl fs.inotify.max_user_watches=65536\n");
+      }
+      exit(1);
+    }
+
     fprintf(stderr,
-      "FATAL ERROR: Could not add inotify watch on /dev/input: %s\n",
-      strerror(errno));
-    exit(1);
+      "WARNING: inotify watch limit reached (ENOSPC), "
+      "retrying in %d ms (attempt %d/%d)...\n",
+      (int)(delay_ms), retry + 1, INOTIFY_WATCH_MAX_RETRIES);
+    sleep_ms(delay_ms);
+    delay_ms *= 2;
   }
 }
 

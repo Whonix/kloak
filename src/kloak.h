@@ -31,6 +31,8 @@
 #define MAX_UNRELEASED_FRAMES 3
 #define POLL_FD_COUNT 3
 #define INOTIFY_READ_BUF_LEN 16384
+#define INOTIFY_WATCH_MAX_RETRIES 5
+#define INOTIFY_WATCH_INITIAL_DELAY_MS 1000
 
 #ifndef min
 #define min(a, b) ( ((a) < (b)) ? (a) : (b) )
@@ -599,7 +601,8 @@ static void applayer_wayland_init(void);
 static void applayer_libinput_init(void);
 
 /*
- * Watches /dev/input for device creation and deletion.
+ * Watches /dev/input for device creation and deletion. Retries with
+ * exponential backoff if the system inotify watch limit is reached (ENOSPC).
  */
 static void applayer_inotify_init(void);
 
