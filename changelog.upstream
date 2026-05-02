@@ -1,3 +1,15 @@
+commit 46515418f92674187242f99fca64911f9f700152
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri May 1 16:45:06 2026 -0400
+
+    add CLAUDE.md
+
+commit 9fcdaf6cb8c6d1726939c808a83b6f8a8e95ec71
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Wed Apr 29 09:03:28 2026 +0000
+
+    bumped changelog version
+
 commit 6be6445148a85ade0fd5ba54c565f8cd1e5e3717
 Merge: f1d1a49 e8b17bb
 Author: Patrick Schleizer <adrelanos@whonix.org>
