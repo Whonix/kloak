@@ -7,6 +7,28 @@ on:
   pull_request_review_comment:
     types: [ created ]
 
+## Concurrency key explicitly includes the PR/issue number for
+## comment-triggered runs because GitHub documents 'issue_comment'
+## and 'pull_request_review_comment' as running on the default-branch
+## ref. Without the PR number in the key, every comment-triggered
+## run on every PR would share one group, and 'cancel-in-progress:
+## true' would silently cancel an in-flight Claude review on PR #A
+## the moment a comment lands on PR #B. The fall-through to
+## 'github.ref' covers the 'pull_request' trigger, where the ref
+## already differs per PR.
+## Caught by Codex: kloak#1 review thread on this file.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
+  cancel-in-progress: true
+
+## Allow-list for this Anthropic Claude review action. 'assisted-by-ai'
+## is the org bot account that opens internal refactor PRs; without it
+## on the list every bot-opened PR fails the action's actor check.
+## Remove or leave empty to allow everyone (not recommended for repos
+## with paid API key access).
+env:
+  ALLOWED_USERS: "adrelanos,ArrayBolt3,assisted-by-ai"
+
 jobs:
   review:
     name: Claude Code Review
@@ -19,12 +41,16 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      with:
+        persist-credentials: false
 
     - name: Run Claude Code Review
-      uses: anthropics/claude-code-action@v1
+      uses: anthropics/claude-code-action@62238ddb33772a079b0a6d8665a1ff3043583067  # v1
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         ## Comma-separated list of GitHub usernames allowed to trigger @claude.
-        ## Remove or leave empty to allow everyone.
-        allowed_users: "adrelanos,ArrayBolt3"
+        ## Hoisted to env.ALLOWED_USERS at the workflow top so the
+        ## allow-list is visible at-a-glance and easy to keep in sync
+        ## across our review workflows.
+        allowed_users: ${{ env.ALLOWED_USERS }}
