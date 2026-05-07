@@ -1,3 +1,9 @@
+---
+## Copyright (C) 2026 - 2026 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+## AI-Assisted
+
 ## CodeQL static analysis (consumer wrapper).
 ##
 ## Body of the job lives in the org-wide reusable workflow:
