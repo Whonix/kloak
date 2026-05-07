@@ -25,7 +25,7 @@ jobs:
     - name: Install build dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libevdev-dev libinput-dev libwayland-dev libxkbcommon-dev pkg-config
+        sudo apt-get install -y --no-install-recommends libevdev-dev libinput-dev libwayland-dev libxkbcommon-dev pkg-config
 
     - name: Coverity Scan
       uses: vapier/coverity-scan-action@v1
