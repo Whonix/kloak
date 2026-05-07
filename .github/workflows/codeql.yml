@@ -4,15 +4,8 @@
 
 ## AI-Assisted
 
-## CodeQL static analysis (consumer wrapper).
-##
-## Body of the job lives in the org-wide reusable workflow:
-##   org-ai-assisted/developer-meta-files/.github/workflows/codeql.yml
-##
-## kloak is C-only at the source level (src/kloak.[ch]) so we run a
-## single language matrix entry. If a Python tool is ever added under
-## this repo, mirror the helper-scripts pattern and add a 'python:'
-## job below.
+## Consumer wrapper. Docs live in the reusable:
+## https://github.com/org-ai-assisted/developer-meta-files/blob/master/.github/workflows/codeql.yml
 
 name: CodeQL
 
@@ -22,8 +15,6 @@ on:
   pull_request:
     branches: [master]
   schedule:
-    ## Cron slot owned by this repo - see slot allocation in the
-    ## reusable workflow's header comment.
     - cron: '25 3 * * 5'
 
 permissions:
