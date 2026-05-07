@@ -1,46 +1,40 @@
+## CodeQL static analysis (consumer wrapper).
+##
+## Body of the job lives in the org-wide reusable workflow:
+##   org-ai-assisted/developer-meta-files/.github/workflows/codeql.yml
+##
+## kloak is C-only at the source level (src/kloak.[ch]) so we run a
+## single language matrix entry. If a Python tool is ever added under
+## this repo, mirror the helper-scripts pattern and add a 'python:'
+## job below.
+
 name: CodeQL
 
 on:
   push:
+    branches: [master]
   pull_request:
+    branches: [master]
   schedule:
+    ## Cron slot owned by this repo - see slot allocation in the
+    ## reusable workflow's header comment.
     - cron: '25 3 * * 5'
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  analyze:
-    name: Analyze (${{ matrix.language }})
-    runs-on: ubuntu-latest
+  c-cpp:
+    uses: org-ai-assisted/developer-meta-files/.github/workflows/codeql.yml@master
+    with:
+      language: c-cpp
+      build-mode: manual
+      build-command: bash build.sh
     permissions:
       security-events: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - language: c-cpp
-            build-mode: manual
-          - language: python
-            build-mode: none
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-      with:
-        persist-credentials: false
-
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@e46ed2cbd01164d986452f91f178727624ae40d7  # v4.35.3
-      with:
-        languages: ${{ matrix.language }}
-        build-mode: ${{ matrix.build-mode }}
-
-    - name: Build
-      if: matrix.build-mode == 'manual'
-      run: bash build.sh
-
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@e46ed2cbd01164d986452f91f178727624ae40d7  # v4.35.3
+      contents: read
+      packages: read
