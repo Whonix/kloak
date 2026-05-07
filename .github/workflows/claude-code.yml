@@ -46,7 +46,7 @@ jobs:
         persist-credentials: false
 
     - name: Run Claude Code Review
-      uses: anthropics/claude-code-action@62238ddb33772a079b0a6d8665a1ff3043583067  # v1
+      uses: anthropics/claude-code-action@9db782c3a17ef2bfc274cd17411bc3e0a5ba1345  # v1
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
         ## Comma-separated list of GitHub usernames allowed to trigger @claude.
