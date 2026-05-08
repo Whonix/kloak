@@ -1,3 +1,12 @@
+---
+## Copyright (C) 2026 - 2026 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+## AI-Assisted
+
+## Consumer wrapper. Docs live in the reusable:
+## https://github.com/org-ai-assisted/developer-meta-files/blob/master/.github/workflows/coverity.yml
+
 name: Coverity
 
 on:
@@ -6,30 +15,19 @@ on:
       - '*'
   schedule:
     - cron: '0 4 * * 5'
+  workflow_dispatch:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
 
 jobs:
-  scan:
-    name: Coverity Scan
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-      with:
-        persist-credentials: false
-
-    - name: Install build dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libevdev-dev libinput-dev libwayland-dev libxkbcommon-dev pkg-config
-
-    - name: Coverity Scan
-      uses: vapier/coverity-scan-action@v1
-      with:
-        email: ${{ secrets.COVERITY_SCAN_EMAIL }}
-        token: ${{ secrets.COVERITY_SCAN_TOKEN }}
-        command: make
+  coverity:
+    uses: org-ai-assisted/developer-meta-files/.github/workflows/coverity.yml@master
+    with:
+      apt-packages: "libevdev-dev libinput-dev libwayland-dev libxkbcommon-dev pkg-config"
+      build-command: ./cov-analysis/bin/cov-build --dir cov-int make
+      project-name: kloak
+      canonical-repos: "Kicksecure/kloak,org-ai-assisted/kloak,Whonix/kloak"
+    secrets: inherit
+    permissions:
+      contents: read

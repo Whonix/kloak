@@ -1,94 +1,37 @@
+---
+## Copyright (C) 2026 - 2026 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+## AI-Assisted
+
+## Consumer wrapper. Docs live in the reusable:
+## https://github.com/org-ai-assisted/developer-meta-files/blob/master/.github/workflows/codex-review.yml
+
 name: OpenAI Codex Review
 
 on:
   pull_request:
-  ## Manual override for the fork-PR skip path. The job-level
-  ## `if:` below permanently skips Codex on PRs whose head is from
-  ## a fork (so untrusted code can't burn our paid OPENAI_API_KEY);
-  ## that's the right default but means well-vetted external
-  ## contributions never get a Codex review either. workflow_dispatch
-  ## lets a maintainer who has already reviewed the fork PR by hand
-  ## kick off a Codex pass on it from the Actions tab.
-  ##
-  ## inputs.pr_ref is required because workflow_dispatch otherwise
-  ## checks out the default branch, not the fork PR's code, so the
-  ## review would target master instead of the fork - defeating the
-  ## whole point of the override.
-  ## Caught by Codex P2 on kloak#1 codex-review.yml:13.
   workflow_dispatch:
     inputs:
       pr_ref:
         description: |
           Ref of the fork PR to review.
-          Use `refs/pull/<N>/merge` for the merge ref (most accurate;
-          mirrors what would land), or `refs/pull/<N>/head` for the
-          PR head commit. A plain branch name in the upstream repo
-          (e.g. `feature-foo`) also works for non-fork PRs.
+          Use `refs/pull/<N>/merge` (most accurate; mirrors what
+          would land), or `refs/pull/<N>/head` for the PR head.
+          A plain branch name in the upstream repo also works for
+          non-fork PRs.
         required: true
         type: string
 
-## Concurrency key explicitly includes inputs.pr_ref so manual
-## reviews of different fork PRs (workflow_dispatch with different
-## pr_ref values) get distinct groups and don't cancel each other.
-## On pull_request the input is empty and we fall through to
-## github.ref (the PR's head ref) which already differs per PR.
-## Caught by Codex P2 on kloak#1 codex-review.yml:31.
-concurrency:
-  group: ${{ github.workflow }}-${{ inputs.pr_ref || github.ref }}
-  cancel-in-progress: true
-
-## Allow-list for actors that bypass the openai/codex-action
-## actor-write-access gate. 'assisted-by-ai' is the org bot account
-## that opens internal refactor PRs and only has read on the upstream;
-## listing it here is strictly narrower than granting it write.
-env:
-  ALLOW_BOT_USERS: "assisted-by-ai"
+permissions:
+  contents: read
 
 jobs:
   review:
-    name: OpenAI Codex Review
-    runs-on: ubuntu-latest
+    uses: org-ai-assisted/developer-meta-files/.github/workflows/codex-review.yml@master
+    with:
+      pr-ref: ${{ inputs.pr_ref || '' }}
+    secrets: inherit
     permissions:
       contents: read
       pull-requests: write
-
-    ## Skip on PRs from forks: the action consumes secrets.OPENAI_API_KEY
-    ## and would otherwise burn paid OpenAI calls on attacker-controlled
-    ## prompts/code. Maintainer can re-trigger via workflow_dispatch (see
-    ## the `on:` block above) if a fork PR genuinely needs review.
-    ## github.event.pull_request is null for workflow_dispatch events,
-    ## so the comparison short-circuits to running the job in that case
-    ## (workflow_dispatch is implicitly a maintainer-authorized trigger).
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-      with:
-        ## On workflow_dispatch (manual fork-PR review), check out the
-        ## ref the maintainer named in inputs.pr_ref. On pull_request,
-        ## leave ref unset (default: github.ref / the PR's head sha).
-        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_ref || '' }}
-        persist-credentials: false
-        fetch-depth: 0
-
-    - name: Run Codex Review
-      uses: openai/codex-action@e0fdf01220eb9a88167c4898839d273e3f2609d1  # main @ 2026-05-06 (no stable tag yet)
-      with:
-        openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-        ## The action gates on the actor having write access to the
-        ## repo (defense-in-depth so a fork PR cannot get arbitrary
-        ## prompts executed under our paid OPENAI_API_KEY). The
-        ## 'assisted-by-ai' bot member of org-ai-assisted only has
-        ## read on Whonix/kloak (the upstream this fork tracks), so
-        ## without an explicit bypass the action errors out at start.
-        ## Hoisted to env.ALLOW_BOT_USERS at the workflow top so
-        ## the allow-list is visible at-a-glance; allow-bot-users
-        ## skips the actor-write check for the named bot only -
-        ## strictly narrower than granting write on the upstream.
-        allow-bot-users: ${{ env.ALLOW_BOT_USERS }}
-        ## Sandbox the Codex run: review only, no workspace mutation.
-        ## We invoke this purely for review comments; nothing else
-        ## should change on disk.
-        sandbox: read-only
-        prompt: Review the code changes in this PR for security, correctness, and best practices.
