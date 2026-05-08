@@ -22,8 +22,6 @@ permissions:
 jobs:
   review:
     uses: org-ai-assisted/developer-meta-files/.github/workflows/claude-code-review.yml@master
-    with:
-      allowed-users: "adrelanos,ArrayBolt3,assisted-by-ai"
     secrets:
       anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     permissions:

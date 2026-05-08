@@ -30,7 +30,6 @@ jobs:
   review:
     uses: org-ai-assisted/developer-meta-files/.github/workflows/codex-review.yml@master
     with:
-      allow-bot-users: "assisted-by-ai"
       pr-ref: ${{ inputs.pr_ref || '' }}
     secrets:
       openai-api-key: ${{ secrets.OPENAI_API_KEY }}
