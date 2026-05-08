@@ -22,8 +22,7 @@ permissions:
 jobs:
   review:
     uses: org-ai-assisted/developer-meta-files/.github/workflows/claude-code-review.yml@master
-    secrets:
-      anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    secrets: inherit
     permissions:
       contents: read
       pull-requests: write
