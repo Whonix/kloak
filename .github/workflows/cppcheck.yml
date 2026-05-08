@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   cppcheck:
-    uses: org-ai-assisted/developer-meta-files/.github/workflows/cppcheck.yml@master
+    uses: org-ai-assisted/developer-meta-files/.github/workflows/reusable-cppcheck.yml@master
     with:
       paths: src
     permissions:

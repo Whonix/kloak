@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   review:
-    uses: org-ai-assisted/developer-meta-files/.github/workflows/codex-review.yml@master
+    uses: org-ai-assisted/developer-meta-files/.github/workflows/reusable-codex-review.yml@master
     with:
       pr-ref: ${{ inputs.pr_ref || '' }}
     secrets: inherit

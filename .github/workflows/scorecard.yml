@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   scorecard:
-    uses: org-ai-assisted/developer-meta-files/.github/workflows/scorecard.yml@master
+    uses: org-ai-assisted/developer-meta-files/.github/workflows/reusable-scorecard.yml@master
     permissions:
       security-events: write
       contents: read

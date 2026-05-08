@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   review:
-    uses: org-ai-assisted/developer-meta-files/.github/workflows/claude-code-review.yml@master
+    uses: org-ai-assisted/developer-meta-files/.github/workflows/reusable-claude-code-review.yml@master
     secrets: inherit
     permissions:
       contents: read

@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   coverity:
-    uses: org-ai-assisted/developer-meta-files/.github/workflows/coverity.yml@master
+    uses: org-ai-assisted/developer-meta-files/.github/workflows/reusable-coverity.yml@master
     with:
       apt-packages: "libevdev-dev libinput-dev libwayland-dev libxkbcommon-dev pkg-config"
       build-command: ./cov-analysis/bin/cov-build --dir cov-int make
