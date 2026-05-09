@@ -1,0 +1,28 @@
+---
+## Copyright (C) 2026 - 2026 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+## AI-Assisted
+
+## Consumer wrapper. Docs live in the reusable:
+## https://github.com/org-ai-assisted/developer-meta-files/blob/master/.github/workflows/cppcheck.yml
+
+name: cppcheck
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cppcheck:
+    uses: org-ai-assisted/developer-meta-files/.github/workflows/reusable-cppcheck.yml@master
+    with:
+      paths: src
+    permissions:
+      contents: read
