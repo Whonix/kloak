@@ -417,7 +417,6 @@ static int create_shm_file(ssize_t size) {
   int fd = -1;
   /* 18 = length of string '/kloak-XXXXXXXXXX' + NULL terminator */
   char name[18];
-  int snprintf_len = 0;
   int32_t ret = 0;
 
   assert(should_draw_cursor);
@@ -437,7 +436,7 @@ static int create_shm_file(ssize_t size) {
   }
 
   do {
-    snprintf_len = snprintf(name, sizeof(name), "%s", "/kloak-XXXXXXXXXX");
+    int snprintf_len = snprintf(name, sizeof(name), "%s", "/kloak-XXXXXXXXXX");
     assert(snprintf_len > 0 && (size_t)(snprintf_len) == sizeof(name) - 1);
     /* 10 = length of 'XXXXXXXXXX', 11 = length + NULL terminator */
     randname(name + sizeof(name) - 11, 10);
@@ -625,7 +624,7 @@ static void recalc_global_space(struct disp_state *param_state) {
   struct output_geometry *conn_screen_list[MAX_SCREEN_COUNT];
   ssize_t conn_screen_list_len = 0;
   bool screen_in_conn_list = false;
-  struct output_geometry *conn_screen = NULL;
+  const struct output_geometry *conn_screen = NULL;
   struct output_geometry *cur_screen = NULL;
 
   for (ssize_t i = 0; i < MAX_SCREEN_COUNT; i++) {
@@ -862,8 +861,8 @@ static void draw_block(uint32_t *pixbuf, int32_t offset, int32_t x, int32_t y,
   int32_t start_y = 0;
   int32_t end_x = 0;
   int32_t end_y = 0;
-  int32_t work_x = 0;
-  int32_t work_y = 0;
+  int32_t work_x;
+  int32_t work_y;
 
   assert(should_draw_cursor);
 
@@ -889,54 +888,100 @@ static void draw_block(uint32_t *pixbuf, int32_t offset, int32_t x, int32_t y,
   }
 }
 
-static int32_t parse_uint31_arg(const char *arg_name, const char *val,
-  int base) {
+/*
+ * Pure value parser for INT31 args (max INT32_MAX, non-negative).
+ *
+ * Splits the strtoul + bounds check from the FATAL-ERROR + exit
+ * path so that future fuzz harnesses can drive the parser
+ * directly. libFuzzer must keep its process alive across millions
+ * of invocations; a target that calls exit() on every parse
+ * failure stops fuzzing after one rejected input. The existing
+ * exit-on-error wrapper below preserves the runtime behavior for
+ * normal CLI argument parsing - the fatal-error path remains
+ * unchanged for production callers.
+ *
+ * Returns 0 on success (with the parsed value written through
+ * 'out'), or -1 on parse / range error. Does not write to 'out'
+ * on error.
+ */
+static int parse_uint31_arg_value(const char *val, int base, int32_t *out) {
   char *val_endchar = NULL;
   uint64_t val_int = 0;
 
+  if (val == NULL || out == NULL) {
+    return -1;
+  }
   errno = 0;
   val_int = strtoul(val, &val_endchar, base);
   if (errno == ERANGE) {
-    goto parse_uint31_arg_error;
+    return -1;
   }
-  if (*val_endchar != '\0') {
-    goto parse_uint31_arg_error;
+  if (val_endchar == val || *val_endchar != '\0') {
+    /*
+     * val_endchar == val means strtoul consumed nothing (empty
+     * string or no leading digits in the requested base). Both
+     * 'no progress' and 'trailing garbage' are rejected.
+     */
+    return -1;
   }
   if (val_int > INT32_MAX) {
-    goto parse_uint31_arg_error;
+    return -1;
   }
-  return (int32_t)(val_int);
+  *out = (int32_t)(val_int);
+  return 0;
+}
 
-parse_uint31_arg_error:
-  fprintf(stderr,
-    "FATAL ERROR: Invalid value '%s' passed to parameter '%s'!\n", val, arg_name);
-  exit(1);
-  return -1;
+static int32_t parse_uint31_arg(const char *arg_name, const char *val,
+  int base) {
+  int32_t parsed = 0;
+
+  if (parse_uint31_arg_value(val, base, &parsed) != 0) {
+    fprintf(stderr,
+      "FATAL ERROR: Invalid value '%s' passed to parameter '%s'!\n", val, arg_name);
+    exit(1);
+  }
+  return parsed;
+}
+
+/*
+ * Pure value parser for UINT32 args. Same rationale as
+ * parse_uint31_arg_value above - extracted for fuzz-harness use.
+ *
+ * Returns 0 on success (with the parsed value written through
+ * 'out'), or -1 on parse / range error.
+ */
+static int parse_uint32_arg_value(const char *val, int base, uint32_t *out) {
+  char *val_endchar = NULL;
+  uint64_t val_int = 0;
+
+  if (val == NULL || out == NULL) {
+    return -1;
+  }
+  errno = 0;
+  val_int = strtoul(val, &val_endchar, base);
+  if (errno == ERANGE) {
+    return -1;
+  }
+  if (val_endchar == val || *val_endchar != '\0') {
+    return -1;
+  }
+  if (val_int > UINT32_MAX) {
+    return -1;
+  }
+  *out = (uint32_t)(val_int);
+  return 0;
 }
 
 static uint32_t parse_uint32_arg(const char *arg_name, const char *val,
   int base) {
-  char *val_endchar = NULL;
-  uint64_t val_int = 0;
+  uint32_t parsed = 0;
 
-  errno = 0;
-  val_int = strtoul(val, &val_endchar, base);
-  if (errno == ERANGE) {
-    goto parse_uint32_arg_error;
+  if (parse_uint32_arg_value(val, base, &parsed) != 0) {
+    fprintf(stderr,
+      "FATAL ERROR: Invalid value '%s' passed to parameter '%s'!\n", val, arg_name);
+    exit(1);
   }
-  if (*val_endchar != '\0') {
-    goto parse_uint32_arg_error;
-  }
-  if (val_int > UINT32_MAX) {
-    goto parse_uint32_arg_error;
-  }
-  return (uint32_t)(val_int);
-
-parse_uint32_arg_error:
-  fprintf(stderr,
-    "FATAL ERROR: Invalid value '%s' passed to parameter '%s'!\n", val, arg_name);
-  exit(1);
-  return 0;
+  return parsed;
 }
 
 static int32_t sleep_ms(int64_t ms) {
@@ -1073,10 +1118,10 @@ static void detach_input_device(const char *dev_name) {
 
 static int32_t get_ticks_from_scroll_accum(double *accum_ptr) {
   double scroll_accum = *accum_ptr;
-  double scroll_ticks_d = 0.0;
   int32_t scroll_ticks = 0;
 
   if (fpclassify(scroll_accum) != FP_ZERO) {
+    double scroll_ticks_d;
     assert(isfinite(scroll_accum));
     scroll_ticks_d = scroll_accum / SCROLL_UNITS_PER_TICK_D;
     /* We intentionally use SCROLL_UNITS_PER_TICK here, not
@@ -1119,7 +1164,7 @@ static void registry_handle_global(void *data, struct wl_registry *registry,
   uint32_t name, const char *interface,
   __attribute__((unused)) uint32_t version) {
   struct disp_state *param_state = data;
-  ssize_t i = 0;
+  ssize_t i;
 
   if (strcmp(interface, wl_compositor_interface.name) == 0) {
     param_state->compositor = wl_registry_bind(registry, name,
@@ -1432,6 +1477,9 @@ static void wl_output_handle_mode(__attribute__((unused)) void *data,
   ;
 }
 
+/* cppcheck-suppress constParameterCallback
+ * Signature is dictated by the wl_output_listener function-pointer table;
+ * adding 'const' would require casts at the listener struct. */
 static void wl_output_info_done(void *data, struct wl_output *output) {
   struct disp_state *param_state = data;
 
@@ -1468,9 +1516,12 @@ static void wl_output_handle_description(__attribute__((unused)) void *data,
 }
 
 static void xdg_output_handle_logical_position(void *data,
+  /* cppcheck-suppress constParameterCallback
+   * Signature is dictated by the zxdg_output_v1_listener function-pointer
+   * table; adding 'const' would require casts at the listener struct. */
   struct zxdg_output_v1 *xdg_output, int32_t x, int32_t y) {
   struct disp_state *param_state = data;
-  ssize_t i = 0;
+  ssize_t i;
 
   for (i = 0; i < MAX_SCREEN_COUNT; i++) {
     if (param_state->xdg_outputs[i] == xdg_output) {
@@ -1482,9 +1533,12 @@ static void xdg_output_handle_logical_position(void *data,
 }
 
 static void xdg_output_handle_logical_size(void *data,
+  /* cppcheck-suppress constParameterCallback
+   * Signature is dictated by the zxdg_output_v1_listener function-pointer
+   * table; adding 'const' would require casts at the listener struct. */
   struct zxdg_output_v1 *xdg_output, int32_t width, int32_t height) {
   struct disp_state *param_state = data;
-  ssize_t i = 0;
+  ssize_t i;
 
   for (i = 0; i < MAX_SCREEN_COUNT; i++) {
     if (param_state->xdg_outputs[i] == xdg_output) {
@@ -1603,7 +1657,6 @@ static void draw_frame(struct drawable_layer *layer) {
   struct wl_buffer *buffer = NULL;
   struct screen_local_coord scr_coord = { 0 };
   bool cursor_is_on_layer = false;
-  ssize_t layer_idx = 0;
 
   assert(should_draw_cursor);
 
@@ -1637,6 +1690,7 @@ static void draw_frame(struct drawable_layer *layer) {
 
   cursor_is_on_layer = false;
   if (scr_coord.valid) {
+    ssize_t layer_idx;
     for (layer_idx = 0; layer_idx < MAX_SCREEN_COUNT; layer_idx++) {
       if ((state.layers[layer_idx] == layer)
         && (layer_idx == scr_coord.output_idx)) {
@@ -1737,8 +1791,6 @@ static struct input_packet * update_virtual_cursor(void) {
   struct coord prev_trav_coord = { 0 };
   bool end_x_hit = false;
   bool end_y_hit = false;
-  struct coord trav_coord = { 0 };
-  struct screen_local_coord trav_scr_coord = { 0 };
   struct screen_local_coord scr_coord = { 0 };
   struct input_packet *old_ev_packet = NULL;
   struct input_packet *ev_packet = NULL;
@@ -1808,7 +1860,8 @@ static struct input_packet * update_virtual_cursor(void) {
   end.y = (int32_t)(cursor_y);
   prev_trav_coord = start;
   for (i = 0; ; i++) {
-    trav_coord = traverse_line(start, end, i);
+    struct coord trav_coord = traverse_line(start, end, i);
+    struct screen_local_coord trav_scr_coord;
     if (trav_coord.x == end.x) end_x_hit = true;
     if (trav_coord.y == end.y) end_y_hit = true;
     trav_scr_coord = abs_coord_to_screen_local_coord(trav_coord.x,
@@ -2065,8 +2118,8 @@ static void register_esc_combo_event(struct libinput_event *li_event) {
   uint32_t key = 0;
   enum libinput_key_state key_state = LIBINPUT_KEY_STATE_PRESSED;
   enum libinput_event_type li_event_type = libinput_event_get_type(li_event);
-  size_t i = 0;
-  size_t j = 0;
+  size_t i;
+  size_t j;
   bool hit_exit = true;
 
   if (li_event_type != LIBINPUT_EVENT_KEYBOARD_KEY) {
@@ -2111,10 +2164,6 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
   struct libinput_device *ev_device = NULL;
   struct li_device_info *ev_device_info = NULL;
   enum libinput_event_type li_event_type = libinput_event_get_type(li_event);
-  double abs_x = 0.0;
-  double abs_y = 0.0;
-  double rel_x = 0.0;
-  double rel_y = 0.0;
   double vert_scroll_val = 0.0;
   double horiz_scroll_val = 0.0;
   int64_t current_time = 0;
@@ -2122,6 +2171,8 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
   int64_t random_delay = 0;
 
   if (li_event_type == LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE) {
+    double abs_x;
+    double abs_y;
     pointer_event = libinput_event_get_pointer_event(li_event);
     assert(state.global_space_width >= 0);
     assert(state.global_space_height >= 0);
@@ -2140,6 +2191,8 @@ static void queue_libinput_event_and_relocate_virtual_cursor(
     }
 
   } else if (li_event_type == LIBINPUT_EVENT_POINTER_MOTION) {
+    double rel_x;
+    double rel_y;
     pointer_event = libinput_event_get_pointer_event(li_event);
     rel_x = libinput_event_pointer_get_dx(pointer_event);
     rel_y = libinput_event_pointer_get_dy(pointer_event);
@@ -2399,7 +2452,6 @@ static void handle_inotify_events(void) {
   static char *read_buf = NULL;
   ssize_t read_len = 0;
   ssize_t rem_len = 0;
-  ssize_t struct_len = 0;
   struct inotify_event *ie;
 
   if (read_buf == NULL) {
@@ -2423,6 +2475,7 @@ static void handle_inotify_events(void) {
   ie = (void *)(read_buf);
   rem_len = read_len;
   while (true) {
+    ssize_t struct_len;
     assert(rem_len >= (ssize_t)(sizeof(struct inotify_event)));
     assert(ie->len < SSIZE_MAX - sizeof(struct inotify_event));
     struct_len = ((ssize_t)(sizeof(struct inotify_event)) + (ssize_t)(ie->len));
@@ -2462,8 +2515,8 @@ static void parse_esc_key_str(const char *esc_key_str) {
   char *orig_key_str_copy = esc_key_str_copy;
   char *root_token = NULL;
   const char *sub_token = NULL;
-  size_t i = 0;
-  size_t j = 0;
+  size_t i;
+  size_t j;
 
   for (i = 0; ((root_token = strsep(&esc_key_str_copy, ",")) != NULL); i++) {
     if (root_token[0] == '\0' ) {
@@ -2506,7 +2559,7 @@ static void parse_esc_key_str(const char *esc_key_str) {
 }
 
 static int calc_poll_timeout(void) {
-  struct input_packet *packet = NULL;
+  const struct input_packet *packet = NULL;
   int64_t timeout_duration = 0;
 
   packet = TAILQ_FIRST(&evq_head);
@@ -2683,7 +2736,7 @@ static void applayer_wayland_init(void) {
 
 static void applayer_libinput_init(void) {
   DIR *input_dir = NULL;
-  struct dirent *input_dir_entry = NULL;
+  const struct dirent *input_dir_entry = NULL;
 
   LIST_INIT(&ldi_head);
 
@@ -2756,10 +2809,9 @@ static void parse_cli_args(int argc, char **argv) {
     {"natural-scrolling", required_argument, NULL, 'n'},
     {0, 0, 0, 0}
   };
-  int getopt_rslt = 0;
 
   while(true) {
-    getopt_rslt = getopt_long(argc, argv, optstring, optarr, NULL);
+    int getopt_rslt = getopt_long(argc, argv, optstring, optarr, NULL);
     if (getopt_rslt == -1) {
       break;
     } else if (getopt_rslt == '?') {
@@ -2807,8 +2859,8 @@ static void parse_cli_args(int argc, char **argv) {
 /**********/
 
 int main(int argc, char **argv) {
-  ssize_t i = 0;
-  char *env_val = NULL;
+  ssize_t i;
+  const char *env_val = NULL;
 
   /*
    * BIG FAT WARNING: Do not attempt to build kloak with NDEBUG defined. Many
