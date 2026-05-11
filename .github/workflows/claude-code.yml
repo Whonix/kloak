@@ -19,6 +19,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   review:
     uses: org-ai-assisted/developer-meta-files/.github/workflows/reusable-claude-code-review.yml@master

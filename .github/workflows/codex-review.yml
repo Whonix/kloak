@@ -26,6 +26,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   review:
     uses: org-ai-assisted/developer-meta-files/.github/workflows/reusable-codex-review.yml@master
