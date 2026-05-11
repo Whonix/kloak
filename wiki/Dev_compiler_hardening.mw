@@ -1,0 +1,177 @@
+{{Header}}
+{{title|title=
+Compiler Hardening
+}}
+{{#seo:
+|description=Compiler flags for hardening compiled applications at both binary and source code levels.
+}}
+{{coding_style_mininav}}
+{{intro|
+Compiler flags for hardening compiled applications at both binary and source code levels.
+}}
+
+= Introduction =
+Many compilers for languages such as C have only a small subset of their available hardening and diagnostic features enabled by default. Enabling these features can help produce higher-quality code and make compiled executables much more difficult to exploit.
+
+= C compiler flags =
+For all file types built with GCC and Clang on all platforms:
+
+* <code>-O2</code>: Enables a safe level of optimization. Improves both speed and security.
+* <code>-g</code>: Enables generation of debugging symbols.
+* <code>-Wall</code>: Enables general warnings that should be addressed in all applications.
+* <code>-Wextra</code>: Enables additional warnings that should be addressed in most applications.
+* <code>-Wformat -Wformat=2</code>: Checks calls to string formatting functions such as <code>printf</code> and warns if they appear malformed.
+* <code>-Wconversion</code>: Prints warnings when implicit type conversions may alter a value. Catches issues such as attempting to store negative values in unsigned integers.
+* <code>-Wimplicit-fallthrough</code>: Catches instances where a <code>switch</code> case block falls through into the block beneath it.
+* <code>-Werror=format-security</code>: Disallows <code>printf</code>-like calls that are likely to be security holes.
+* <code>-Werror=implicit</code>: Disallows function declarations without a type and function calls before a function is declared.
+* <code>-Werror=int-conversion</code>: Disallows incompatible implicit pointer-to-integer conversions and vice versa.
+* <code>-Werror=incompatible-pointer-types</code>: Disallows conversion of pointers between incompatible types.
+* <code>-Wformat-overflow</code>: Warns when parameters to <code>sprintf</code> and similar functions may overflow the destination buffer.
+* <code>-Wformat-signedness</code>: Warns if an unsigned integer is passed to <code>printf</code> or a similar function when a signed integer is needed, and vice versa.
+* <code>-Wformat-truncation</code>: Warns when output from <code>snprintf</code> and similar functions is truncated.
+* <code>-Wnull-dereference</code>: Warns if a <code>NULL</code> pointer dereference is detected by the compiler (note: by default this is a no-op because we use <code>-fno-delete-null-pointer-checks</code>).
+* <code>-Winit-self</code>: Warns if code attempts to initialize an uninitialized variable with itself.
+* <code>-Wmissing-include-dirs</code>: Warns if a user-supplied include directory does not exist.
+* <code>-Wshift-negative-value</code>: Warns if attempting to left-shift a negative value.
+* <code>-Wshift-overflow</code>: Warns if a left shift causes an overflow in unsafe cases.
+* <code>-Wswitch-default</code>: Warns if a <code>switch</code> statement does not have a <code>default</code> case.
+* <code>-Wuninitialized</code>: Warns if an uninitialized variable is used.
+* <code>-Walloca</code>: Warns if the <code>alloca</code> function is used. This function is unsafe because it can cause stack overflow or behave unpredictably with function arguments.
+* <code>-Warray-bounds</code>: Warns if an out-of-bounds array access is detected.
+* <code>-Wfloat-equal</code>: Warns if attempting to perform a direct equality comparison with floating-point numbers (as this is prone to errors).
+* <code>-Wshadow</code>: Warns if a local variable or type declaration shadows another.
+* <code>-Wpointer-arith</code>: Warns if performing arithmetic using the size of <code>void</code> or function types, which have a size of 1 counterintuitively.
+* <code>-Wundef</code>: Warns if an undefined identifier is evaluated in a <code>#if</code> directive.
+* <code>-Wunused-macros</code>: Warns if a macro is defined but never used.
+* <code>-Wbad-function-cast</code>: Warns if a function call is cast to a non-matching type (for example, casting a function that returns <code>int</code> to one returning another pointer type).
+* <code>-Wcast-qual</code>: Warns if a cast removes a type qualifier, such as casting <code>const char *</code> to <code>char *</code>.
+* <code>-Wcast-align</code>: Warns if a pointer cast results in possible pointer alignment issues.
+* <code>-Wwrite-strings</code>: Warns if a string constant's address is placed in a non-const buffer.
+* <code>-Wdate-time</code>: Warns if time-related macros are encountered. These break build reproducibility.
+* <code>-Wstrict-prototypes</code>: Warns if a function is declared or defined without specifying argument types.
+* <code>-Wold-style-definition</code>: Warns if using an old-style C function declaration, which is very error-prone.
+* <code>-Wredundant-decls</code>: Warns if the same entity is declared more than once in the same scope.
+* <code>-Winvalid-utf8</code>: Warns if an invalid UTF-8 character is found.
+* <code>-Wvla</code>: Warns if a variable-length array is used.
+* <code>-Wdisabled-optimization</code>: Warns if the compiler cannot optimize the code in all requested ways.
+* <code>-Wstack-protector</code>: Warns about functions not protected from stack smashing.
+* <code>-Wdeclaration-after-statement</code>: Warns if declarations occur after statements in a scope block. This encourages grouping declarations, making it easier to ensure variables are properly initialized.
+* <code>-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3</code>: Adds additional compile-time and run-time checks for several libc functions.
+* <code>-fstack-clash-protection</code>: Attempts to prevent stack clash style attacks.
+* <code>-fstack-protector-all</code>: Protects against stack smashing in all functions.
+* <code>-fno-delete-null-pointer-checks</code>: Prevents the compiler from deleting explicit null pointer checks from code. This optimization is potentially very dangerous. Note that disabling this optimization also renders <code>-Wnull-dereference</code> unable to warn about anything, so developers should temporarily remove it before doing test builds, then re-add it later.
+* <code>-fno-strict-overflow</code>: Prevents the compiler from assuming that signed integer overflow is undefined behavior. Without this flag, the compiler may optimize away overflow checks, potentially creating security vulnerabilities.
+* <code>-fno-strict-aliasing</code>: Disables strict aliasing rules, so that casting between pointer types (for example, from a char buffer to <code>uint64_t</code>) is well-defined.
+* <code>-fstrict-flex-arrays=3</code>: Treats a trailing array in a struct as flexible only if it is defined with no specified length.
+* <code>-ftrivial-auto-var-init=pattern</code>: Ensures stack-allocated variables are virtually always initialized, using a special pattern that will probably cause a crash if the variable is not intentionally initialized. This both mitigates security issues resulting from uninitialized variables and makes it easier to catch bugs resulting from them.
+* <code>-Wl,-z,nodlopen</code>: Disallows using <code>dlopen</code> on the compiled objects.
+* <code>-Wl,-z,noexecstack</code>: Marks compiled objects as not requiring an executable stack.
+* <code>-Wl,-z,relro -Wl,-z,now</code>: Resolves all symbols when the program is loaded and then makes the global offset table read-only, thwarting GOT overwrite attacks.
+* <code>-Wl,-z,separate-code</code>: Renders some non-code data in the program non-executable, making ROP attacks harder. (This is enabled by default in Debian 13's toolchain, but is worth explicitly specifying as defense-in-depth.)
+* <code>-Wl,--as-needed</code>: Links only libraries that are actually used, reducing attack surface.
+* <code>-Wl,--no-copy-dt-needed-entries</code>: Prevents libraries from pulling in unneeded dependencies. All needed libraries must be explicitly specified.
+
+For all file types built with GCC only, not supported by Clang:
+
+* <code>-Wtrampolines</code>: Warns if GCC creates trampoline code on the stack, which often requires an executable stack.
+* <code>-Wbidi-chars=any,ucn</code>: Warns if bidirectional control characters or UCN codes are used. These can be used for trojan source attacks.
+* <code>-Wformat-overflow=2</code>: Performs deeper analysis to detect format overflow bugs.
+* <code>-Wformat-truncation=2</code>: Warns if a <code>printf</code>-like call is likely to truncate output, even when the return value is used.
+* <code>-Wshift-overflow=2</code>: Warns if a left shift could be unsafe, even if a 1 is being left-shifted into the sign bit (something plain <code>-Wshift-overflow</code> does not catch).
+* <code>-Wtrivial-auto-var-init</code>: Warns if a stack-allocated variable cannot be automatically initialized (for example, in <code>switch</code> blocks before the first <code>case</code> statement).
+* <code>-Wstringop-overflow=3</code>: Performs paranoid-level checks for memory copy overflows.
+* <code>-Wstrict-flex-arrays</code>: Warns if code appears to misuse an array at the end of a struct as a flexible array member.
+* <code>-Walloc-zero</code>: Warns if attempting to allocate a zero-size buffer.
+* <code>-Warray-bounds=2</code>: Performs paranoid-level checks for out-of-bounds array accesses.
+* <code>-Wattribute-alias=2</code>: Warns if a function alias has incompatible or more restrictive attributes than the function it aliases.
+* <code>-Wduplicated-branches</code>: Warns if both branches of an <code>if</code>/<code>else</code> perform the same action.
+* <code>-Wduplicated-cond</code>: Warns if the same condition appears multiple times in an <code>if</code>-<code>else if</code> chain.
+* <code>-Wcast-align=strict</code>: Warns about potential alignment issues from casts, even on CPUs where alignment may not matter. This likely helps catch bugs that will strike only some CPUs, even if we are not building for those CPUs.
+* <code>-Wjump-misses-init</code>: Warns if a jump skips over or duplicates a variable initialization.
+* <code>-Wlogical-op</code>: Warns about suspicious logical operator use (for example, when a bitwise operator was likely intended).
+
+For all file types built with Clang only, not supported by GCC:
+
+* <code>-fsanitize=undefined -fsanitize-minimal-runtime -fno-sanitize-recover=all</code>: Catches some undefined behavior and aborts the program if it is encountered.
+** WARNING: Do NOT use <code>-fsanitize=address</code> at all, and do NOT use <code>-fsanitize=undefined</code> without <code>-fsanitize-minimal-runtime</code>. Doing either of these things will probably open up security vulnerabilities. <ref>https://www.openwall.com/lists/oss-security/2016/02/17/9</ref>
+** Note: It is unclear whether this actually provides any meaningful level of hardening. Omitting these flags may be desirable even with Clang.
+
+For all file types built with GCC and Clang, x86_64 only:
+
+* <code>-fcf-protection=full</code>: Enables full control-flow protection.
+
+For all file types built with GCC and Clang, aarch64 only:
+
+* <code>-mbranch-protection=standard</code>: Enables all branch protection features.
+
+For all file types built with GCC and Clang, x86_64 and aarch64 but potentially not other architectures:
+
+* <code>-fzero-call-used-regs=all</code>: Zeroes call-used registers at function return. Mitigates data leaks and ROP attacks.
+
+For executables built with GCC and Clang, not libraries:
+
+* <code>-fPIE</code>: Generates position-independent executable code.
+* <code>-pie</code>: Creates a position-independent executable.
+
+For libraries built with GCC and Clang, not executables:
+
+* <code>-fPIC</code>: Generates position-independent library code.
+
+All flags for GCC x86_64 executables:
+
+{{CodeSelect|code=
+-O2 -g -Wall -Wextra -Wformat -Wformat=2 -Wconversion -Wimplicit-fallthrough \
+-Werror=format-security -Werror=implicit -Werror=int-conversion \
+-Werror=incompatible-pointer-types -Wformat-overflow -Wformat-signedness \
+-Wformat-truncation -Wnull-dereference -Winit-self -Wmissing-include-dirs \
+-Wshift-negative-value -Wshift-overflow -Wswitch-default -Wuninitialized \
+-Walloca -Warray-bounds \
+-Wfloat-equal -Wshadow -Wpointer-arith -Wundef -Wunused-macros \
+-Wbad-function-cast -Wcast-qual -Wcast-align -Wwrite-strings -Wdate-time \
+-Wstrict-prototypes -Wold-style-definition -Wredundant-decls -Winvalid-utf8 \
+-Wvla -Wdisabled-optimization -Wstack-protector -Wdeclaration-after-statement \
+-Wtrampolines -Wbidi-chars=any,ucn -Wformat-overflow=2 -Wformat-truncation=2 \
+-Wshift-overflow=2 -Wtrivial-auto-var-init -Wstringop-overflow=3 \
+-Wstrict-flex-arrays -Walloc-zero -Warray-bounds=2 -Wattribute-alias=2 \
+-Wduplicated-branches -Wduplicated-cond -Wcast-align=strict \
+-Wjump-misses-init -Wlogical-op -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
+-fstack-clash-protection -fstack-protector-all -fno-delete-null-pointer-checks \
+-fno-strict-overflow -fno-strict-aliasing -fstrict-flex-arrays=3 \
+-ftrivial-auto-var-init=pattern \
+-fcf-protection=full -fzero-call-used-regs=all -fPIE -Wl,-z,nodlopen \
+-Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,-z,separate-code -Wl,--as-needed \
+-Wl,--no-copy-dt-needed-entries -pie
+}}
+
+All flags for Clang x86_64 executables:
+
+{{CodeSelect|code=
+-O2 -g -Wall -Wextra -Wformat -Wformat=2 -Wconversion -Wimplicit-fallthrough \
+-Werror=format-security -Werror=implicit -Werror=int-conversion \
+-Werror=incompatible-pointer-types -Wformat-overflow -Wformat-signedness \
+-Wformat-truncation -Wnull-dereference -Winit-self -Wmissing-include-dirs \
+-Wshift-negative-value -Wshift-overflow -Wswitch-default -Wuninitialized \
+-Walloca -Warray-bounds \
+-Wfloat-equal -Wshadow -Wpointer-arith -Wundef -Wunused-macros \
+-Wbad-function-cast -Wcast-qual -Wcast-align -Wwrite-strings -Wdate-time \
+-Wstrict-prototypes -Wold-style-definition -Wredundant-decls -Winvalid-utf8 \
+-Wvla -Wdisabled-optimization -Wstack-protector -Wdeclaration-after-statement \
+-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fstack-clash-protection \
+-fstack-protector-all -fno-delete-null-pointer-checks \
+-fno-strict-overflow -fno-strict-aliasing -fsanitize=undefined -fsanitize-minimal-runtime -fno-sanitize-recover=all \
+-fstrict-flex-arrays=3 -ftrivial-auto-var-init=pattern -fcf-protection=full \
+-fzero-call-used-regs=all -fPIE -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro \
+-Wl,-z,now -Wl,-z,separate-code -Wl,--as-needed -Wl,--no-copy-dt-needed-entries \
+-pie
+}}
+
+= See Also =
+* [[Dev/bash]]
+* [[Dev/coding style]]
+
+= Footnotes =
+<references />
+
+{{Footer}}
+[[Category:Design]]
