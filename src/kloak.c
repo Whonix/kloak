@@ -2949,7 +2949,11 @@ int main(int argc, char **argv) {
         libinput_event_destroy(li_event);
       }
 
-      poll(ev_fds, POLL_FD_COUNT - 1, -1);
+      if (poll(ev_fds, POLL_FD_COUNT - 1, -1) == -1) {
+        fprintf(stderr, "FATAL ERROR: 'poll' errored out: %s\n",
+          strerror(errno));
+        exit(1);
+      }
 
       if (ev_fds[0].revents & POLLIN) {
         libinput_dispatch(li);
