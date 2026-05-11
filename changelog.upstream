@@ -1,3 +1,404 @@
+commit 32367a1c3eeff425afa68613347bfd0d3a86ef69
+Merge: 942f938 7d410b0
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Mon May 11 15:19:01 2026 -0400
+
+    Merge remote-tracking branch 'refs/remotes/org-ai-assisted/master'
+
+commit 942f93892818bf35b59f49fe88f3e8f9625e5b19
+Merge: b09a7f5 687ccb3
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Mon May 11 13:20:58 2026 -0400
+
+    Merge remote-tracking branch 'refs/remotes/ArrayBolt3/arraybolt3/trixie'
+
+commit 687ccb3de2c6e986c54d4e077a1630362f92a184
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Sun May 10 21:58:32 2026 -0400
+
+    Fix unhandled poll return value
+
+commit 7d410b0ce8b2e03d1f723405025d869042745c12
+Author: assisted-by-ai (Bot Account) <228987186+assisted-by-ai@users.noreply.github.com>
+Date:   Sun May 10 20:18:57 2026 -0400
+
+    workflows: add concurrency blocks (#17)
+
+    4 cancellable + 1 singleton (coverity).
+
+commit 0e51852c193df3b9fbead86c72cbeb33bb01b5b7
+Author: assisted-by-ai (Bot Account) <228987186+assisted-by-ai@users.noreply.github.com>
+Date:   Sun May 10 17:59:31 2026 -0400
+
+    codex-review: forward only OPENAI_API_KEY explicitly (#16)
+
+    Replace secrets: inherit with explicit single-secret map.
+
+commit 188b8c9e60b85bb8c54a97cad9cc99b954f274cd
+Author: assisted-by-ai (Bot Account) <228987186+assisted-by-ai@users.noreply.github.com>
+Date:   Sun May 10 17:59:29 2026 -0400
+
+    parse_uint*_arg: extract pure value parsers (fuzzing prep) (#14)
+
+    Re-split from prior combined merge. Pure refactor enabling libFuzzer harnesses.
+
+commit 902f1463d0e0c52e77339c5d9f2c9243c4a812f7
+Author: assisted-by-ai (Bot Account) <228987186+assisted-by-ai@users.noreply.github.com>
+Date:   Sun May 10 17:59:27 2026 -0400
+
+    kloak.c: address pre-existing cppcheck style findings (#13)
+
+    Re-split from prior combined merge. Pure cleanup pass.
+
+commit b09a7f5c39e11ca02f98918e065d5ead2e036641
+Merge: 8a060c5 490f7b1
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sun May 10 15:14:47 2026 -0400
+
+    Merge remote-tracking branch 'org-ai-assisted/master'
+
+commit 490f7b1fcaaf57e9b2c1d6657e8056363ad58dfc
+Author: assisted-by-ai (Bot Account) <228987186+assisted-by-ai@users.noreply.github.com>
+Date:   Sun May 10 14:11:31 2026 -0400
+
+    restore: re-apply session work (rebased away) (#12)
+
+    Re-applies session work lost during rebase: explicit ANTHROPIC_API_KEY
+    secret in .github/workflows/claude-code.yml (replacing secrets:
+    inherit), explicit COVERITY_SCAN_TOKEN/COVERITY_SCAN_EMAIL secrets in
+    .github/workflows/coverity.yml, and corrects the coverity project-name
+    from Whonix-kloak to Whonix/kloak (the URL renders / as -, but the API
+    form parameter requires the slash).
+
+    Co-authored-by: claude-code <claude-code@anthropic.com>
+
+commit 8a060c5f81fb4df7ca3f476bf603ee0a470ccece
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat May 9 16:30:54 2026 -0400
+
+    fix
+
+commit 696df32d8ecc53f857964c6f08112f03e81a0326
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat May 9 16:30:14 2026 -0400
+
+    cleanup
+
+commit 78cda5468ddcfffe4354188149d8cee4d1b7a740
+Merge: 209c934 2aeba75
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat May 9 16:29:47 2026 -0400
+
+    Merge remote-tracking branch 'org-ai-assisted/master'
+
+commit 2aeba756160e2c0721aece9ae0784d36d91937a0
+Author: Claude <noreply@anthropic.com>
+Date:   Fri May 8 18:48:07 2026 +0000
+
+    codeql: drop packages: read
+
+    None of our CodeQL builds pull from ghcr.io (kloak runs
+    'bash build.sh', security-misc runs 'bash ci/codeql-build.sh',
+    helper-scripts and msgcollector are pure-Python). Drop the
+    defensive 'packages: read' grant in favor of least-privilege.
+
+    A future consumer that genuinely authenticates to GitHub
+    Packages from a CodeQL build step can re-add it locally.
+
+    Reusable docblock notes the rationale so a future maintainer
+    doesn't reflexively re-add it.
+
+commit 7b2768e76c088dd7e339aade70c81b46a0877b01
+Author: Claude <noreply@anthropic.com>
+Date:   Fri May 8 15:48:59 2026 +0000
+
+    claude-code: restore id-token: write
+
+    Reverts the earlier 'drop id-token' commit. Verified against a live
+    workflow log that the action DOES use OIDC federation:
+
+      Requesting OIDC token...
+      OIDC token successfully obtained
+      Exchanging OIDC token for app token...
+      Using GITHUB_TOKEN from OIDC
+
+    The action federates the runner's id-token to an Anthropic-controlled
+    GitHub App which mints a higher-privilege GITHUB_TOKEN used to post
+    review comments. Without id-token: write the next run would have
+    failed with 'Could not fetch an OIDC token'.
+
+commit 5dc1492be0b863c6e237c290bc12c7354aec471e
+Author: Claude <noreply@anthropic.com>
+Date:   Fri May 8 15:24:17 2026 +0000
+
+    scorecard: drop inline cron allocation table
+
+    The org-wide allocation table is single-source-of-truth in
+    developer-meta-files/.github/workflows/reusable-scorecard.yml. Each
+    consumer should carry only its own cron line with no commentary.
+
+commit 8eae8d7965b1fcd5238ce95585e9e5c80de743ad
+Author: Claude <noreply@anthropic.com>
+Date:   Fri May 8 15:21:18 2026 +0000
+
+    claude-code: drop id-token: write
+
+    The reusable workflow no longer needs id-token: write (the action
+    authenticates to api.anthropic.com via a static ANTHROPIC_API_KEY;
+    OIDC federation is unused). Drop the permission to honor
+    least-privilege - an OIDC token, if forged or leaked, can
+    authenticate to cloud-provider integrations.
+
+commit b91dbbbcc716cc12cc0e7edbc98ea1fb999c85e5
+Author: Claude <noreply@anthropic.com>
+Date:   Fri May 8 13:34:18 2026 +0000
+
+    ci: switch reusable refs to 'reusable-<name>.yml'
+
+    Mirror of helper-scripts/derivative-maker/security-misc updates.
+    Six 'uses:' lines (codeql, scorecard, claude-code-review, codex-
+    review, coverity, cppcheck) repointed at the renamed reusable
+    files in developer-meta-files.
+
+commit 4515bf01fe25bfd92513e37a6801d5ee48a02f6f
+Author: Claude <noreply@anthropic.com>
+Date:   Fri May 8 13:27:32 2026 +0000
+
+    TODO.md: document deferred fuzzing work
+
+    Captures why kloak does not yet have a fuzzing harness despite
+    the Scorecard FuzzingID=0/10 alert, and the concrete refactor
+    (parse_uint32_arg -> _value + wrapper) plus ClusterFuzzLite
+    scaffolding required to wire one up.
+
+    The helper-scripts pattern is Python/Atheris-specific; kloak
+    needs a C-toolchain ClusterFuzzLite variant when this work is
+    picked up.
+
+commit b62670bd982fae3668e585f3eee1db4d46d1a589
+Author: Claude <noreply@anthropic.com>
+Date:   Fri May 8 12:38:23 2026 +0000
+
+    cppcheck: add wrapper around org-wide reusable
+
+    Free local-runnable C analyzer (cppcheck), complementing the
+    existing CodeQL c-cpp job and the (currently 401-blocked)
+    Coverity Scan submission. Scans src/. Coverity stays as-is
+    per the upstream-org plan to fix the token in Whonix/kloak.
+
+commit c5f581321c05d2075f6db603b582826be363e743
+Author: Claude <noreply@anthropic.com>
+Date:   Fri May 8 12:07:43 2026 +0000
+
+    coverity: use real Coverity Scan project name
+
+    The scan.coverity.com project for this repo is registered under
+    'Whonix-kloak' (verified at
+    https://scan.coverity.com/projects/Whonix-kloak). The reusable
+    wrapper was passing the bare repo name 'kloak' which produced
+    HTTP 401 on cov-build download because the project+token pair
+    did not match. The pre-refactor workflow used vapier/coverity-
+    scan-action with no explicit project-name, defaulting to the bare
+    repo name - same bug, same 401, just rendered as a generic action
+    failure instead of a curl error.
+
+commit bd7feefd8c1ee0b1f807d158e3a3e7bf38363ca2
+Merge: 418eaec 1688bab
+Author: assisted-by-ai (Bot Account) <server@kicksecure.com>
+Date:   Fri May 8 08:01:43 2026 -0400
+
+    Merge pull request #4 from org-ai-assisted/claude/test-github-token-access-HVDXY
+
+    codeql: switch to reusable workflow + drop python entry
+
+commit 1688bab2e19c817d15d1f7723b0a70592825a27a
+Author: Claude <noreply@anthropic.com>
+Date:   Fri May 8 11:54:22 2026 +0000
+
+    github: remove redundant dependabot.yml
+
+    After the codeql / scorecard / coverity / claude / codex
+    migrations to org-wide reusables in developer-meta-files, this
+    repo's workflow files have zero direct action SHAs - everything
+    is delegated via 'uses: org-ai-assisted/developer-meta-files/...
+    @master'. Dependabot's github-actions ecosystem has nothing here
+    to update.
+
+    Action SHAs are now updated centrally in
+    developer-meta-files/.github/dependabot.yml; consumer wrappers
+    pick up the bumped SHAs on their next workflow run via
+    '@master'. No drift, no per-repo Dependabot PR, no spam.
+
+commit 8e4b22bef11d967af6ae7df5b2a8bb70fd2b8828
+Author: Claude <noreply@anthropic.com>
+Date:   Fri May 8 11:46:21 2026 +0000
+
+    coverity: drop vapier action; use reusable
+
+    Replace the third-party vapier/coverity-scan-action@v1 flow with
+    a thin wrapper around the org-wide reusable in developer-meta-files
+    (authored from the auditable inline curl+tar+cov-build approach,
+    no Marketplace permissions footprint).
+
+    Build is unchanged: same apt deps (libevdev-dev, libinput-dev,
+    libwayland-dev, libxkbcommon-dev, pkg-config), same 'make' build,
+    same scan.coverity.com submission. Cron slot kept ('0 4 * * 5');
+    project name 'kloak'; canonical-repos allow-list covers the three
+    known upstreams.
+
+commit e4cdd0829f63e050b36b5f1eefdc4c686e71f914
+Author: Claude <noreply@anthropic.com>
+Date:   Fri May 8 11:35:19 2026 +0000
+
+    workflows: secrets:inherit + add scorecard wrapper
+
+    - ai-review wrappers (claude-code.yml, codex-review.yml): replace
+      explicit secret-mapping block with 'secrets: inherit'. Org-wide
+      ANTHROPIC_API_KEY / OPENAI_API_KEY propagate without per-repo
+      boilerplate.
+    - scorecard wrapper added; calls the existing reusable in
+      developer-meta-files. Cron slot '0 5 * * 0' keeps it offset
+      from the org's other Scorecard slots (derivative-maker '0 4',
+      helper-scripts '30 4').
+
+commit ab6a6df8f26e3fe6815ebc937bf53320067e62a9
+Author: Claude <noreply@anthropic.com>
+Date:   Fri May 8 11:27:44 2026 +0000
+
+    ai-reviews: drop allow-list inputs; inherit reusable defaults
+
+    Reusable workflows in developer-meta-files now hold the
+    org-canonical reviewer/bot rosters as input defaults. Remove the
+    'allowed-users' / 'allow-bot-users' values from this wrapper so the
+    wrapper inherits the canonical list automatically when it changes.
+
+commit c243289001326723dae201f681ae51591aa9c1d7
+Author: Claude <noreply@anthropic.com>
+Date:   Fri May 8 11:20:49 2026 +0000
+
+    ai-reviews: switch to org-wide reusable workflows
+
+    Replace the inline Claude/Codex review job bodies with calls to the
+    reusable workflows in developer-meta-files. All hardening, fork-PR
+    guards, concurrency keys, and SHA-pinned action versions move to
+    the reusable; the wrappers carry only the caller-specific bits:
+
+      claude-code.yml  - triggers + allowed-users list +
+                         ANTHROPIC_API_KEY secret handoff
+      codex-review.yml - triggers + workflow_dispatch.pr_ref input +
+                         allow-bot-users + OPENAI_API_KEY secret
+                         handoff
+
+    Net diff is ~117 lines removed.
+
+commit c0849ce588eaba1e4b5771635675c835cf909525
+Author: Claude <noreply@anthropic.com>
+Date:   Thu May 7 23:14:41 2026 +0000
+
+    coverity: apt-get install --no-install-recommends
+
+    Same hygiene as build.sh - keep the runner's install set to what
+    the step actually declares, and don't pull in Recommends that
+    might shift between runner image versions.
+
+commit 2dc941b807c794f14810ef3335491c2feca9eb3d
+Author: Claude <noreply@anthropic.com>
+Date:   Thu May 7 23:13:19 2026 +0000
+
+    build.sh: align with bash-style-guide; clarify build-mode
+
+    Behavioral changes: none. Style/header only.
+
+    - R-002: add the standard 5-line header (Copyright + COPYING +
+      AI-Assisted + description).
+    - R-010: replace 'set -x; set -e' with the strict-mode quintet
+      (errexit, nounset, pipefail, errtrace, xtrace).
+    - R-060/R-061: keep apt-get long-flag form, add
+      --no-install-recommends so the runner doesn't pick up
+      unrelated suggested packages that could change the build env.
+    - Comment: 'For CodeQL autobuild' was a misleading carryover -
+      the workflow uses build-mode: manual (autobuild is CodeQL's
+      separate auto-detect mode). Replace with an accurate one-liner
+      that also notes the Makefile is the single source of truth
+      shared with debian/rules at package build time.
+
+commit a1016ac6adcbee62be318e2de5211e3a7410ab71
+Author: Claude <noreply@anthropic.com>
+Date:   Thu May 7 23:09:35 2026 +0000
+
+    codeql wrapper: trim to minimal; link to centralized docs
+
+    Same shape as helper-scripts: drop the consumer-side documentation
+    duplicating the reusable's header. One-line pointer at the URL on
+    master.
+
+commit e9ae64eed6a938a87bff16d516adeb046d402cb9
+Author: Claude <noreply@anthropic.com>
+Date:   Thu May 7 22:55:49 2026 +0000
+
+    codeql wrapper: add AI-Assisted header marker
+
+    Per developer-meta-files agents/bash-style-guide.md R-002.
+
+commit 7fb4c0668eff3965f903470e25213246909f0023
+Author: Claude <noreply@anthropic.com>
+Date:   Thu May 7 22:38:29 2026 +0000
+
+    codeql: switch to reusable workflow + drop python entry
+
+    kloak has no .py files (find . -name '*.py' returns empty) so the
+    'python: build-mode: none' matrix entry was wasted CI. Replace the
+    inline workflow body with a call to the org-wide reusable
+    codeql.yml in developer-meta-files.
+
+    Inherits hardening from the reusable: branch-filtered triggers,
+    fork-PR guard, workflow-level 'contents: read', explicit timeout,
+    'security-and-quality' query pack, and 'category: /language:c-cpp'
+    on the analyze step.
+
+    NOTE: until org-ai-assisted/developer-meta-files PR <#> merges,
+    the '@master' ref will not resolve. Either land that PR first, or
+    temporarily bump '@master' to the feature-branch ref to validate
+    this PR's CI.
+
+commit 209c9342ef2efd0402a4ff8a9e7613ad7c8f4720
+Merge: 69736a6 418eaec
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Thu May 7 17:33:21 2026 -0400
+
+    Merge remote-tracking branch 'org-ai-assisted/master'
+
+commit 418eaec32173676b9f39a8fc3dc56df154a6394d
+Merge: 69736a6 607caef
+Author: assisted-by-ai (Bot Account) <server@kicksecure.com>
+Date:   Thu May 7 16:54:56 2026 -0400
+
+    Merge pull request #3 from org-ai-assisted/claude/dependabot-group-actions
+
+    dependabot: bundle action bumps into one grouped PR per cycle
+
+commit 607caefc8e68ccda8898f0c82843dd861a32545a
+Author: Claude <noreply@anthropic.com>
+Date:   Thu May 7 20:40:59 2026 +0000
+
+    dependabot: bundle action bumps into one PR per cycle
+
+    Adds 'groups: { github-actions: { patterns: ["*"] } }' to the
+    github-actions ecosystem. Without grouping, dependabot finds N
+    updates per cycle, opens one PR per update, and the
+    'open-pull-requests-limit: 1' silently drops everything past the
+    first - so we miss bumps and don't notice. With grouping, a single
+    PR carries every update at once, reviewable as one diff.
+
+    Same change applied in parallel PRs to derivative-maker and
+    helper-scripts.
+
+commit 69736a6454c98fee8116a39dd3ef1eeb713999ed
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Thu May 7 18:45:39 2026 +0000
+
+    bumped changelog version
+
 commit c00757b345b04479a2bb2ae6b2e4af9b797d5fc5
 Merge: b6a358b 9d38c00
 Author: Patrick Schleizer <adrelanos@whonix.org>
