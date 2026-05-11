@@ -26,12 +26,17 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   review:
     uses: org-ai-assisted/developer-meta-files/.github/workflows/reusable-codex-review.yml@master
     with:
       pr-ref: ${{ inputs.pr_ref || '' }}
-    secrets: inherit
+    secrets:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     permissions:
       contents: read
       pull-requests: write

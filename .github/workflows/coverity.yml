@@ -20,6 +20,12 @@ on:
 permissions:
   contents: read
 
+## Coverity singleton policy: see agents/github-actions.md G-A-006.
+## Cancelling mid-flight wastes the daily free-tier slot.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   coverity:
     uses: org-ai-assisted/developer-meta-files/.github/workflows/reusable-coverity.yml@master
