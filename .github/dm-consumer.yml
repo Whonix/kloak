@@ -1,0 +1,21 @@
+## Copyright (C) 2026 - 2026 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+## AI-Assisted
+
+## Per-repo parameter overrides. Read at workflow runtime by the
+## reusable workflows in developer-meta-files. Top-level keys
+## mirror the consumer-template basename without the
+## 'consumer-' prefix. Sub-keys mirror the values the reusable
+## consumes.
+##
+## Spec:
+## https://github.com/org-ai-assisted/developer-meta-files/blob/master/agents/github-actions-consumer-templates.md
+
+coverity:
+  apt-packages:    "libevdev-dev libinput-dev libwayland-dev libxkbcommon-dev pkg-config"
+  build-command:   "./cov-analysis/bin/cov-build --dir cov-int make"
+  ## scan.coverity.com project name. Verified at
+  ## https://scan.coverity.com/projects/Whonix-kloak
+  project-name:    "Whonix/kloak"
+  canonical-repos: "Whonix/kloak,org-ai-assisted/kloak"
