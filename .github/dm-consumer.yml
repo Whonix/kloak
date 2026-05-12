@@ -22,3 +22,6 @@ coverity:
 
 cppcheck:
   paths: "src"
+
+codeql-cpp:
+  build-command: "bash build.sh"

@@ -1,0 +1,55 @@
+## Copyright (C) 2026 - 2026 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+## AI-Assisted
+
+## Managed by pkg_update_consumer_workflows. Byte-identical
+## across consumers; this file is `cp`-ed from
+## developer-meta-files/consumer-templates/.github/workflows/consumer-codeql-cpp.yml.
+## DO NOT hand-edit this file in the consumer repo - changes
+## will be overwritten on the next propagation pass.
+##
+## Consumer wrapper for the 'c-cpp' CodeQL language. Cronless on
+## purpose: byte-identical propagation forbids per-repo cron
+## rewrites. Push / PR / workflow_dispatch triggers cover the
+## scan-on-change cases.
+##
+## Required per-repo state in .github/dm-consumer.yml:
+##
+##   codeql-cpp:
+##     build-command:   "<bash invocation>"   # required
+##     prepare-command: "<bash invocation>"   # optional
+##
+## build-mode is hardcoded to 'manual' in the wrapper. The
+## reusable hard-fails at workflow start if codeql-cpp.build-command
+## is missing or empty.
+##
+## Reusable docs:
+## https://github.com/org-ai-assisted/developer-meta-files/blob/master/.github/workflows/reusable-codeql.yml
+
+name: CodeQL c-cpp
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  c-cpp:
+    uses: org-ai-assisted/developer-meta-files/.github/workflows/reusable-codeql.yml@master
+    with:
+      language: c-cpp
+      build-mode: manual
+      dm-consumer-section: codeql-cpp
+    permissions:
+      security-events: write
+      contents: read
