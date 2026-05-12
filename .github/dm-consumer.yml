@@ -19,3 +19,6 @@ coverity:
   ## https://scan.coverity.com/projects/Whonix-kloak
   project-name:    "Whonix/kloak"
   canonical-repos: "Whonix/kloak,org-ai-assisted/kloak"
+
+cppcheck:
+  paths: "src"
