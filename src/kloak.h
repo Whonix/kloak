@@ -363,18 +363,16 @@ static void draw_block(uint32_t * pixbuf, int32_t offset, int32_t x, int32_t y,
   int32_t layer_width, int32_t layer_height, int32_t rad, bool crosshair);
 
 /*
- * Parse an option parameter as an unsigned integer. Returns a signed integer
- * between 0 and INT32_MAX.
+ * Parse an option parameter as an integer between 0 and INT32_MAX, and save
+ * it at the address pointed to by "out". Returns true on success.
  */
-static int32_t parse_uint31_arg(const char *arg_name, const char *val,
-  int base);
+static bool parse_uint31_arg(const char *val, int base, int32_t *out);
 
 /*
- * Parse an option parameter as an unsigned integer. Returns an unsigned
- * integer between 0 and UINT32_MAX.
+ * Parse an option parameter as an integer between 0 and UINT32_MAX, and save
+ * it at the address pointed to by "out". Returns true on success.
  */
-static uint32_t parse_uint32_arg(const char *arg_name, const char *val,
-  int base);
+static bool parse_uint32_arg(const char *val, int base, uint32_t *out);
 
 /*
  * Sleeps for the specified number of milliseconds.
