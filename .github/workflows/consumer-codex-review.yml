@@ -16,6 +16,7 @@ name: OpenAI Codex Review
 
 on:
   pull_request:
+    branches: [master]
   workflow_dispatch:
     inputs:
       pr_ref:
