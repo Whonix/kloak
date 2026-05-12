@@ -2826,6 +2826,7 @@ static void parse_cli_args(int argc, char **argv) {
 /**********/
 /**********/
 
+#ifndef KLOAK_FUZZING
 int main(int argc, char **argv) {
   ssize_t i = 0;
   const char *env_val = NULL;
@@ -2988,3 +2989,4 @@ int main(int argc, char **argv) {
   }
   return 0;
 }
+#endif /* KLOAK_FUZZING */

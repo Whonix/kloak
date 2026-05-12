@@ -1,0 +1,14 @@
+## Copyright (C) 2026 - 2026 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+## AI-Assisted
+## ClusterFuzzLite project configuration.
+## https://google.github.io/clusterfuzzlite/build-integration/c-cpp-lang/
+
+language: c
+
+## ClusterFuzzLite uses this only for OSS-Fuzz upload metadata; for
+## our purely-local (per-repo) ClusterFuzzLite mode it has no
+## functional effect. Primary contact is the GitHub repo's issue
+## tracker.
+primary_contact: adrelanos@whonix.org
