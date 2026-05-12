@@ -1,18 +1,29 @@
----
 ## Copyright (C) 2026 - 2026 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
 ## See the file COPYING for copying conditions.
 
 ## AI-Assisted
 
-## Consumer wrapper. Docs live in the reusable:
-## https://github.com/org-ai-assisted/developer-meta-files/blob/master/.github/workflows/scorecard.yml
+## Managed by pkg_update_consumer_workflows. Byte-identical
+## across consumers; this file is `cp`-ed from
+## developer-meta-files/consumer-templates/.github/workflows/consumer-scorecard.yml.
+## DO NOT hand-edit this file in the consumer repo - changes
+## will be overwritten on the next propagation pass.
+##
+## Cron slot is uniform org-wide (per agents/github-actions-
+## consumer-templates.md "Scheduling in byte-identical templates").
+## GitHub's cron queue serializes the simultaneous fires;
+## Scorecard's low value-to-noise ratio makes the queue
+## contention acceptable.
+##
+## Reusable docs:
+## https://github.com/org-ai-assisted/developer-meta-files/blob/master/.github/workflows/reusable-scorecard.yml
 
 name: Scorecard
 
 on:
   branch_protection_rule:
   schedule:
-    - cron: '0 5 * * 0'
+    - cron: '0 6 * * 0'
   push:
     branches: [master]
   workflow_dispatch:
