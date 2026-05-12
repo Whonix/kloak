@@ -1,0 +1,46 @@
+## Copyright (C) 2026 - 2026 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+## AI-Assisted
+
+## Managed by pkg_update_consumer_workflows. Byte-identical
+## across consumers; this file is `cp`-ed from
+## developer-meta-files/consumer-templates/.github/workflows/consumer-coverity.yml.
+## DO NOT hand-edit this file in the consumer repo - changes
+## will be overwritten on the next propagation pass.
+##
+## Per-repo values are read by the reusable from
+## .github/dm-consumer.yml at workflow runtime. Required keys:
+## coverity.project-name, coverity.canonical-repos. Optional:
+## coverity.apt-packages, coverity.build-command.
+##
+## Reusable docs:
+## https://github.com/org-ai-assisted/developer-meta-files/blob/master/.github/workflows/reusable-coverity.yml
+
+name: Coverity
+
+on:
+  push:
+    tags:
+      - '*'
+  schedule:
+    - cron: '0 4 * * 5'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+## Coverity singleton policy: G-A-006 in github-actions.md.
+## Cancelling mid-flight wastes the daily free-tier slot.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  coverity:
+    uses: org-ai-assisted/developer-meta-files/.github/workflows/reusable-coverity.yml@master
+    secrets:
+      COVERITY_SCAN_TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
+      COVERITY_SCAN_EMAIL: ${{ secrets.COVERITY_SCAN_EMAIL }}
+    permissions:
+      contents: read
