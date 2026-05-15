@@ -1,3 +1,378 @@
+commit ae2665afce2cabc0949018fa65f4e59b93d52b76
+Merge: abe72d6 e202427
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri May 15 13:17:56 2026 -0400
+
+    Merge remote-tracking branch 'refs/remotes/org-ai-assisted/master'
+
+commit e202427a7e1a406eccb6f4f6c5600e8847785dc3
+Merge: d42cf9a 51e6771
+Author: assisted-by-ai (Bot Account) <228987186+assisted-by-ai@users.noreply.github.com>
+Date:   Tue May 12 19:56:22 2026 -0400
+
+    Merge pull request #27 from org-ai-assisted/claude/review-github-actions-IQwcy
+
+    fuzz: bootstrap libFuzzer harnesses for C parsers via ClusterFuzzLite
+
+commit 51e67714c333268774f92eb0648fe07fad9c1f5b
+Author: Claude <noreply@anthropic.com>
+Date:   Tue May 12 22:57:21 2026 +0000
+
+    fuzz: bootstrap libFuzzer harnesses for C parsers via ClusterFuzzLite
+
+    Add coverage-guided fuzzing for kloak's CLI-fed parser surface,
+    following the helper-scripts ClusterFuzzLite pattern adapted for
+    C. Three v1 harnesses, all targeting pure exit()-free functions
+    that kloak.c was explicitly designed to be fuzz-target-safe (see
+    the inline comment at src/kloak.c:892).
+
+    Targets:
+      - parse_uint31_arg  (--max-delay, --startup-delay)
+      - parse_uint32_arg  (--cursor-color, base 16)
+      - lookup_keycode    (--esc-keys sub-token resolution)
+
+    parse_esc_key_str() is intentionally NOT yet harnessed: it calls
+    exit(1) on empty token or unknown keycode, which libFuzzer
+    treats as a crash; clean harnessing needs an upstream refactor
+    to surface errors via return codes. Tracked as follow-up.
+
+    Approach:
+      - Each harness #include's src/kloak.c with KLOAK_FUZZING
+        defined. KLOAK_FUZZING guards out main(), letting the
+        harness supply its own LLVMFuzzerTestOneInput while keeping
+        the file-scope 'static' qualifier on the target functions
+        intact (no exported-symbol surface change). Dead code from
+        kloak.c (Wayland callbacks, libinput dispatch) is linked in
+        but never executed during fuzzing.
+      - Wayland protocol headers/sources are regenerated via
+        wayland-scanner in ci/cfuzz-build.sh, mirroring the
+        Makefile's codegen rules.
+
+    Files:
+      - src/kloak.c                              main() guarded by
+                                                  #ifndef KLOAK_FUZZING
+      - fuzz/fuzz_parse_uint31.c                 libFuzzer harness
+      - fuzz/fuzz_parse_uint32.c                 libFuzzer harness
+      - fuzz/fuzz_lookup_keycode.c               libFuzzer harness
+      - .clusterfuzzlite/project.yaml            language: c
+      - .clusterfuzzlite/Dockerfile              pinned base-builder
+                                                  digest, apt deps
+      - .clusterfuzzlite/build.sh                thin shim ->
+                                                  ci/cfuzz-build.sh
+      - ci/cfuzz-build.sh                        codegen + harness
+                                                  compile loop; dual
+                                                  mode (CFLite
+                                                  container OR local
+                                                  clang)
+      - ci/cfuzz-run.sh                          local dev runner
+      - .github/workflows/local-cfuzz.yml        Fuzz workflow,
+                                                  workflow_dispatch-
+                                                  only initially
+                                                  (PR + schedule
+                                                  commented out per
+                                                  bootstrap pattern)
+      - .gitignore                               /out/
+
+    Two sanitizer jobs run in parallel under batch mode:
+    AddressSanitizer (OOB, UAF, double-free) and
+    UndefinedBehaviorSanitizer (signed overflow, alignment,
+    strict-aliasing). UBSan is genuinely relevant for kloak because
+    the Makefile already hardens via -ftrapv and friends; UBSan
+    extends that coverage to the fuzz corpus.
+
+    Verified locally:
+      - clang =-fsanitize=fuzzer-no-link,address,undefined
+        builds all 3 harnesses cleanly
+      - 10s fuzz run per harness completes without crashes
+        (~650k-800k exec/s, coverage saturates at 10 features for
+        each target - expected for these small pure functions)
+      - 'make' still produces the normal kloak binary; the
+        KLOAK_FUZZING guard is invisible to the production build
+
+    Reference: https://google.github.io/clusterfuzzlite/build-integration/c-cpp-lang/
+
+commit d42cf9afc576f67adfadabc11dffd4010bd7acf5
+Merge: 2d573d8 6989c7f
+Author: assisted-by-ai (Bot Account) <228987186+assisted-by-ai@users.noreply.github.com>
+Date:   Tue May 12 15:28:41 2026 -0400
+
+    Merge pull request #26 from org-ai-assisted/claude/review-github-actions-IQwcy
+
+    workflow triggers: normalize pull_request to branches: [master]
+
+commit 6989c7ffc34b78edf8662fbee3b1e3b3f574fb5c
+Author: Claude <noreply@anthropic.com>
+Date:   Tue May 12 19:25:55 2026 +0000
+
+    workflow triggers: normalize pull_request to branches: [master]
+
+    Propagate dmf canonical updates for consumer-claude-code.yml and
+    consumer-codex-review.yml: bare `pull_request:` ->
+    `pull_request: branches: [master]`. Matches the byte-identical
+    canonical in
+    developer-meta-files/consumer-templates/.github/workflows/.
+
+    Practical impact: PRs targeting feature branches no longer fire
+    the AI reviews. The org's typical workflow (feature-branch ->
+    master PR) is unaffected.
+
+commit 2d573d8574ecf9d2e5903714d4fdb6a011ceb12b
+Merge: 1f13780 3cc2684
+Author: assisted-by-ai (Bot Account) <228987186+assisted-by-ai@users.noreply.github.com>
+Date:   Tue May 12 13:48:19 2026 -0400
+
+    Merge pull request #25 from org-ai-assisted/claude/review-github-actions-IQwcy
+
+    scorecard: remove consumer-scorecard.yml (org-wide opt-out)
+
+commit 3cc268400e6ab2ed0c0cf1f3b670be0ffd5fe122
+Author: Claude <noreply@anthropic.com>
+Date:   Tue May 12 17:45:57 2026 +0000
+
+    scorecard: remove consumer-scorecard.yml (org-wide opt-out)
+
+    Per the consumer-template architecture's opt-in-by-file-presence
+    rule, deleting a consumer-*.yml is the opt-out signal:
+    pkg_update_consumer_workflows refreshes only files that already
+    exist on the consumer side; the next propagation pass will not
+    re-create this.
+
+    Org-wide policy: Scorecard's value-to-noise ratio is low (many
+    false positives, non-actionable signals). Keeping it only in
+    derivative-maker (the canonical baseline) where the org-wide
+    supply-chain signal is most useful.
+
+    Spec:
+    https://github.com/org-ai-assisted/developer-meta-files/blob/master/agents/github-actions-consumer-templates.md
+
+commit 1f13780c0a689a5c6bbef360ec2904948ac9df33
+Merge: 2e8fb64 749c97c
+Author: assisted-by-ai (Bot Account) <228987186+assisted-by-ai@users.noreply.github.com>
+Date:   Tue May 12 12:47:08 2026 -0400
+
+    Merge pull request #24 from org-ai-assisted/claude/review-github-actions-IQwcy
+
+    workflows: rename legacy unprefixed to consumer- prefix
+
+commit 749c97cf15bbd7750478d61c88be615f86950695
+Author: Claude <noreply@anthropic.com>
+Date:   Tue May 12 16:44:38 2026 +0000
+
+    workflows: align consumer-*.yml byte-identical to dmf canonicals
+
+    Follow-up to the rename commit: in addition to renaming the
+    files, content must be byte-identical to the canonical wrappers
+    in developer-meta-files/consumer-templates/.github/workflows/.
+
+    Differences absorbed by this commit:
+
+    - scorecard.yml cron slot: per-repo allocation -> uniform
+      org-wide '0 6 * * 0' (the canonical's slot).
+    - Header comments: switched to the standard "Managed by
+      pkg_update_consumer_workflows" template so contributors see
+      the propagation contract.
+
+    User-facing `name:` fields unchanged.
+
+    Spec:
+    https://github.com/org-ai-assisted/developer-meta-files/blob/master/agents/github-actions-consumer-templates.md
+
+commit db046b8991e0a72407b573b28eb28a804302bd34
+Author: Claude <noreply@anthropic.com>
+Date:   Tue May 12 16:42:51 2026 +0000
+
+    workflows: rename legacy unprefixed to consumer- prefix
+
+    Per consumer-template architecture (G-A-005, three-prefix
+    convention): wrappers around developer-meta-files reusables
+    carry the `consumer-` prefix. This is the bulk rollout of the
+    prefix to this repo's universal wrappers.
+
+    Each file is byte-identical to its corresponding canonical in
+    developer-meta-files/consumer-templates/.github/workflows/.
+
+    User-facing `name:` fields unchanged. cron slots converge on
+    the org-wide singleton (`0 6 * * 0` for Scorecard) per spec
+    "Scheduling in byte-identical templates" - GitHub queue
+    serializes; Scorecard's low value-to-noise ratio makes that
+    contention acceptable.
+
+    Spec:
+    https://github.com/org-ai-assisted/developer-meta-files/blob/master/agents/github-actions-consumer-templates.md
+
+commit 2e8fb64d1bf7fc260b02a31310e56c12ff258c23
+Merge: a6f7afd 68bdf2c
+Author: assisted-by-ai (Bot Account) <228987186+assisted-by-ai@users.noreply.github.com>
+Date:   Tue May 12 12:33:24 2026 -0400
+
+    Merge pull request #23 from org-ai-assisted/claude/review-github-actions-IQwcy
+
+    codeql: migrate to consumer-codeql-cpp wrapper
+
+commit 68bdf2c83c021e29661e50eda81e861e8286bda4
+Author: Claude <noreply@anthropic.com>
+Date:   Tue May 12 15:58:53 2026 +0000
+
+    codeql: migrate to consumer-codeql-cpp wrapper
+
+    Per dmf #69 (reusable-codeql.yml hard refactor). The old
+    codeql.yml wrapper passed `with: build-command: bash build.sh`
+    which is no longer a workflow_call input on the reusable; the
+    reusable now reads codeql-cpp.build-command from
+    .github/dm-consumer.yml.
+
+    Changes:
+
+    - .github/dm-consumer.yml: add codeql-cpp.build-command.
+    - Renamed: .github/workflows/codeql.yml -> consumer-codeql-cpp.yml,
+      byte-identical to dmf canonical (hardcodes language=c-cpp,
+      build-mode=manual, dm-consumer-section=codeql-cpp; no per-repo
+      `with:` overrides).
+
+commit a6f7afd73e323bf38137813e05e60abb39d4df3f
+Merge: 9045979 27d6be4
+Author: assisted-by-ai (Bot Account) <228987186+assisted-by-ai@users.noreply.github.com>
+Date:   Tue May 12 11:45:20 2026 -0400
+
+    Merge pull request #22 from org-ai-assisted/claude/review-github-actions-IQwcy
+
+    cppcheck: migrate to consumer-template architecture
+
+commit 27d6be417fef029378861b586603eedcef58ff8b
+Author: Claude <noreply@anthropic.com>
+Date:   Tue May 12 15:35:09 2026 +0000
+
+    cppcheck: migrate to consumer-template architecture
+
+    Per dmf #68 (reusable-cppcheck.yml hard refactor). The old
+    cppcheck.yml wrapper passed `with: paths: src` which is no
+    longer a workflow_call input on the reusable; without this
+    migration, the reusable's runtime config-load step hard-fails
+    on the missing `cppcheck.paths` key.
+
+    Changes:
+
+    - .github/dm-consumer.yml: add cppcheck.paths.
+    - Renamed: .github/workflows/cppcheck.yml ->
+      consumer-cppcheck.yml, byte-identical to dmf canonical.
+
+commit 904597930781672f68828de8e0a82a97287aa9aa
+Merge: abe72d6 da2094c
+Author: assisted-by-ai (Bot Account) <228987186+assisted-by-ai@users.noreply.github.com>
+Date:   Tue May 12 11:11:19 2026 -0400
+
+    Merge pull request #21 from org-ai-assisted/claude/review-github-actions-IQwcy
+
+    coverity: migrate to consumer-template architecture (PoC)
+
+commit da2094c09f05a63db701c490a043152eed2a39a2
+Author: Claude <noreply@anthropic.com>
+Date:   Tue May 12 15:06:13 2026 +0000
+
+    coverity: migrate to consumer-template architecture
+
+    Per developer-meta-files PR #67 which hard-switched
+    reusable-coverity.yml from workflow_call.inputs to runtime read
+    of .github/dm-consumer.yml.
+
+    Changes:
+
+    - New: .github/dm-consumer.yml carrying the coverity values that
+      used to live in this wrapper's `with:` block (apt-packages,
+      build-command, project-name, canonical-repos).
+    - Renamed (git-mv-preserved): .github/workflows/coverity.yml ->
+      consumer-coverity.yml. Content updated to be byte-identical
+      with developer-meta-files/consumer-templates/.github/workflows/
+      consumer-coverity.yml - no `with:` block; secrets-only call to
+      the reusable.
+
+    This is the first end-to-end test of the consumer-template
+    architecture's parameterized-template path:
+
+    - Reusable reads .github/dm-consumer.yml at workflow runtime.
+    - Required keys (project-name, canonical-repos) hard-fail on
+      missing/empty.
+    - Optional keys (apt-packages, build-command) treat empty as
+      default behavior.
+    - Canonical-repos check moves from job-level if: to step-level
+      gate; secret env vars are scoped to gated steps.
+    - Daily Coverity rate-limit means submission success isn't the
+      PoC criterion - log audit of config-load + gate + cov-build
+      steps is.
+
+    Spec:
+    https://github.com/org-ai-assisted/developer-meta-files/blob/master/agents/github-actions-consumer-templates.md
+
+commit abe72d6c3bb2aca66c1ee4b2b70bcfbbad36e8fc
+Merge: 4c0b7c5 f73d94f
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Tue May 12 08:51:50 2026 -0400
+
+    Merge remote-tracking branch 'refs/remotes/ArrayBolt3/arraybolt3/trixie'
+
+commit 4c0b7c5ab4d1b97d93334aa8574d34ddb0b38768
+Merge: 0ed73c3 190b46b
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Tue May 12 08:14:39 2026 -0400
+
+    Merge remote-tracking branch 'refs/remotes/org-ai-assisted/master'
+
+commit f73d94fd0aa3520317324c0ae75ad9763f61815e
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Mon May 11 20:52:07 2026 -0400
+
+    Undo bad changes to variable initialization and declaration, simplify uint argument parsing, tighten up comments, add documentation for proper variable declaration and initialization and correct shellcheck use to AGENTS.md
+
+commit 190b46b84574558b9d19f3636514f4a6224963c0
+Author: assisted-by-ai (Bot Account) <228987186+assisted-by-ai@users.noreply.github.com>
+Date:   Mon May 11 16:57:28 2026 -0400
+
+    workflows: workflow_dispatch + PR-keyed concurrency (#20)
+
+    ## Changes
+
+    1. **`workflow_dispatch:` added** to `claude-code.yml` and `codeql.yml`.
+    2. **PR-number-keyed concurrency group** in `claude-code.yml` and
+    `codex-review.yml`.
+
+    ## Why
+
+    - `workflow_dispatch:` consistency: lets admins manually re-run any
+    workflow without an empty commit.
+    - Concurrency fix is the CI-time lever (matches dmf #54): correctly
+    cancels older comment-triggered runs when a newer push arrives, instead
+    of running all 5 push events' AI reviews in parallel.
+
+    ## Mandatory Checklist
+
+    - [x] Legal agreements accepted. [Terms of
+    Service](https://www.kicksecure.com/wiki/Terms_of_Service), [Privacy
+    Policy](https://www.kicksecure.com/wiki/Privacy_Policy), [Cookie
+    Policy](https://www.kicksecure.com/wiki/Cookie_Policy), [E-Sign
+    Consent](https://www.kicksecure.com/wiki/E-Sign_Consent),
+    [DMCA](https://www.kicksecure.com/wiki/DMCA),
+    [Imprint](https://www.kicksecure.com/wiki/Imprint)
+
+    ## Optional Checklist
+
+    - [x] I have tested it locally (YAML parses).
+
+    Fixes #
+
+    https://claude.ai/code/session_018rti4CCm2SQ3PWKa7jRt7p
+
+    ---
+    _Generated by [Claude
+    Code](https://claude.ai/code/session_018rti4CCm2SQ3PWKa7jRt7p)_
+
+    Co-authored-by: Claude <noreply@anthropic.com>
+
+commit 0ed73c38f9e91718c3263adebb299229113d5559
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Mon May 11 20:31:25 2026 +0000
+
+    bumped changelog version
+
 commit 32367a1c3eeff425afa68613347bfd0d3a86ef69
 Merge: 942f938 7d410b0
 Author: Patrick Schleizer <adrelanos@whonix.org>
