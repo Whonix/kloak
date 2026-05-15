@@ -1,4 +1,5 @@
 /kloak
+/out/
 eventcap
 cmake-build-debug/
 .idea/

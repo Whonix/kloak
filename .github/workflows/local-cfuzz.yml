@@ -1,0 +1,181 @@
+## Copyright (C) 2026 - 2026 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+## AI-Assisted
+
+## Coverage-guided fuzzing for kloak's C parser surface, driven by
+## ClusterFuzzLite. libFuzzer is the engine under the hood; the
+## OSS-Fuzz base-builder image pre-bakes clang + sanitizer-aware
+## $CC / $CFLAGS / $LIB_FUZZING_ENGINE for the harnesses in
+## fuzz/fuzz_*.c.
+##
+## kloak's parsers (parse_uint31_arg, parse_uint32_arg,
+## lookup_keycode) are intentionally exit()-free precisely so they
+## can be fuzzed; see kloak.c:892 comment. parse_esc_key_str() is
+## NOT yet harnessed because it calls exit(1) on bad input, which
+## libFuzzer treats as a crash; harnessing it cleanly needs an
+## upstream refactor.
+##
+## Two sanitizer jobs in parallel, mirrored by event-gated PR
+## variants (currently commented out per the bootstrap pattern -
+## see helper-scripts' local-python-fuzz.yml):
+##   - batch-address:   AddressSanitizer (OOB, UAF, double-free).
+##   - batch-undefined: UndefinedBehaviorSanitizer (signed overflow,
+##                       null-deref, alignment, strict-aliasing).
+##                       Relevant because kloak's Makefile already
+##                       hardens via -ftrapv etc.; UBSan extends
+##                       that coverage to the fuzz corpus.
+##
+## Reference: https://google.github.io/clusterfuzzlite/running-clusterfuzzlite/github-actions/
+
+name: Fuzz
+
+on:
+  ## Manual-only until the ClusterFuzzLite build setup is verified
+  ## green at least once. Once that lands, uncomment the
+  ## pull_request and schedule blocks below.
+  workflow_dispatch:
+    inputs:
+      fuzz_seconds:
+        description: 'Per-fuzzer time budget in seconds (batch job)'
+        required: false
+        default: '600'
+  ## pull_request:
+  ##   branches: [master]
+  ##   paths:
+  ##     - 'src/**'
+  ##     - 'protocol/**'
+  ##     - 'fuzz/**'
+  ##     - '.clusterfuzzlite/**'
+  ##     - 'ci/cfuzz-*.sh'
+  ##     - '.github/workflows/local-cfuzz.yml'
+  ## schedule:
+  ##   - cron: '30 3 * * *'
+
+## Default-deny at workflow level; jobs that need more redeclare.
+## See agents/github-actions.md G-A-006.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ## ----- PR-trigger jobs (commented out until first green run) -----
+  ##
+  ## pr-address:
+  ##   name: ClusterFuzzLite PR fuzz (address)
+  ##   if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+  ##   runs-on: ubuntu-latest
+  ##   timeout-minutes: 30
+  ##   permissions:
+  ##     contents: read
+  ##     security-events: write
+  ##   steps:
+  ##     - name: Checkout repository
+  ##       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+  ##       with:
+  ##         persist-credentials: false
+  ##     - name: Build fuzzers
+  ##       uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1  # v1
+  ##       with:
+  ##         language: c
+  ##         sanitizer: address
+  ##     - name: Run fuzzers (code-change)
+  ##       uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1  # v1
+  ##       with:
+  ##         github-token: ${{ secrets.GITHUB_TOKEN }}
+  ##         fuzz-seconds: 60
+  ##         mode: 'code-change'
+  ##         sanitizer: address
+  ##         output-sarif: true
+  ##
+  ## pr-undefined:
+  ##   name: ClusterFuzzLite PR fuzz (undefined)
+  ##   if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+  ##   runs-on: ubuntu-latest
+  ##   timeout-minutes: 30
+  ##   permissions:
+  ##     contents: read
+  ##     security-events: write
+  ##   steps:
+  ##     - name: Checkout repository
+  ##       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+  ##       with:
+  ##         persist-credentials: false
+  ##     - name: Build fuzzers
+  ##       uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1  # v1
+  ##       with:
+  ##         language: c
+  ##         sanitizer: undefined
+  ##     - name: Run fuzzers (code-change)
+  ##       uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1  # v1
+  ##       with:
+  ##         github-token: ${{ secrets.GITHUB_TOKEN }}
+  ##         fuzz-seconds: 60
+  ##         mode: 'code-change'
+  ##         sanitizer: undefined
+  ##         output-sarif: true
+
+  batch-address:
+    name: ClusterFuzzLite batch fuzz (address)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        ## https://github.com/actions/checkout/releases/tag/v6.0.2
+        ## > de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Build fuzzers
+        ## https://github.com/google/clusterfuzzlite/tree/v1
+        ## > 884713a6c30a92e5e8544c39945cd7cb630abcd1
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1  # v1
+        with:
+          language: c
+          sanitizer: address
+
+      - name: Run fuzzers (batch)
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1  # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: ${{ github.event.inputs.fuzz_seconds || '600' }}
+          mode: 'batch'
+          sanitizer: address
+          output-sarif: true
+
+  batch-undefined:
+    name: ClusterFuzzLite batch fuzz (undefined)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Build fuzzers
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1  # v1
+        with:
+          language: c
+          sanitizer: undefined
+
+      - name: Run fuzzers (batch)
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1  # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: ${{ github.event.inputs.fuzz_seconds || '600' }}
+          mode: 'batch'
+          sanitizer: undefined
+          output-sarif: true
