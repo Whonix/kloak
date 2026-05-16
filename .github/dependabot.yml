@@ -1,0 +1,58 @@
+---
+## Copyright (C) 2026 - 2026 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+## AI-Assisted
+
+## Managed by pkg_update_consumer_workflows / pkg_install_dependabot_yml.
+## Byte-identical across consumers; this file is `cp`-ed from
+## developer-meta-files/consumer-templates/.github/dependabot.yml.
+## DO NOT hand-edit this file in the consumer repo - changes
+## will be overwritten on the next propagation pass.
+##
+## Architecture docs:
+## https://github.com/org-ai-assisted/developer-meta-files/blob/master/agents/github-actions-consumer-templates.md
+##
+## Carries BOTH github-actions and docker package-ecosystems even
+## in repos without Dockerfiles. The docker ecosystem only watches
+## Dockerfiles in well-known locations; in repos that have none
+## the block is a harmless no-op (no PRs opened). The uniform
+## shape across the org keeps propagation byte-identical with no
+## per-repo divergence.
+##
+## Note: Dependabot does NOT auto-bump container digests inside
+## workflow 'image:' lines, only Dockerfile 'FROM' lines. Workflow
+## container pins (debian:trixie@sha256:... in lint.yml etc.) need
+## manual re-pinning; see agents/github-actions-security.md for
+## the procedure.
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 1
+    commit-message:
+      prefix: "ci(deps)"
+      include: scope
+    ## Bundle every action update into a single PR per cycle.
+    ## Without this, dependabot opens one PR per action and
+    ## 'open-pull-requests-limit: 1' silently drops the rest.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 1
+    commit-message:
+      prefix: "ci(deps)"
+      include: scope
+    groups:
+      docker:
+        patterns:
+          - "*"
