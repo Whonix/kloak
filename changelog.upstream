@@ -1,3 +1,21 @@
+commit af7f3822a5b938f6daa00524b64d27e4df505039
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat May 16 06:08:36 2026 -0400
+
+    add .github/dependabot.yml
+
+commit 530fa00b11b70d702ed65927c9b2a8705a90d414
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sat May 16 06:01:51 2026 -0400
+
+    update .github/workflows/consumer-claude-code.yml
+
+commit 0381e3c83e6104135b2859d6effaf0082a02bb4b
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Fri May 15 18:42:56 2026 +0000
+
+    bumped changelog version
+
 commit ae2665afce2cabc0949018fa65f4e59b93d52b76
 Merge: abe72d6 e202427
 Author: Patrick Schleizer <adrelanos@whonix.org>
