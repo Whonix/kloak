@@ -22,6 +22,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 set -o errtrace
+shopt -s inherit_errexit
+shopt -s shift_verbose
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"

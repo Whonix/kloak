@@ -12,7 +12,7 @@
 ## 1. Invoked by .clusterfuzzlite/build.sh inside the OSS-Fuzz
 ##    base-builder container. $SRC / $OUT / $CC / $CFLAGS /
 ##    $LIB_FUZZING_ENGINE are pre-set by the container. Build deps
-##    are pre-installed in the Dockerfile.
+##    are pre-installed by the Dockerfile.
 ##
 ## 2. Invoked by ci/cfuzz-run.sh on the host (no Docker, no
 ##    sanitizer-aware $CC). Picks sensible defaults: clang +
@@ -23,6 +23,8 @@ set -o errexit
 set -o nounset
 set -o pipefail
 set -o errtrace
+shopt -s inherit_errexit
+shopt -s shift_verbose
 
 ## Resolve repo root regardless of caller's cwd.
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -42,6 +44,23 @@ if [ -z "${CC:-}" ]; then
   CC="clang"
 fi
 if [ -z "${CFLAGS:-}" ]; then
+  ## TODO: Right now we rely on '-ftrapv' to cause any signed integer overflow
+  ## to crash the kloak process. kloak even goes so far as to use signed
+  ## arithmetic even in places where unsigned arithmetic would be more
+  ## intuitive, just so that it can get overflow protection "for free". We
+  ## can't use '-ftrapv' here though, as that would crash the process being
+  ## fuzzed. Without it, the fuzzer is finding many false positives. Is there
+  ## any easy way to tell the fuzzer to treat signed integer overflow as an
+  ## "immediately abort the current test run and consider it successful"
+  ## condition without crashing the process entirely, or do we need to do the
+  ## (probably very painful) work of explicitly checking for integer overflow
+  ## everywhere it can happen?
+  ##
+  ## Possibly better idea than checking for overflow before calculations;
+  ## code as if '-fwrapv' is being used? That is, do arithmetic that could
+  ## overflow, then check for overflow after the fact. We can then use
+  ## '-ftrapv' in production (crash on overflow), and '-fwrapv' for the
+  ## fuzzer. This is still painful, but not as painful as the alternative.
   CFLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=fuzzer-no-link,address,undefined"
 fi
 if [ -z "${LIB_FUZZING_ENGINE:-}" ]; then
@@ -62,7 +81,7 @@ for proto_pair in \
   "wlr-virtual-pointer-unstable-v1.xml:src/wlr-virtual-pointer" \
   "virtual-keyboard-unstable-v1.xml:src/virtual-keyboard" ; do
   xml="${proto_pair%%:*}"
-  base="${proto_pair##*:}"
+  base="${proto_pair#*:}"
   wayland-scanner client-header < "protocol/${xml}" > "${base}.h"
   wayland-scanner private-code  < "protocol/${xml}" > "${base}.c"
   PROTO_SRC+=("${base}.c")
