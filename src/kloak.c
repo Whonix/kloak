@@ -57,7 +57,7 @@
 #include "wlr-virtual-pointer.h"
 #include "virtual-keyboard.h"
 /*
- * wayland-scanner generates code that is generates warnings with -Wcast-qual
+ * wayland-scanner generates code that generates warnings with -Wcast-qual
  * for xdg-output-protocol.h and wlr-layer-shell.h.
  */
 #pragma GCC diagnostic push
@@ -738,7 +738,7 @@ static struct screen_local_coord abs_coord_to_screen_local_coord(int32_t x,
     cur_geom_width = state.output_geometries[i]->width;
     cur_geom_height = state.output_geometries[i]->height;
     if (cur_geom_x < 0 || cur_geom_y < 0 || cur_geom_width < 0
-      || cur_geom_height < 0 ) {
+      || cur_geom_height < 0) {
       continue;
     }
 
@@ -1851,7 +1851,7 @@ static struct input_packet * update_virtual_cursor(void) {
         if (trav_scr_coord.valid) {
           start.y = trav_coord.y - 1;
           start.x = trav_coord.x;
-          end.y = trav_coord.y -1;
+          end.y = trav_coord.y - 1;
           i = -1;
           continue;
         }
@@ -2331,7 +2331,7 @@ static void release_scheduled_input_events(void) {
       assert(packet->sched_time >= 0);
       if (packet->sched_time > UINT32_MAX) {
         fprintf(stderr,
-          "packet->sched_time overflowed maximum value. This is not an error, but kloak must be restarted. Exiting.");
+          "packet->sched_time overflowed maximum value. This is not an error, but kloak must be restarted. Exiting.\n");
         exit(0);
       }
       assert(state.pointer_space_x >= 0);
@@ -2352,7 +2352,7 @@ static void release_scheduled_input_events(void) {
       assert(packet->sched_time >= 0);
       if (packet->sched_time > UINT32_MAX) {
         fprintf(stderr,
-          "packet->sched_time overflowed maximum value. This is not an error, but kloak must be restarted. Exiting.");
+          "packet->sched_time overflowed maximum value. This is not an error, but kloak must be restarted. Exiting.\n");
         exit(0);
       }
       handle_libinput_event(packet->data.libinput.li_event,
@@ -2364,7 +2364,7 @@ static void release_scheduled_input_events(void) {
       assert(packet->sched_time >= 0);
       if (packet->sched_time > UINT32_MAX) {
         fprintf(stderr,
-          "packet->sched_time overflowed maximum value. This is not an error, but kloak must be restarted. Exiting.");
+          "packet->sched_time overflowed maximum value. This is not an error, but kloak must be restarted. Exiting.\n");
         exit(0);
       }
       if (packet->data.mousescroll.vert_scroll_ticks != 0) {
