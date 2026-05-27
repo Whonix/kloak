@@ -1,3 +1,22 @@
+commit cd3b329001774784df3d1d0abd3ebefeef3d3496
+Merge: 4a30fce 887064a
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Tue May 26 07:28:26 2026 -0400
+
+    Merge remote-tracking branch 'refs/remotes/ArrayBolt3/arraybolt3/trixie'
+
+commit 887064a6792c8ade690381c01542fb3ba59d4243
+Author: Aaron Rainbolt <arraybolt3@gmail.com>
+Date:   Tue May 26 00:41:47 2026 -0400
+
+    Typo fixes (mostly from GitHub Copilot)
+
+commit 4a30fcebef26261061e361e725e8c32d85fe3c7a
+Author: Patrick Schleizer <adrelanos@whonix.org>
+Date:   Sun May 24 19:12:10 2026 +0000
+
+    bumped changelog version
+
 commit af688e9e24d5e76fe7747250774fefd962475488
 Merge: 80c6e46 ca2d553
 Author: Patrick Schleizer <adrelanos@whonix.org>
