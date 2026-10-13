@@ -8,6 +8,8 @@ Documentation=man:kloak(8)
 ConditionPathExists=!/run/qubes/this-is-templatevm
 After=graphical.target
 After=sysmaint-boot.target
+StartLimitBurst=5
+StartLimitIntervalSec=30s
 
 [Service]
 Type=simple
