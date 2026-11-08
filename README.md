@@ -43,8 +43,8 @@ Debian:
 
 Fedora:
 
-Unknown currently. Refer to Debian dependency list and install equivalent packages on Fedora.
-
+    $ sudo dnf install make libevdev libevdev-devel libinput libinput-devel libwayland-client wayland-devel systemd-libs systemd-devel libxkbcommon libxkbcommon-devel pkgconf-pkg-config
+    
 To compile `kloak`, simply run:
 
     $ make all
