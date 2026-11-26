@@ -57,6 +57,11 @@ RestrictRealtime=true
 RestrictNamespaces=true
 SystemCallArchitectures=native
 SystemCallFilter=brk open poll close ioctl mmap munmap read pread64 getdents64 socket connect getsockopt epoll_create1 epoll_ctl rt_sigprocmask epoll_wait inotify_init1 access openat fstat prctl sendmsg recvmsg newfstatat unlink ftruncate fcntl timerfd_create statx readlinkat faccessat2 fstatfs inotify_add_watch timerfd_settime madvise sigaltstack rt_sigaction
+## arm64 has no open, poll, epoll_wait, access or unlink system calls. Its libc
+## calls openat, ppoll, epoll_pwait, faccessat and unlinkat instead. systemd
+## drops names unknown to the architecture, so without these kloak is killed
+## with SIGSYS on arm64. openat is already listed above.
+SystemCallFilter=faccessat ppoll epoll_pwait unlinkat
 
 [Install]
 WantedBy=graphical.target
